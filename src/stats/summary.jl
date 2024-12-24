@@ -1,10 +1,9 @@
 # src/stats/summary.jl
-using FFTW, Statistics
-
 """
 Compute summary statistics for time series data
 """
 module SummaryStats
+using FFTW, Statistics, DSP
 
 export comp_ac_fft, comp_psd, comp_cc
 

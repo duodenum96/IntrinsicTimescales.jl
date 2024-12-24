@@ -1,5 +1,6 @@
 # src/stats/distances.jl
 module Distances
+using Statistics
 export linear_distance, logarithmic_distance
 """
 Compute linear distance between autocorrelations
