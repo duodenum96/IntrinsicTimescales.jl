@@ -1,4 +1,5 @@
 # test/test_models.jl
+using Distributions
 @testset "Two Timescale Model" begin
     @testset "Parameter Generation" begin
         prior = [
@@ -28,7 +29,7 @@
         @test 0 ≤ theta[3] ≤ 1
         
         # Test data generation
-        data = generate_data(model, theta)
+        data = Models.generate_data(model, theta)
         @test size(data) == (10, 100)
         @test abs(mean(data) - model.data_mean) < 0.1
         @test abs(var(data) - model.data_var) < 0.1

@@ -4,6 +4,7 @@ authors = ["duodenum96 <catalyasir@gmail.com> and contributors"]
 version = "1.0.0-DEV"
 
 [deps]
+DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
@@ -13,6 +14,7 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
+DSP = "0.8.0"
 Distances = "0.10.12"
 Distributed = "1.11.0"
 Distributions = "0.25.115"
