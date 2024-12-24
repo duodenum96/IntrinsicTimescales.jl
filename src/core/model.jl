@@ -1,9 +1,13 @@
+module Models
+
+export AbstractTimescaleModel, BaseModel
+
 abstract type AbstractTimescaleModel end
 
 """
 Base model interface for ABC computations
 """
-struct Model{T,D,P} <: AbstractTimescaleModel
+struct BaseModel{T,D,P} <: AbstractTimescaleModel
     data::D
     prior::P
     data_sum_stats::T
@@ -23,3 +27,5 @@ function generate_data_and_reduce(model::AbstractTimescaleModel, theta)
     d = distance_function(model, sum_stats, model.data_sum_stats)
     return d
 end
+
+end # module

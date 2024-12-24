@@ -4,7 +4,7 @@ using Random, Distributions
 """
 Generate an OU process with a single timescale
 """
-function generate_ou_process_jl(
+function generate_ou_process(
     tau::Float64,
     D::Float64,
     deltaT::Float64,

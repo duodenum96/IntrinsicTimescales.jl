@@ -1,10 +1,13 @@
 # src/core/parallel.jl
-using Distributed
 
 """
 Parallel ABC implementation
 """
 module ParallelABC
+
+using Distributed
+using ..Models  # Use relative module path
+using ..ABC    # Assuming we have ABC module
 
 export parallel_basic_abc, combine_results
 
@@ -12,7 +15,7 @@ export parallel_basic_abc, combine_results
 Run ABC algorithm in parallel
 """
 function parallel_basic_abc(
-    model::AbstractTimescaleModel,
+    model::Models.AbstractTimescaleModel,
     n_procs::Int;
     samples_per_proc::Int,
     epsilon::Float64,
@@ -23,7 +26,7 @@ function parallel_basic_abc(
     
     # Run ABC on each worker
     results = @distributed (combine_results) for i in 1:n_procs
-        basic_abc(
+        ABC.basic_abc(
             model;
             min_samples=samples_per_proc,
             epsilon=epsilon,

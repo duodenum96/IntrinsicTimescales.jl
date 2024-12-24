@@ -1,4 +1,6 @@
 # src/stats/distances.jl
+module Distances
+export linear_distance, logarithmic_distance
 """
 Compute linear distance between autocorrelations
 """
@@ -12,3 +14,4 @@ Compute logarithmic distance between autocorrelations
 function logarithmic_distance(data::AbstractArray, synth_data::AbstractArray)
     return mean(abs2.(log.(data) .- log.(synth_data)))
 end
+end # module

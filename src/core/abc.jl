@@ -1,9 +1,15 @@
 # src/core/abc.jl
+module ABC
+
+using ..Models  # Use relative module path
+
+export basic_abc
+
 """
 Basic ABC rejection sampling algorithm
 """
 function basic_abc(
-    model::AbstractTimescaleModel;
+    model::Models.AbstractTimescaleModel;
     min_samples::Int,
     epsilon::Float64,
     max_iter::Int
@@ -12,8 +18,8 @@ function basic_abc(
     distances = Float64[]
     
     for i in 1:max_iter
-        theta = draw_theta(model)
-        d = generate_data_and_reduce(model, theta)
+        theta = Models.draw_theta(model)
+        d = Models.generate_data_and_reduce(model, theta)
         
         if d <= epsilon
             push!(accepted_samples, theta)
@@ -25,3 +31,5 @@ function basic_abc(
     
     return accepted_samples, distances
 end
+
+end # module

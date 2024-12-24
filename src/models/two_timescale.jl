@@ -1,5 +1,10 @@
 # src/models/two_timescale.jl
+module TwoTimescaleModels
+
+using ..Models
 using Distributions
+
+export TwoTimescaleModel
 
 """
 Two-timescale OU process model
@@ -17,17 +22,12 @@ struct TwoTimescaleModel <: AbstractTimescaleModel
     data_var::Float64
 end
 
-"""
-Draw parameters from prior distributions
-"""
-function draw_theta(model::TwoTimescaleModel)
+# Implementation of required methods
+function Models.draw_theta(model::TwoTimescaleModel)
     return [rand(p) for p in model.prior]
 end
 
-"""
-Generate synthetic data from model
-"""
-function generate_data(model::TwoTimescaleModel, theta)
+function Models.generate_data(model::TwoTimescaleModel, theta)
     tau1, tau2, coeff = theta
     
     # Generate first OU process
@@ -49,3 +49,13 @@ function generate_data(model::TwoTimescaleModel, theta)
     
     return ou_combined
 end
+
+function Models.summary_stats(model::TwoTimescaleModel, data)
+    # ... implementation ...
+end
+
+function Models.distance_function(model::TwoTimescaleModel, synth_stats, data_stats)
+    # ... implementation ...
+end
+
+end # module
