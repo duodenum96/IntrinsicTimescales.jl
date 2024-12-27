@@ -1,1 +1,4 @@
-style = "blue"
+style = "sciml"
+whitespace_in_kwargs = false
+whitespace_ops_in_indices = false
+yas_style_nesting = true
