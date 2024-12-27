@@ -1,4 +1,5 @@
 # test/test_ou_process.jl
+using Statistics
 @testset "OU Process Generation" begin
     @testset "Basic properties" begin
         tau = 20.0
