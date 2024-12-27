@@ -1,5 +1,7 @@
 module Models
 
+using Distributions
+
 export AbstractTimescaleModel, BaseModel
 
 abstract type AbstractTimescaleModel end
@@ -15,9 +17,36 @@ struct BaseModel{T,D,P} <: AbstractTimescaleModel
 end
 
 # Required methods that need to be implemented for each model
+"""
+    draw_theta(model::AbstractTimescaleModel)
+
+Draw parameters from prior distributions.
+Should return an array-like iterable of proposed model parameters.
+"""
 function draw_theta end
+
+"""
+    generate_data(model::AbstractTimescaleModel, theta)
+
+Generate synthetic data sets from forward model.
+Should return an array/matrix/table of simulated data.
+"""
 function generate_data end
+
+"""
+    summary_stats(model::AbstractTimescaleModel, data)
+
+Compute summary statistics from data.
+Should return an array-like iterable of summary statistics.
+"""
 function summary_stats end
+
+"""
+    distance_function(model::AbstractTimescaleModel, summary_stats, summary_stats_synth)
+
+Compute distance between summary statistics.
+Should return a distance D for comparing to the acceptance tolerance (epsilon).
+"""
 function distance_function end
 
 # Combined generation and reduction step
