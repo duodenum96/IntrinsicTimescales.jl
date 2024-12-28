@@ -64,8 +64,6 @@ function basic_abc(model::Models.AbstractTimescaleModel;
 end
 
 """
-    calc_weights(theta_prev, theta, tau_squared, weights, prior)
-
 Calculates importance weights for PMC-ABC algorithm.
 
 Parameters:
@@ -73,13 +71,18 @@ Parameters:
     theta: Current parameters
     tau_squared: Covariance matrix for proposal distribution
     weights: Previous importance weights
-    prior: Prior distribution
+    prior: Prior distribution(s)
 """
 function calc_weights(theta_prev::Union{Vector{Float64}, Matrix{Float64}}, 
                      theta::Union{Vector{Float64}, Matrix{Float64}},
                      tau_squared::Matrix{Float64},
                      weights::Vector{Float64},
-                     prior::Distribution)
+                     prior::Union{Vector, dist.Distribution})
+    
+    # Convert prior to Vector{Distribution} if it's a vector
+    if prior isa Vector
+        prior = convert(Vector{dist.Distribution}, prior)
+    end
     
     weights_new = zeros(length(weights))
     
@@ -224,7 +227,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel, data;
                             pmc_mode=false)
 
             theta = result.theta_accepted
-            tau_squared = 2 * cov(theta, dims=2)
+            tau_squared = 2 * cov(theta; dims=2)
             weights = fill(1.0/size(theta,2), size(theta,2))
             epsilon = sb.percentile(result.distances, 75)
 
