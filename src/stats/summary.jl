@@ -6,7 +6,7 @@ module SummaryStats
 using FFTW, Statistics
 import DSP as dsp
 
-export comp_ac_fft, comp_psd, comp_cc
+export comp_ac_fft, comp_psd, comp_cc, comp_ac_time
 
 """
 Compute autocorrelation using FFT
