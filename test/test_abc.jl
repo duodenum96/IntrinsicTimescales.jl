@@ -1,7 +1,11 @@
-# test/test_abc.jl
+using Test
 using Distributions
 using BayesianINT
-@testset "ABC Algorithm" begin
+using Statistics
+using StatsBase
+using LinearAlgebra
+
+@testset "ABC Module" begin
     @testset "Basic ABC" begin
         # Create simple test model
         prior = [Uniform(0.0, 10.0)]
@@ -16,7 +20,7 @@ using BayesianINT
         )
         
         # Run ABC
-        samples, distances = basic_abc(
+        result = ABC.basic_abc(
             model,
             min_samples=10,
             epsilon=1.0,
@@ -24,12 +28,57 @@ using BayesianINT
         )
         
         # Test basic properties
-        @test length(samples) ≥ 10
-        @test length(samples) == length(distances)
-        @test all(d -> d ≤ 1.0, distances)
+        @test length(result.theta_accepted) ≥ 10
+        @test length(result.distances) == length(result.theta_accepted)
+        @test all(d -> d ≤ 1.0, result.distances)
+        @test result.n_accepted ≥ 10
+        @test result.n_total ≤ 1000
     end
     
-    @testset "Parallel ABC" begin
+    @testset "Helper Functions" begin
+        @testset "Weighted Covariance" begin
+            # Test 1D case
+            x = [1.0, 2.0, 3.0]
+            w = [0.2, 0.3, 0.5]
+            var = ABC.weighted_covar(x, w)
+            @test var isa Float64
+            @test var > 0
+            
+            # Test 2D case
+            X = [1.0 2.0 3.0; 4.0 5.0 6.0]
+            covar = ABC.weighted_covar(X, w)
+            @test size(covar) == (2, 2)
+            @test issymmetric(covar)
+        end
+        
+        @testset "Effective Sample Size" begin
+            w = [0.2, 0.3, 0.5]
+            ess = ABC.effective_sample_size(w)
+            @test 1 ≤ ess ≤ length(w)
+            
+            # Equal weights should give maximum ESS
+            w_equal = fill(1/3, 3)
+            ess_equal = ABC.effective_sample_size(w_equal)
+            @test ess_equal ≈ 3.0
+        end
+        
+        @testset "Weight Calculation" begin
+            theta_prev = [1.0 2.0; 3.0 4.0]
+            theta = [1.5 2.5; 3.5 4.5]
+            tau_squared = [0.1 0.0; 0.0 0.1]
+            weights = [0.5, 0.5]
+            prior = [Uniform(0.0, 5.0), Uniform(0.0, 5.0)]
+            
+            new_weights = ABC.calc_weights(theta_prev, theta, tau_squared, weights, prior)
+            
+            @test length(new_weights) == size(theta, 2)
+            @test all(w -> 0 ≤ w ≤ 1, new_weights)
+            @test sum(new_weights) ≈ 1.0
+        end
+    end
+    
+    @testset "PMC ABC" begin
+        # Create simple test model
         prior = [Uniform(0.0, 10.0)]
         model = Models.BaseModel(
             randn(100),
@@ -38,20 +87,21 @@ using BayesianINT
             1.0
         )
         
-        # Run parallel ABC
-        results = parallel_basic_abc(
+        # Run PMC-ABC with minimal steps
+        results = ABC.pmc_abc(
             model,
-            2;  # use 2 processes
-            samples_per_proc=5,
-            epsilon=1.0,
-            max_iter=1000
+            model.data;
+            epsilon_0=1.0,
+            min_samples=10,
+            steps=2,
+            minAccRate=0.001
         )
         
-        samples, distances = results
-        
         # Test basic properties
-        @test length(samples) ≥ 10  # Should have at least 10 samples (5 per process)
-        @test length(samples) == length(distances)
-        @test all(d -> d ≤ 1.0, distances)
+        @test length(results) ≤ 2  # May stop early due to acceptance rate
+        @test length(results[1].theta_accepted) ≥ 10
+        @test results[1].epsilon ≥ results[end].epsilon  # Epsilon should decrease
+        @test all(r -> length(r.weights) == length(r.theta_accepted), results)
+        @test all(r -> r.eff_sample > 0, results)
     end
 end
