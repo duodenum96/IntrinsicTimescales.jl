@@ -57,4 +57,24 @@ function generate_data_and_reduce(model::AbstractTimescaleModel, theta)
     return d
 end
 
+# Add these implementations for BaseModel
+function draw_theta(model::BaseModel)
+    return [rand(p) for p in model.prior]
+end
+
+function generate_data(model::BaseModel, theta)
+    # For testing, just return the stored data
+    return model.data
+end
+
+function summary_stats(model::BaseModel, data)
+    # For testing, just return the stored summary stats
+    return model.data_sum_stats
+end
+
+function distance_function(model::BaseModel, sum_stats1, sum_stats2)
+    # Simple Euclidean distance for testing
+    return sqrt(sum((sum_stats1 .- sum_stats2).^2))
+end
+
 end # module
