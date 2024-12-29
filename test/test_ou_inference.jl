@@ -5,7 +5,7 @@ using Statistics
 
 @testset "OU Parameter Inference" begin
     # Generate synthetic data with known parameters
-    true_tau = 20.0
+    true_tau = 15.0
     true_D = 3.0
     deltaT = 0.01
     T = 100.0
@@ -16,7 +16,7 @@ using Statistics
     
     # Set up priors
     priors = [
-        Uniform(1.0, 10.0),  # tau prior
+        Uniform(1.0, 30.0),  # tau prior
     ]
     
     # Create model
@@ -30,13 +30,13 @@ using Statistics
         T,                 # T
         num_trials,        # numTrials
         mean(data),        # data_mean
-        var(data)          # data_var
+        std(data)          # data_var
     )
     
     # Run PMC-ABC
     results = pmc_abc(
         model;
-        epsilon_0=0.1,
+        epsilon_0=0.01,
         min_samples=100,
         steps=3,
         minAccRate=0.001,
