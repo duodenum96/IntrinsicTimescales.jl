@@ -4,6 +4,7 @@ using BayesianINT
 using Statistics
 using StatsBase
 using LinearAlgebra
+using Revise
 
 @testset "ABC Module" begin
     @testset "Basic ABC" begin
@@ -89,8 +90,7 @@ using LinearAlgebra
         
         # Run PMC-ABC with minimal steps
         results = ABC.pmc_abc(
-            model,
-            model.data;
+            model;
             epsilon_0=1.0,
             min_samples=10,
             steps=2,
