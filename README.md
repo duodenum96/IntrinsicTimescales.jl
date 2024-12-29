@@ -1,23 +1,27 @@
 # BayesianINT
 
 TODO: 
-Implement n_lags for ACF calculation throughout the codebase
+- Move OneTimescaleModel to models
 
-Implement "sciml" backend throughout the codebase and test
+- Move OU generation to utils
 
-Benchmarking
+- Implement n_lags for ACF calculation throughout the codebase
 
-Add multiple chains to ABC
+- Implement "sciml" backend throughout the codebase and test
 
-Implement Turing backend for Bayesian inference
+- Benchmarking
 
-Implement model comparison functionality
+- Add multiple chains to ABC
 
-Add preprocessing utilities
+- Implement Turing backend for Bayesian inference
 
-Add visualization tools
+- Implement model comparison functionality
 
-Create documentation
+- Add preprocessing utilities
+
+- Add visualization tools
+
+- Create documentation
 
 
 [![Build Status](https://github.com/duodenum96/BayesianINT.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/duodenum96/BayesianINT.jl/actions/workflows/CI.yml?query=branch%3Amaster)
