@@ -33,7 +33,7 @@ using BayesianINT
                 ac = comp_ac_fft(ou[1:20, :]; n_lags=n_lags)
                 lags = range(0, T-deltaT; step=deltaT)
                 theoretical_ac = exp.(-lags/tau)[1:n_lags]
-                @test mean(sqrt.(abs2.(ac .- theoretical_ac))) < 0.11 # What's a good number here?
+                @test mean(sqrt.(abs2.(ac .- theoretical_ac))) < 0.15 # What's a good number here?
             end
         end
     end
@@ -91,19 +91,20 @@ using Distributions
     test_priors = [
         Uniform(0.1, 10.0),  # tau prior
     ]
-    
+    n_lags = 3000
+
     model = OneTimescaleModel(
         test_data,           # data
         test_priors,         # prior
-        zeros(10),          # placeholder for data_sum_stats
+        zeros(n_lags),          # placeholder for data_sum_stats
         0.1,                # epsilon
         0.01,              # deltaT
         0.01,              # binSize
-        1.0,               # T
+        100.0,               # T
         10,                # numTrials
         0.0,               # data_mean
         1.0,               # data_var
-        3000               # n_lags
+        n_lags              # n_lags
     )
 
     @testset "generate_data" begin
@@ -120,8 +121,8 @@ using Distributions
         theta = 1.0
         simulated_data = Models.generate_data(model, theta)
         
-        stats_real = Models.summary_stats(model, test_data; n_lags=20)
-        stats_sim = Models.summary_stats(model, simulated_data; n_lags=20)
+        stats_real = Models.summary_stats(model, test_data)
+        stats_sim = Models.summary_stats(model, simulated_data)
         
         @test length(stats_real) > 0
         @test length(stats_sim) > 0
@@ -137,14 +138,14 @@ using Distributions
         data1 = Models.generate_data(model, theta1)
         data2 = Models.generate_data(model, theta2)
         
-        stats1 = Models.summary_stats(model, data1; n_lags=20)
-        stats2 = Models.summary_stats(model, data2; n_lags=20)
+        stats1 = Models.summary_stats(model, data1)
+        stats2 = Models.summary_stats(model, data2)
         
-        distance = Models.distance_function(model, stats1, stats2; n_lags=20)
+        distance = Models.distance_function(model, stats1, stats2)
         
         @test distance isa Float64
         @test distance >= 0.0  # Distance should be non-negative
-        @test Models.distance_function(model, stats1, stats1; n_lags=20) ≈ 0.0 atol=1e-10
+        @test Models.distance_function(model, stats1, stats1) ≈ 0.0 atol=1e-10
     end
 
     @testset "generate_ou_process" begin

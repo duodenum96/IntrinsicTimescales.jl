@@ -13,7 +13,7 @@ export comp_ac_fft, comp_psd, comp_cc, comp_ac_time
 """
 Compute autocorrelation using FFT
 """
-function comp_ac_fft(data::AbstractMatrix; n_lags::Int=size(data, 1))
+function comp_ac_fft(data::AbstractMatrix; n_lags::Int=size(data, 2))
     ac = bat_autocorr(data)
 
     return mean(ac; dims=1)[1:n_lags][:]
