@@ -181,6 +181,7 @@ function effective_sample_size(w::Vector{Float64})
     return sumw*sumw/sum2
 end
 
+# TODO: Implement parallelism
 """
 pmc_abc(model, data, inter_save_direc, inter_filename; 
         epsilon_0=1.0, min_samples=10, steps=10, resume=nothing, 

@@ -21,7 +21,6 @@ Bayesian inference doesn't have to deal with it.
 - `T::Float64`: Total time length
 - `num_trials::Int64`: Number of trials/trajectories to generate
 - `backend::String`: Backend to use. Must be 'vanilla' or 'sciml'.
-- `parallel::Bool`: Whether to use parallelization. Only works with 'sciml' backend.
 
 # Returns
 - Matrix{Float64}: Generated OU process data with dimensions (num_trials, num_timesteps)
@@ -33,12 +32,11 @@ function generate_ou_process(tau::Union{Float64, Vector{Float64}},
                             deltaT::Float64,
                             T::Float64,
                             num_trials::Int64;
-                            backend::String="sciml",
-                            parallel::Bool=false)
+                            backend::String="sciml")
     if backend == "vanilla"
         return generate_ou_process_vanilla(tau, true_D, deltaT, T, num_trials)
     elseif backend == "sciml"
-        return generate_ou_process_sciml(tau, true_D, deltaT, T, num_trials, parallel)
+        return generate_ou_process_sciml(tau, true_D, deltaT, T, num_trials)
     else
         error("Invalid backend: $backend. Must be 'vanilla' or 'sciml'.")
     end
@@ -53,7 +51,6 @@ function generate_ou_process_sciml(
     deltaT::Float64,
     T::Float64,
     num_trials::Int64,
-    parallel::Bool=false
 )
     f = (du, u, p, t) -> du .= -u ./ p[1]
     g = (du, u, p, t) -> du .= 1.0 # Handle the variance below
@@ -111,22 +108,22 @@ struct OneTimescaleModel <: AbstractTimescaleModel
     numTrials::Int
     data_mean::Float64
     data_var::Float64
+    n_lags::Int
 end
 
 # Implementation of required methods
 
 function Models.generate_data(model::OneTimescaleModel, theta)
     tau = theta
-    return generate_ou_process(tau, model.data_var, model.deltaT, model.T, model.numTrials; backend="sciml", parallel=false)
+    return generate_ou_process(tau, model.data_var, model.deltaT, model.T, model.numTrials; backend="sciml")
 end
 
-function Models.summary_stats(model::OneTimescaleModel, data; n_lags=3000)
-    return comp_ac_fft(data; n_lags=n_lags)
+function Models.summary_stats(model::OneTimescaleModel, data)
+    return comp_ac_fft(data; n_lags=model.n_lags)
 end
 
-function Models.distance_function(model::OneTimescaleModel, sum_stats, data_sum_stats; n_lags=3000)
-    # TODO: Implement n_lags throughout the codebase
-    return linear_distance(sum_stats[1:n_lags], data_sum_stats[1:n_lags])
+function Models.distance_function(model::OneTimescaleModel, sum_stats, data_sum_stats)
+    return linear_distance(sum_stats, data_sum_stats)
 end
 
 end # module OrnsteinUhlenbeck

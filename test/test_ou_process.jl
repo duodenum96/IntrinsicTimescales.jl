@@ -80,21 +80,6 @@ using BayesianINT
 
     # Test invalid backend
     @test_throws ErrorException generate_ou_process(0.5, 2.0, 0.001, 10.0, 100, backend="invalid")
-
-    # Test parallel execution for SciML
-    @testset "Parallel execution" begin
-        tau = 0.5
-        D = 2.0
-        deltaT = 0.001
-        T = 10.0
-        num_trials = 100
-        
-        ou_parallel = generate_ou_process(tau, D, deltaT, T, num_trials, backend="sciml", parallel=true)
-        ou_serial = generate_ou_process(tau, D, deltaT, T, num_trials, backend="sciml", parallel=false)
-        
-        @test size(ou_parallel) == size(ou_serial)
-        @test abs(mean(ou_parallel) - mean(ou_serial)) < 0.1
-    end
 end
 
 using Test
