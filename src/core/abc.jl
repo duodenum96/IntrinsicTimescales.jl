@@ -223,11 +223,11 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
     output_record = Vector{NamedTuple}(undef, steps)
     epsilon = epsilon_0
 
-    for step in 1:steps
-        println("Starting step $(step)")
+    for i_step in 1:steps
+        println("Starting step $(i_step)")
         println("epsilon = $(epsilon)")
 
-        if step == 1  # First ABC calculation
+        if i_step == 1  # First ABC calculation
             result = basic_abc(model, min_samples=min_samples,
                             epsilon=epsilon,
                             max_iter=max_iter,
@@ -238,7 +238,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             epsilon = sb.percentile(result.distances, 75)
             eff_sample = effective_sample_size(weights)
 
-            output_record[step] = (
+            output_record[i_step] = (
                 theta_accepted=theta,
                 D_accepted=result.distances,
                 n_accepted=result.n_accepted,
@@ -250,9 +250,9 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             )
 
         else
-            theta_prev = output_record[step-1].theta_accepted
-            weights_prev = output_record[step-1].weights
-            tau_squared = output_record[step-1].tau_squared
+            theta_prev = output_record[i_step-1].theta_accepted
+            weights_prev = output_record[i_step-1].weights
+            tau_squared = output_record[i_step-1].tau_squared
 
             result = basic_abc(model, min_samples=min_samples,
                             epsilon=epsilon,
@@ -275,7 +275,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                 tau_squared = 2 * weighted_covar(theta, weights)
             end
 
-            output_record[step] = (
+            output_record[i_step] = (
                 theta_accepted=theta,
                 D_accepted=result.distances,
                 n_accepted=result.n_accepted,
@@ -287,8 +287,8 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             )
         end
 
-        n_accept = output_record[step].n_accepted
-        n_tot = output_record[step].n_total
+        n_accept = output_record[i_step].n_accepted
+        n_tot = output_record[i_step].n_total
         accept_rate = n_accept/n_tot
         println("Acceptance Rate = $(accept_rate)")
         println("--------------------")
@@ -296,7 +296,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
         if accept_rate < minAccRate
             println("epsilon = $(epsilon)")
             println("Acceptance Rate = $(accept_rate)")
-            return output_record[1:step]
+            return output_record[1:i_step]
         end
     end
 
