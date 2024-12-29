@@ -11,7 +11,7 @@ export comp_ac_fft, comp_psd, comp_cc, comp_ac_time
 """
 Compute autocorrelation using FFT
 """
-function comp_ac_fft(data::AbstractMatrix)
+function comp_ac_fft(data::AbstractMatrix; normalize::Bool=true)
     n = size(data, 2)
     xp = data .- mean(data; dims=2)
 
@@ -28,7 +28,7 @@ function comp_ac_fft(data::AbstractMatrix)
     ac_all = real.(p_i)[:, 1:(n-1)] ./ range(n - 1, 1; step=-1)'
     ac = mean(ac_all; dims=1)[:]
 
-    return ac ./ maximum(ac)
+    return normalize ? ac ./ maximum(ac) : ac
 end
 
 """
@@ -56,7 +56,6 @@ function comp_psd(x,
                   window::Function=dsp.hamming,
                   n=div(length(x), 8),
                   noverlap=div(n, 2))
-
     if method == "periodogram"
         psd = dsp.periodogram(x; fs=fs, window=window)
     elseif method == "welch"
@@ -92,9 +91,10 @@ end
 
 function comp_ac_time(data::AbstractMatrix,
                       max_lag::Int,
-                      num_bin::Int)
+                      num_bin::Int,
+                      normalize::Bool=true)
     cc_mean = comp_cc(data, data, max_lag, num_bin)
-    return cc_mean ./ maximum(cc_mean)
+    return normalize ? cc_mean ./ maximum(cc_mean) : cc_mean
 end
 
 end # module
