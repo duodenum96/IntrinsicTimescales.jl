@@ -6,30 +6,17 @@ module SummaryStats
 using FFTW, Statistics
 import DSP as dsp
 import StatsBase as sb
+include("bat_autocor.jl")
 
 export comp_ac_fft, comp_psd, comp_cc, comp_ac_time
 
 """
 Compute autocorrelation using FFT
 """
-function comp_ac_fft(data::AbstractMatrix; normalize::Bool=true, n_lags::Int=3000)
-    n = size(data, 2)
-    xp = data .- mean(data; dims=2)
+function comp_ac_fft(data::AbstractMatrix; n_lags::Int=size(data, 1))
+    ac = bat_autocorr(data)
 
-    # Zero padding
-    xp = hcat(xp, zeros(size(xp)))
-    xp = hcat(zeros(size(xp)), xp)
-
-    # FFT computation
-    f = fft(xp, 2)
-    p = abs2.(f)
-    p_i = ifft(p, 2)
-
-    # Extract real part and normalize
-    ac_all = real.(p_i)[:, 1:(n-1)] ./ range(n - 1, 1; step=-1)'
-    ac = mean(ac_all; dims=1)[:][1:n_lags]
-
-    return normalize ? ac ./ maximum(ac) : ac
+    return mean(ac; dims=1)[1:n_lags][:]
 end
 
 """
