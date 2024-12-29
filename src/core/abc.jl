@@ -1,6 +1,7 @@
 # src/core/abc.jl
 module ABC
 
+using Infiltrator
 using ..Models
 using Statistics
 import Distributions as dist
@@ -19,12 +20,15 @@ function basic_abc(model::Models.AbstractTimescaleModel;
                    weights=nothing,
                    theta_prev=nothing,
                    tau_squared=nothing)
-    accepted_samples = []
-    distances = Float64[]
+    
+    n_theta = length(model.prior)
+    samples = zeros(n_theta, max_iter)
+    isaccepted = zeros(max_iter)
+    distances = zeros(max_iter)
     accepted_count = 0
     trial_count = 0
 
-    while length(accepted_samples) < min_samples && trial_count < max_iter
+    while (trial_count < max_iter)
         trial_count += 1
 
         # Draw from prior or proposal
@@ -41,26 +45,29 @@ function basic_abc(model::Models.AbstractTimescaleModel;
 
         # Generate data and compute distance
         d = Models.generate_data_and_reduce(model, theta)
+        samples[:, trial_count] = theta
+        distances[trial_count] = d
 
         if d <= epsilon
             accepted_count += 1
-            push!(accepted_samples, theta)
-            push!(distances, d)
+            isaccepted[trial_count] = 1
         end
-    end
+    end # while 
+    theta_accepted = samples[:, isaccepted .== 1]
+    weights = ones(length(theta_accepted))
+    tau_squared = zeros(length(theta_accepted), length(theta_accepted))
+    eff_sample = length(theta_accepted)
 
-    weights = ones(length(accepted_samples))
-    tau_squared = zeros(length(accepted_samples), length(accepted_samples))
-    eff_sample = length(accepted_samples)
-
-    return (theta_accepted=accepted_samples,
+    return (samples=samples,
+            isaccepted=isaccepted,
+            theta_accepted=theta_accepted,
             distances=distances,
             n_accepted=accepted_count,
             n_total=trial_count,
             epsilon=epsilon,
             weights=weights,
             tau_squared=tau_squared,
-            eff_sample=length(accepted_samples))
+            eff_sample=eff_sample)
 end
 
 """
@@ -84,7 +91,7 @@ function calc_weights(theta_prev::Union{Vector{Float64}, Matrix{Float64}},
         prior = convert(Vector{dist.Distribution}, prior)
     end
     
-    weights_new = zeros(length(weights))
+    weights_new = zeros(size(theta, 2))
     
     if length(size(theta)) == 1
         # Case for single parameter vector
@@ -208,9 +215,9 @@ A record array containing ABC output for each step with fields:
 - `tau_squared`: Gaussian kernel variances (array of 0s if not in PMC mode)
 - `eff sample`: Effective sample size (array of 1s if not in PMC mode)
 """
-function pmc_abc(model::Models.AbstractTimescaleModel, data;
+function pmc_abc(model::Models.AbstractTimescaleModel;
                 epsilon_0::Float64=1.0, min_samples::Int=10, steps::Int=10,
-                sample_only::Bool=false, minError::Float64=0.0001, minAccRate::Float64=0.0001)
+                sample_only::Bool=false, max_iter::Int=10000, minAccRate::Float64=0.0001)
 
     # Initialize output record structure 
     output_record = Vector{NamedTuple}(undef, steps)
@@ -223,13 +230,13 @@ function pmc_abc(model::Models.AbstractTimescaleModel, data;
         if step == 1  # First ABC calculation
             result = basic_abc(model, min_samples=min_samples,
                             epsilon=epsilon,
-                            max_iter=10000,
+                            max_iter=max_iter,
                             pmc_mode=false)
-
             theta = result.theta_accepted
             tau_squared = 2 * cov(theta; dims=2)
-            weights = fill(1.0/size(theta,2), size(theta,2))
+            weights = fill(1.0/size(theta, 2), size(theta,2))
             epsilon = sb.percentile(result.distances, 75)
+            eff_sample = effective_sample_size(weights)
 
             output_record[step] = (
                 theta_accepted=theta,
@@ -239,7 +246,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel, data;
                 epsilon=epsilon,
                 weights=weights,
                 tau_squared=tau_squared,
-                eff_sample=length(result.distances)
+                eff_sample=eff_sample
             )
 
         else
@@ -249,7 +256,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel, data;
 
             result = basic_abc(model, min_samples=min_samples,
                             epsilon=epsilon,
-                            max_iter=10000,
+                            max_iter=max_iter,
                             pmc_mode=true,
                             weights=weights_prev,
                             theta_prev=theta_prev,
@@ -283,12 +290,12 @@ function pmc_abc(model::Models.AbstractTimescaleModel, data;
         n_accept = output_record[step].n_accepted
         n_tot = output_record[step].n_total
         accept_rate = n_accept/n_tot
-        println("acceptance Rate = $(accept_rate)")
+        println("Acceptance Rate = $(accept_rate)")
         println("--------------------")
 
         if accept_rate < minAccRate
             println("epsilon = $(epsilon)")
-            println("acceptance Rate = $(accept_rate)")
+            println("Acceptance Rate = $(accept_rate)")
             return output_record[1:step]
         end
     end
@@ -297,3 +304,41 @@ function pmc_abc(model::Models.AbstractTimescaleModel, data;
 end
 
 end # module
+
+"""
+TODO: Implement multiple chains
+TODO: Implement Rubin-Gelman statistic rhat
+    gelman_rubin(chains::Matrix{Float64})
+
+Calculate the Gelman-Rubin convergence diagnostic (R̂) for multiple chains.
+
+# Arguments
+- `chains`: Matrix where each row is a chain and each column is a sample
+
+# Returns
+- Float64: R̂ statistic. Values close to 1.0 indicate convergence
+
+function gelman_rubin(chains::Matrix{Float64})
+    n = size(chains, 2)  # number of samples per chain
+    m = size(chains, 1)  # number of chains
+    
+    # Calculate chain means
+    chain_means = mean(chains, dims=2)
+    overall_mean = mean(chain_means)
+    
+    # Between-chain variance
+    B = n * var(chain_means)
+    
+    # Within-chain variance
+    W = mean([var(chain) for chain in eachrow(chains)])
+    
+    # Weighted average of W and B
+    var_plus = ((n - 1) * W / n + B / n)
+    
+    # Calculate R̂
+    R̂ = sqrt(var_plus / W)
+    
+    return R̂
+end
+
+"""
