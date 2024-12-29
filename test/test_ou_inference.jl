@@ -30,7 +30,8 @@ using Statistics
         T,                 # T
         num_trials,        # numTrials
         mean(data),        # data_mean
-        std(data)          # data_var
+        std(data),         # data_var
+        n_lags=size(data, 2)
     )
     
     # Run PMC-ABC

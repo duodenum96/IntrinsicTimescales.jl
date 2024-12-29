@@ -117,7 +117,8 @@ using Distributions
         1.0,               # T
         10,                # numTrials
         0.0,               # data_mean
-        1.0                # data_var
+        1.0,               # data_var
+        3000               # n_lags
     )
 
     @testset "generate_data" begin
