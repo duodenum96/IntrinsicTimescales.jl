@@ -5,13 +5,14 @@ Compute summary statistics for time series data
 module SummaryStats
 using FFTW, Statistics
 import DSP as dsp
+import StatsBase as sb
 
 export comp_ac_fft, comp_psd, comp_cc, comp_ac_time
 
 """
 Compute autocorrelation using FFT
 """
-function comp_ac_fft(data::AbstractMatrix; normalize::Bool=true)
+function comp_ac_fft(data::AbstractMatrix; normalize::Bool=true, n_lags::Int=3000)
     n = size(data, 2)
     xp = data .- mean(data; dims=2)
 
@@ -26,7 +27,7 @@ function comp_ac_fft(data::AbstractMatrix; normalize::Bool=true)
 
     # Extract real part and normalize
     ac_all = real.(p_i)[:, 1:(n-1)] ./ range(n - 1, 1; step=-1)'
-    ac = mean(ac_all; dims=1)[:]
+    ac = mean(ac_all; dims=1)[:][1:n_lags]
 
     return normalize ? ac ./ maximum(ac) : ac
 end
@@ -91,10 +92,15 @@ end
 
 function comp_ac_time(data::AbstractMatrix,
                       max_lag::Int,
-                      num_bin::Int,
-                      normalize::Bool=true)
-    cc_mean = comp_cc(data, data, max_lag, num_bin)
-    return normalize ? cc_mean ./ maximum(cc_mean) : cc_mean
+                      num_bin::Int)
+    
+    n_trials = size(data, 1)
+    cc = zeros(n_trials, max_lag + 1)
+    for trial in 1:n_trials
+        cc[trial, :] = sb.autocor(data[trial, :], max_lag, num_bin)
+    end
+    cc_mean = mean(cc; dims=1)[:][1:max_lag+1]
+    return cc_mean
 end
 
 end # module
