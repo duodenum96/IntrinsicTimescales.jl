@@ -8,4 +8,5 @@ using Test
     include("test_distances.jl")
     include("test_models.jl")
     include("test_abc.jl")
+    include("test_ou_inference.jl")
 end
