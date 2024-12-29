@@ -1,5 +1,6 @@
 module BayesianINT
 
+using Revise
 using Reexport
 using Statistics
 using Distributions
@@ -24,12 +25,15 @@ include("stats/distances.jl")
 
 include("models/ou_process.jl")
 include("models/two_timescale.jl")
+@reexport using .OrnsteinUhlenbeck
 @reexport using .TwoTimescaleModels
 
 export AbstractTimescaleModel,
        BaseModel,
        generate_ou_process,
        linear_distance,
-       logarithmic_distance
+       logarithmic_distance,
+       OneTimescaleModel,
+       TwoTimescaleModel
 
 end # module
