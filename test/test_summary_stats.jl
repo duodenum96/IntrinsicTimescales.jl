@@ -10,7 +10,7 @@ using BayesianINT
         signal = sin.(t)
         data = reshape(signal, 1, :)
 
-        ac = comp_ac_fft(data; n_lags=20)
+        ac = comp_ac_fft(data; n_lags=100)
 
         # Test basic properties
         @test length(ac) == length(signal) - 1
@@ -59,8 +59,8 @@ using BayesianINT
         signal = sin.(t)
         data = reshape(signal, 1, :)
 
-        ac = comp_ac_fft(data; n_lags=max_lag+1)
-        cc = comp_ac_time(data, max_lag)
-        @test maximum(abs.(cc - ac[1:max_lag+1])) < 0.1
+        ac = comp_ac_fft(data; n_lags=length(t)-1)
+        cc = comp_ac_time(data, length(t)-2)
+        @test maximum(abs.(cc[1:50] - ac[1:50])) < 0.1 # This irks me. Isn't 0.05 too high?
     end
 end
