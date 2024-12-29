@@ -57,10 +57,12 @@ function generate_data_and_reduce(model::AbstractTimescaleModel, theta)
     return d
 end
 
-# Add these implementations for BaseModel
-function draw_theta(model::BaseModel)
+# General method for drawing parameters from prior distributions
+function draw_theta(model::AbstractTimescaleModel)
     return [rand(p) for p in model.prior]
 end
+
+# Add these implementations for BaseModel
 
 function generate_data(model::BaseModel, theta)
     # For testing, just return the stored data
