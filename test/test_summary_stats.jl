@@ -1,5 +1,8 @@
 # test/test_summary_stats.jl
 using Statistics
+using Test
+using BayesianINT
+
 @testset "Summary Statistics" begin
     @testset "Autocorrelation FFT" begin
         # Generate simple test signal
@@ -7,7 +10,7 @@ using Statistics
         signal = sin.(t)
         data = reshape(signal, 1, :)
 
-        ac = comp_ac_fft(data)
+        ac = comp_ac_fft(data; n_lags=20)
 
         # Test basic properties
         @test length(ac) == length(signal) - 1
@@ -56,8 +59,8 @@ using Statistics
         signal = sin.(t)
         data = reshape(signal, 1, :)
 
-        ac = comp_ac_fft(data)
-        cc = comp_ac_time(data, max_lag, 100)
+        ac = comp_ac_fft(data; n_lags=max_lag+1)
+        cc = comp_ac_time(data, max_lag)
         @test maximum(abs.(cc - ac[1:max_lag+1])) < 0.1
     end
 end

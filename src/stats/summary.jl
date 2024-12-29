@@ -91,15 +91,15 @@ function comp_cc(data1::AbstractMatrix,
 end
 
 function comp_ac_time(data::AbstractMatrix,
-                      max_lag::Int,
-                      num_bin::Int)
+                      max_lag::Int)
     
+    lags = 0:max_lag
     n_trials = size(data, 1)
     cc = zeros(n_trials, max_lag + 1)
     for trial in 1:n_trials
-        cc[trial, :] = sb.autocor(data[trial, :], max_lag, num_bin)
+        cc[trial, :] = sb.autocor(data[trial, :], lags)
     end
-    cc_mean = mean(cc; dims=1)[:][1:max_lag+1]
+    cc_mean = mean(cc; dims=1)[:]
     return cc_mean
 end
 
