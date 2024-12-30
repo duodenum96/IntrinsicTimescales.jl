@@ -3,7 +3,7 @@ using BayesianINT
 using Distributions
 
 # Set up parameters
-deltaT = 1.0
+dt = 1.0
 T = 1000.0
 num_trials = 500
 bin_size = 1.0
@@ -18,11 +18,11 @@ prior = [
 # Generate some synthetic data for testing
 true_params = [20.0, 80.0, 0.4]
 model = TwoTimescaleModel(
-    randn(num_trials, Int(T/deltaT)), # placeholder data
+    randn(num_trials, Int(T/dt)), # placeholder data
     prior,
     Float64[], # will be computed
     1.0,      # epsilon
-    deltaT,
+    dt,
     bin_size,
     T,
     num_trials,

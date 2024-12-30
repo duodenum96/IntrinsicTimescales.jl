@@ -13,7 +13,7 @@ using Distributions
             prior,
             zeros(10),      # dummy summary stats
             1.0,            # epsilon
-            1.0,            # deltaT
+            1.0,            # dt
             1.0,            # binSize
             100.0,          # T
             10,             # numTrials

@@ -15,7 +15,7 @@ struct TwoTimescaleModel <: AbstractTimescaleModel
     prior::Vector{Distribution}
     data_sum_stats::Vector{Float64}
     epsilon::Float64
-    deltaT::Float64
+    dt::Float64
     binSize::Float64
     T::Float64
     numTrials::Int
@@ -34,12 +34,12 @@ function Models.generate_data(model::TwoTimescaleModel, theta)
     # Generate first OU process
     v1 = 1.0
     D1 = v1/tau1
-    ou1 = generate_ou_process(tau1, D1, model.deltaT, model.T, model.numTrials)
+    ou1 = generate_ou_process(tau1, D1, model.dt, model.T, model.numTrials)
     
     # Generate second OU process
     v2 = 1.0
     D2 = v2/tau2
-    ou2 = generate_ou_process(tau2, D2, model.deltaT, model.T, model.numTrials)
+    ou2 = generate_ou_process(tau2, D2, model.dt, model.T, model.numTrials)
     
     # Combine processes
     ou_combined = sqrt(coeff) * ou1 + sqrt(1-coeff) * ou2

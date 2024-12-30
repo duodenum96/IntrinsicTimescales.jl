@@ -17,7 +17,7 @@ struct OneTimescaleModel <: AbstractTimescaleModel
     prior::Vector{Distribution}
     data_sum_stats::Vector{Float64}
     epsilon::Float64
-    deltaT::Float64
+    dt::Float64
     binSize::Float64
     T::Float64
     numTrials::Int
@@ -29,7 +29,7 @@ end
 # Implementation of required methods
 function Models.generate_data(model::OneTimescaleModel, theta)
     tau = theta
-    return generate_ou_process(tau, model.data_var, model.deltaT, model.T, model.numTrials; backend="sciml")
+    return generate_ou_process(tau, model.data_var, model.dt, model.T, model.numTrials; backend="sciml")
 end
 
 function Models.summary_stats(model::OneTimescaleModel, data)

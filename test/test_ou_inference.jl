@@ -7,13 +7,13 @@ using Statistics
     # Generate synthetic data with known parameters
     true_tau = 15.0
     true_D = 3.0
-    deltaT = 0.01
+    dt = 0.01
     T = 100.0
     num_trials = 10
     n_lags = 3000
     
     # Generate synthetic data
-    data = generate_ou_process(true_tau, true_D, deltaT, T, num_trials)
+    data = generate_ou_process(true_tau, true_D, dt, T, num_trials)
     
     # Set up priors
     priors = [
@@ -27,8 +27,8 @@ using Statistics
         priors,            # prior
         data_acf,          # data_sum_stats
         1.0,               # epsilon
-        deltaT,            # deltaT
-        deltaT,            # binSize
+        dt,            # dt
+        dt,            # binSize
         T,                 # T
         num_trials,        # numTrials
         mean(data),        # data_mean

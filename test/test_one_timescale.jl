@@ -18,7 +18,7 @@ using BayesianINT.Models
         test_priors,         # prior
         zeros(n_lags),       # placeholder for data_sum_stats
         0.1,                 # epsilon
-        0.01,               # deltaT
+        0.01,               # dt
         0.01,               # binSize
         100.0,              # T
         10,                 # numTrials
@@ -39,7 +39,7 @@ using BayesianINT.Models
         theta = 1.0  # test parameter (tau)
         simulated_data = Models.generate_data(model, theta)
         
-        @test size(simulated_data) == (model.numTrials, Int(model.T/model.deltaT))
+        @test size(simulated_data) == (model.numTrials, Int(model.T/model.dt))
         @test !any(isnan, simulated_data)
         @test !any(isinf, simulated_data)
         

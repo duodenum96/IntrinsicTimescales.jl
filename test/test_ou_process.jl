@@ -10,15 +10,15 @@ using BayesianINT
             @testset "$backend backend" begin
                 tau = 0.5
                 D = 2.0
-                deltaT = 0.001
+                dt = 0.001
                 T = 10.0
                 num_trials = 100
                 n_lags = 3000
                 
-                ou = generate_ou_process(tau, D, deltaT, T, num_trials, backend=backend)
+                ou = generate_ou_process(tau, D, dt, T, num_trials, backend=backend)
 
                 # Test dimensions
-                @test size(ou) == (num_trials, Int(T/deltaT))
+                @test size(ou) == (num_trials, Int(T/dt))
                 
                 # Test mean and variance
                 @test mean(mean(ou, dims=2)) < 0.1  # Should be close to 0
@@ -26,12 +26,12 @@ using BayesianINT
                 
                 # Test autocorrelation
                 ac = mean([cor(@view(ou[i,1:end-1]), @view(ou[i,2:end])) for i in 1:num_trials])
-                theoretical_ac = exp(-deltaT/tau)
+                theoretical_ac = exp(-dt/tau)
                 @test mean(abs.(ac .- theoretical_ac)) < 0.1
 
                 # Whole ACF f'n
                 ac = comp_ac_fft(ou[1:20, :]; n_lags=n_lags)
-                lags = range(0, T-deltaT; step=deltaT)
+                lags = range(0, T-dt; step=dt)
                 theoretical_ac = exp.(-lags/tau)[1:n_lags]
                 @test mean(sqrt.(abs2.(ac .- theoretical_ac))) < 0.15 # What's a good number here?
             end
@@ -57,13 +57,13 @@ using BayesianINT
     @testset "Backend comparison" begin
         tau = 0.5
         D = 2.0
-        deltaT = 0.001
+        dt = 0.001
         T = 10.0  # Reduced from 1000.0 for faster testing
         num_trials = 100
         
         # Generate data with both backends
-        ou_vanilla = generate_ou_process(tau, D, deltaT, T, num_trials, backend="vanilla")
-        ou_sciml = generate_ou_process(tau, D, deltaT, T, num_trials, backend="sciml")
+        ou_vanilla = generate_ou_process(tau, D, dt, T, num_trials, backend="vanilla")
+        ou_sciml = generate_ou_process(tau, D, dt, T, num_trials, backend="sciml")
 
         # Test dimensions match
         @test size(ou_vanilla) == size(ou_sciml)
