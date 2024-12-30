@@ -1,4 +1,5 @@
 # src/core/abc.jl
+# TODO: Overall cleanup
 module ABC
 
 using Infiltrator
@@ -13,27 +14,25 @@ export basic_abc, pmc_abc, effective_sample_size, weighted_covar
 Basic ABC rejection sampling algorithm
 """
 function basic_abc(model::Models.AbstractTimescaleModel;
-                   min_samples::Int,
                    epsilon::Float64,
                    max_iter::Int,
                    pmc_mode::Bool=false,
                    weights=nothing,
                    theta_prev=nothing,
                    tau_squared=nothing)
-    
     n_theta = length(model.prior)
     samples = zeros(n_theta, max_iter)
     isaccepted = zeros(max_iter)
     distances = zeros(max_iter)
     accepted_count = 0
-    trial_count = 0
 
-    while (trial_count < max_iter)
-        trial_count += 1
+    for trial_count in 1:max_iter
 
         # Draw from prior or proposal
         if pmc_mode && !isnothing(theta_prev)
-            theta_star = theta_prev[:, sb.sample(collect(1:length(theta_prev)), sb.pweights(weights))]
+            theta_star = theta_prev[:,
+                                    sb.sample(collect(1:length(theta_prev)),
+                                              sb.pweights(weights))]
             theta = rand(dist.MvNormal(theta_star, tau_squared))
             # Only sample positive values
             while sum(theta .< 0) > 0
@@ -52,8 +51,8 @@ function basic_abc(model::Models.AbstractTimescaleModel;
             accepted_count += 1
             isaccepted[trial_count] = 1
         end
-    end # while 
-    theta_accepted = samples[:, isaccepted .== 1]
+    end # for
+    theta_accepted = samples[:, isaccepted.==1]
     weights = ones(length(theta_accepted))
     tau_squared = zeros(length(theta_accepted), length(theta_accepted))
     eff_sample = length(theta_accepted)
@@ -63,7 +62,7 @@ function basic_abc(model::Models.AbstractTimescaleModel;
             theta_accepted=theta_accepted,
             distances=distances,
             n_accepted=accepted_count,
-            n_total=trial_count,
+            n_total=max_iter,
             epsilon=epsilon,
             weights=weights,
             tau_squared=tau_squared,
@@ -80,49 +79,51 @@ Parameters:
     weights: Previous importance weights
     prior: Prior distribution(s)
 """
-function calc_weights(theta_prev::Union{Vector{Float64}, Matrix{Float64}}, 
-                     theta::Union{Vector{Float64}, Matrix{Float64}},
-                     tau_squared::Matrix{Float64},
-                     weights::Vector{Float64},
-                     prior::Union{Vector, dist.Distribution})
-    
+function calc_weights(theta_prev::Union{Vector{Float64}, Matrix{Float64}},
+                      theta::Union{Vector{Float64}, Matrix{Float64}},
+                      tau_squared::Matrix{Float64},
+                      weights::Vector{Float64},
+                      prior::Union{Vector, dist.Distribution})
+
     # Convert prior to Vector{Distribution} if it's a vector
     if prior isa Vector
         prior = convert(Vector{dist.Distribution}, prior)
     end
-    
+
     weights_new = zeros(size(theta, 2))
-    
+
     if length(size(theta)) == 1
         # Case for single parameter vector
         norm = zeros(length(theta))
         for (i, T) in enumerate(theta)
             for j in axes(theta_prev, 2)
-                norm[j] = dist.pdf(dist.Normal(theta_prev[1,j], sqrt(tau_squared[1,1])), T)
+                norm[j] = dist.pdf(dist.Normal(theta_prev[1, j], sqrt(tau_squared[1, 1])),
+                                   T)
             end
             weights_new[i] = dist.pdf(prior[1], T) / sum(weights .* norm)
         end
-        
+
         return weights_new ./ sum(weights_new)
-        
+
     else
         # Case for multiple parameter vectors
-        norm = zeros(size(theta_prev,2))
+        norm = zeros(size(theta_prev, 2))
         for i in axes(theta, 2)
-            prior_prob = zeros(size(theta,1))
+            prior_prob = zeros(size(theta, 1))
             for j in axes(theta, 1)
-                prior_prob[j] = dist.pdf(prior[j], theta[j,i])
+                prior_prob[j] = dist.pdf(prior[j], theta[j, i])
             end
             # Assumes independent priors
             p = prod(prior_prob)
-            
+
             for j in axes(theta_prev, 2)
-                norm[j] = dist.pdf(dist.MvNormal(theta_prev[:,j], tau_squared), theta[:,i])
+                norm[j] = dist.pdf(dist.MvNormal(theta_prev[:, j], tau_squared),
+                                   theta[:, i])
             end
-            
+
             weights_new[i] = p / sum(weights .* norm)
         end
-        
+
         return weights_new ./ sum(weights_new)
     end
 end
@@ -142,30 +143,30 @@ Calculates weighted covariance matrix.
 function weighted_covar(x::Union{Vector{Float64}, Matrix{Float64}}, w::Vector{Float64})
     sumw = sum(w)
     @assert isapprox(sumw, 1.0)
-    
+
     if ndims(x) == 1
         @assert length(x) == length(w)
     else
-        @assert size(x,2) == length(w) 
+        @assert size(x, 2) == length(w)
     end
-    
-    sum2 = sum(w.^2)
+
+    sum2 = sum(w .^ 2)
 
     if ndims(x) == 1
         xbar = sum(w .* x)
-        var = sum(w .* (x .- xbar).^2)
-        return var * sumw/(sumw*sumw-sum2)
+        var = sum(w .* (x .- xbar) .^ 2)
+        return var * sumw / (sumw * sumw - sum2)
     else
-        xbar = [sum(w .* x[i,:]) for i in axes(x, 1)]
-        covar = zeros(size(x,1), size(x,1))
+        xbar = [sum(w .* x[i, :]) for i in axes(x, 1)]
+        covar = zeros(size(x, 1), size(x, 1))
         for k in axes(x, 1)
             for j in axes(x, 1)
                 for i in axes(x, 2)
-                    covar[j,k] += (x[j,i]-xbar[j])*(x[k,i]-xbar[k]) * w[i]
+                    covar[j, k] += (x[j, i] - xbar[j]) * (x[k, i] - xbar[k]) * w[i]
                 end
             end
         end
-        return covar * sumw/(sumw*sumw-sum2)
+        return covar * sumw / (sumw * sumw - sum2)
     end
 end
 
@@ -177,8 +178,8 @@ function effective_sample_size(w::Vector{Float64})
     """
 
     sumw = sum(w)
-    sum2 = sum(w.^2)
-    return sumw*sumw/sum2
+    sum2 = sum(w .^ 2)
+    return sumw * sumw / sum2
 end
 
 # TODO: Implement parallelism
@@ -217,8 +218,8 @@ A record array containing ABC output for each step with fields:
 - `eff sample`: Effective sample size (array of 1s if not in PMC mode)
 """
 function pmc_abc(model::Models.AbstractTimescaleModel;
-                epsilon_0::Float64=1.0, min_samples::Int=10, steps::Int=10,
-                sample_only::Bool=false, max_iter::Int=10000, minAccRate::Float64=0.0001)
+                 epsilon_0::Float64=1.0, min_samples::Int=10, steps::Int=10,
+                 sample_only::Bool=false, max_iter::Int=10000, minAccRate::Float64=0.0001)
 
     # Initialize output record structure 
     output_record = Vector{NamedTuple}(undef, steps)
@@ -229,39 +230,37 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
         println("epsilon = $(epsilon)")
 
         if i_step == 1  # First ABC calculation
-            result = basic_abc(model, min_samples=min_samples,
-                            epsilon=epsilon,
-                            max_iter=max_iter,
-                            pmc_mode=false)
+            result = basic_abc(model,
+                               epsilon=epsilon,
+                               max_iter=max_iter,
+                               pmc_mode=false)
             theta = result.theta_accepted
             tau_squared = 2 * cov(theta; dims=2)
-            weights = fill(1.0/size(theta, 2), size(theta,2))
+            weights = fill(1.0 / size(theta, 2), size(theta, 2))
             epsilon = sb.percentile(result.distances, 75)
             eff_sample = effective_sample_size(weights)
 
-            output_record[i_step] = (
-                theta_accepted=theta,
-                D_accepted=result.distances,
-                n_accepted=result.n_accepted,
-                n_total=result.n_total,
-                epsilon=epsilon,
-                weights=weights,
-                tau_squared=tau_squared,
-                eff_sample=eff_sample
-            )
+            output_record[i_step] = (theta_accepted=theta,
+                                     D_accepted=result.distances,
+                                     n_accepted=result.n_accepted,
+                                     n_total=result.n_total,
+                                     epsilon=epsilon,
+                                     weights=weights,
+                                     tau_squared=tau_squared,
+                                     eff_sample=eff_sample)
 
         else
             theta_prev = output_record[i_step-1].theta_accepted
             weights_prev = output_record[i_step-1].weights
             tau_squared = output_record[i_step-1].tau_squared
 
-            result = basic_abc(model, min_samples=min_samples,
-                            epsilon=epsilon,
-                            max_iter=max_iter,
-                            pmc_mode=true,
-                            weights=weights_prev,
-                            theta_prev=theta_prev,
-                            tau_squared=tau_squared)
+            result = basic_abc(model,
+                               epsilon=epsilon,
+                               max_iter=max_iter,
+                               pmc_mode=true,
+                               weights=weights_prev,
+                               theta_prev=theta_prev,
+                               tau_squared=tau_squared)
 
             theta = result.theta_accepted
             epsilon = sb.percentile(result.distances, 75)
@@ -269,28 +268,26 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 
             if sample_only
                 weights = Float64[]
-                tau_squared = zeros(0,0)
+                tau_squared = zeros(0, 0)
             else
                 weights = calc_weights(theta_prev, theta, tau_squared,
-                                    weights_prev, model.prior)
+                                       weights_prev, model.prior)
                 tau_squared = 2 * weighted_covar(theta, weights)
             end
 
-            output_record[i_step] = (
-                theta_accepted=theta,
-                D_accepted=result.distances,
-                n_accepted=result.n_accepted,
-                n_total=result.n_total,
-                epsilon=epsilon,
-                weights=weights,
-                tau_squared=tau_squared,
-                eff_sample=effective_sample
-            )
+            output_record[i_step] = (theta_accepted=theta,
+                                     D_accepted=result.distances,
+                                     n_accepted=result.n_accepted,
+                                     n_total=result.n_total,
+                                     epsilon=epsilon,
+                                     weights=weights,
+                                     tau_squared=tau_squared,
+                                     eff_sample=effective_sample)
         end
 
         n_accept = output_record[i_step].n_accepted
         n_tot = output_record[i_step].n_total
-        accept_rate = n_accept/n_tot
+        accept_rate = n_accept / n_tot
         println("Acceptance Rate = $(accept_rate)")
         println("--------------------")
 
@@ -303,43 +300,40 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 
     return output_record
 end
-
-end # module
-
 """
-TODO: Implement multiple chains
-TODO: Implement Rubin-Gelman statistic rhat
-    gelman_rubin(chains::Matrix{Float64})
+    find_MAP(theta_accepted::Matrix{Float64}, N::Int)
 
-Calculate the Gelman-Rubin convergence diagnostic (R̂) for multiple chains.
+Find the MAP estimates from posteriors with grid search.
 
 # Arguments
-- `chains`: Matrix where each row is a chain and each column is a sample
+- `theta_accepted::Matrix{Float64}`: Matrix of accepted samples from the final step of ABC
+- `N::Int`: Number of samples for grid search
 
 # Returns
-- Float64: R̂ statistic. Values close to 1.0 indicate convergence
-
-function gelman_rubin(chains::Matrix{Float64})
-    n = size(chains, 2)  # number of samples per chain
-    m = size(chains, 1)  # number of chains
-    
-    # Calculate chain means
-    chain_means = mean(chains, dims=2)
-    overall_mean = mean(chain_means)
-    
-    # Between-chain variance
-    B = n * var(chain_means)
-    
-    # Within-chain variance
-    W = mean([var(chain) for chain in eachrow(chains)])
-    
-    # Weighted average of W and B
-    var_plus = ((n - 1) * W / n + B / n)
-    
-    # Calculate R̂
-    R̂ = sqrt(var_plus / W)
-    
-    return R̂
-end
-
+- `theta_map::Vector{Float64}`: MAP estimates of the parameters
 """
+# TODO: Figure out KDE
+# function find_MAP(theta_accepted::Matrix{Float64}, N::Int)
+#     num_params = size(theta_accepted, 1)
+    
+#     # Create grid of positions for each parameter
+#     positions = zeros(num_params, N)
+#     for i in 1:num_params
+#         param = @view theta_accepted[i,:]
+#         positions[i,:] = rand(Uniform(minimum(param), maximum(param)), N)
+#     end
+    
+#     # Estimate density using KDE
+#     kernel = kde(theta_accepted)
+    
+#     # Evaluate density at grid positions
+#     probs = pdf(kernel, positions)
+    
+#     # Find position with maximum probability
+#     _, max_idx = findmax(probs)
+#     theta_map = positions[:,max_idx]
+    
+#     return theta_map
+# end
+
+end # module
