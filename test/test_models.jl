@@ -16,7 +16,8 @@ using Distributions
             1.0,            # dt
             100.0,          # T
             10,             # numTrials
-            1.0             # data_var
+            1.0,             # data_var
+            10              # n_lags
         )
         
         # Test parameter drawing
