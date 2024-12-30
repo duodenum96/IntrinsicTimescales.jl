@@ -23,7 +23,6 @@ using Revise
         # Run ABC
         result = ABC.basic_abc(
             model,
-            min_samples=10,
             epsilon=1.0,
             max_iter=1000
         )
