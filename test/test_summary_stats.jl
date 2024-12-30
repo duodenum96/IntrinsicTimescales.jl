@@ -64,3 +64,52 @@ using BayesianINT
         @test maximum(abs.(cc[1:50] - ac[1:50])) < 0.1 # This irks me. Isn't 0.05 too high?
     end
 end
+
+@testset "Autocorrelation with missing data" begin
+    # Test 1: Compare methods on complete data (OU process)
+    dt = 0.01
+    T = 10.0
+    τ = 1.0  # time constant
+    D = 1.0  # noise amplitude
+    t = dt:dt:T
+    num_trials = 5
+    ou_process = generate_ou_process(τ, D, dt, T, num_trials)
+    
+    max_lags = 100
+    ac_time = comp_ac_time(ou_process, max_lags)
+    ac_time_missing = comp_ac_time_missing(ou_process, max_lags)
+    ac_fft = comp_ac_fft(ou_process; n_lags=max_lags)
+    
+    # Test that all methods give similar results
+    @test maximum(abs.(ac_time - ac_time_missing)) < 0.001 # error: 2e-16
+    @test maximum(abs.(ac_time - ac_fft)) < 0.001
+    
+    # Test theoretical decay of OU process
+    lags = (0:(max_lags-1)) * dt
+    theoretical_ac = exp.(-lags/τ)
+    @test cor(ac_time_missing, theoretical_ac) > 0.95  # Strong correlation with theory
+    
+    # Test 2: Data with missing values
+    ou_missing = copy(ou_process)
+    ou_missing = convert(Matrix{Union{Float64, Missing}}, ou_missing)
+    
+    # Insert missing values randomly (10% of data)
+    n_missing = div(length(t), 10)
+    missing_indices = rand(1:length(t), n_missing)
+    ou_missing[1,missing_indices] .= missing
+    
+    ac_missing = comp_ac_time_missing(ou_missing, max_lags)
+    
+    # Test that autocorrelation still decays
+    @test ac_missing[1] ≈ 1.0 atol=0.1  # Should start near 1
+    @test ac_missing[end] < ac_missing[1]  # Should decay
+    @test issorted(ac_missing[1:div(end,2)], rev=true)  # First half should be monotonically decreasing
+
+    # Test 3: Randomly insert one missing value to a data point and check if ACF is approximately the same
+    ou_missing = copy(ou_process)
+    ou_missing = convert(Matrix{Union{Float64, Missing}}, ou_missing)
+    missing_index = rand(1:length(t))
+    ou_missing[1, missing_index] = missing
+    ac_missing_single = comp_ac_time_missing(ou_missing, max_lags)
+    @test maximum(abs.(ac_missing_single - ac_time)) < 0.001
+end
