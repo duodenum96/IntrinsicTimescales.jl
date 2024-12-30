@@ -21,6 +21,7 @@ struct TwoTimescaleModel <: AbstractTimescaleModel
     numTrials::Int
     data_mean::Float64
     data_var::Float64
+    n_lags::Int
 end
 
 # Implementation of required methods

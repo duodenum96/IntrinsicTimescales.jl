@@ -1,13 +1,10 @@
 # BayesianINT
 
 TODO: 
-- Move OneTimescaleModel to models
+
+- Implement two timescale model
 
 - Move OU generation to utils
-
-- Implement n_lags for ACF calculation throughout the codebase
-
-- Implement "sciml" backend throughout the codebase and test
 
 - Benchmarking
 
