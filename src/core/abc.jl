@@ -1,5 +1,8 @@
 # src/core/abc.jl
 # TODO: Overall cleanup
+# TODO: There are many possible performance improvements in the basic_abc function. The core 
+# challange is to eliminate if statements in the for loop. 
+# TODO: Switch to StaticArrays
 module ABC
 
 using Infiltrator
@@ -9,6 +12,16 @@ import Distributions as dist
 import StatsBase as sb
 
 export basic_abc, pmc_abc, effective_sample_size, weighted_covar
+
+function draw_theta_pmc(model, theta_prev, weights, tau_squared)
+    theta_star = theta_prev[:, sb.sample(collect(1:length(theta_prev)), sb.pweights(weights))]
+    theta = rand(dist.MvNormal(theta_star, tau_squared))
+    # Only sample positive values
+    while sum(theta .< 0) > 0
+        theta = rand(dist.MvNormal(theta_star, tau_squared))
+    end
+    return theta
+end
 
 """
 Basic ABC rejection sampling algorithm
@@ -26,18 +39,13 @@ function basic_abc(model::Models.AbstractTimescaleModel;
     distances = zeros(max_iter)
     accepted_count = 0
 
+    
+
     for trial_count in 1:max_iter
 
         # Draw from prior or proposal
-        if pmc_mode && !isnothing(theta_prev)
-            theta_star = theta_prev[:,
-                                    sb.sample(collect(1:length(theta_prev)),
-                                              sb.pweights(weights))]
-            theta = rand(dist.MvNormal(theta_star, tau_squared))
-            # Only sample positive values
-            while sum(theta .< 0) > 0
-                theta = rand(dist.MvNormal(theta_star, tau_squared))
-            end
+        if pmc_mode
+            theta = draw_theta_pmc(model, theta_prev, weights, tau_squared)
         else
             theta = Models.draw_theta(model)
         end
