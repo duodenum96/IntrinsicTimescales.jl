@@ -9,4 +9,5 @@ using Test
     include("test_abc.jl")
     include("test_ou_process.jl")
     include("test_ou_inference.jl")
+    include("test_one_timescale.jl")
 end

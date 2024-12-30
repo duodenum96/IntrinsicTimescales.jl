@@ -9,7 +9,7 @@ using ..Models
 using NonlinearSolve
 import DifferentialEquations as deq
 
-export OneTimescaleModel, generate_ou_process, informed_prior_one_timescale
+export generate_ou_process, informed_prior_one_timescale
 """
 Generate an Ornstein-Uhlenbeck process with a single timescale with vanilla Julia code.
 
@@ -93,37 +93,3 @@ function informed_prior_one_timescale(data::AbstractMatrix)
     data_ac = comp_ac_fft(data; normalize=false)
     # Fit an exponential decay to the data_ac and make informed priors for tau and D
 end
-
-"""
-One-timescale OU process model
-"""
-struct OneTimescaleModel <: AbstractTimescaleModel
-    data::Matrix{Float64}
-    prior::Vector{Distribution}
-    data_sum_stats::Vector{Float64}
-    epsilon::Float64
-    deltaT::Float64
-    binSize::Float64
-    T::Float64
-    numTrials::Int
-    data_mean::Float64
-    data_var::Float64
-    n_lags::Int
-end
-
-# Implementation of required methods
-
-function Models.generate_data(model::OneTimescaleModel, theta)
-    tau = theta
-    return generate_ou_process(tau, model.data_var, model.deltaT, model.T, model.numTrials; backend="sciml")
-end
-
-function Models.summary_stats(model::OneTimescaleModel, data)
-    return comp_ac_fft(data; n_lags=model.n_lags)
-end
-
-function Models.distance_function(model::OneTimescaleModel, sum_stats, data_sum_stats)
-    return linear_distance(sum_stats, data_sum_stats)
-end
-
-end # module OrnsteinUhlenbeck
