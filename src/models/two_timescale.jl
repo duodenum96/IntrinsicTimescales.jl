@@ -16,10 +16,8 @@ struct TwoTimescaleModel <: AbstractTimescaleModel
     data_sum_stats::Vector{Float64}
     epsilon::Float64
     dt::Float64
-    binSize::Float64
     T::Float64
     numTrials::Int
-    data_mean::Float64
     data_var::Float64
     n_lags::Int
 end
@@ -47,7 +45,7 @@ function Models.generate_data(model::TwoTimescaleModel, theta)
     
     # Scale to match data statistics
     ou_std = sqrt(model.data_var)
-    ou_combined = ou_std * ou_combined .+ model.data_mean
+    ou_combined = ou_std * ou_combined
     
     return ou_combined
 end

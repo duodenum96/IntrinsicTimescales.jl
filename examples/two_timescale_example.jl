@@ -23,10 +23,8 @@ model = TwoTimescaleModel(
     Float64[], # will be computed
     1.0,      # epsilon
     dt,
-    bin_size,
     T,
     num_trials,
-    0.0,      # data_mean
     1.0       # data_var
 )
 

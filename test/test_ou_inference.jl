@@ -23,15 +23,13 @@ using Statistics
     
     # Create model
     model = OneTimescaleModel(
-        data,               # data
+        data,              # data
         priors,            # prior
         data_acf,          # data_sum_stats
         1.0,               # epsilon
-        dt,            # dt
-        dt,            # binSize
+        dt,                # dt
         T,                 # T
         num_trials,        # numTrials
-        mean(data),        # data_mean
         std(data),         # data_var
         n_lags             # n_lags
     )

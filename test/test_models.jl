@@ -14,10 +14,8 @@ using Distributions
             zeros(10),      # dummy summary stats
             1.0,            # epsilon
             1.0,            # dt
-            1.0,            # binSize
             100.0,          # T
             10,             # numTrials
-            0.0,            # data_mean
             1.0             # data_var
         )
         

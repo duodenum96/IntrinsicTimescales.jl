@@ -19,10 +19,8 @@ using BayesianINT.Models
         zeros(n_lags),       # placeholder for data_sum_stats
         0.1,                 # epsilon
         0.01,               # dt
-        0.01,               # binSize
         100.0,              # T
         10,                 # numTrials
-        0.0,                # data_mean
         1.0,                # data_var
         n_lags              # n_lags
     )

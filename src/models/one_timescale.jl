@@ -18,10 +18,8 @@ struct OneTimescaleModel <: AbstractTimescaleModel
     data_sum_stats::Vector{Float64}
     epsilon::Float64
     dt::Float64
-    binSize::Float64
     T::Float64
     numTrials::Int
-    data_mean::Float64
     data_var::Float64
     n_lags::Int
 end
