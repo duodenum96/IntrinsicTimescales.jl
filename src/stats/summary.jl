@@ -44,18 +44,30 @@ overlap and window size.
 function comp_psd(x,
                   fs::Float64;
                   method::String="periodogram",
-                  window::Function=dsp.hamming,
+                  window=dsp.hamming,
                   n=div(length(x), 8),
                   noverlap=div(n, 2))
+    n_trials = size(x, 1)
     if method == "periodogram"
-        psd = dsp.periodogram(x; fs=fs, window=window)
+        if n_trials == 1
+            psd = dsp.periodogram(x; fs=fs, window=window)
+            power = psd.power
+        else
+            nfft = dsp.nextfastfft(size(x, 2))
+            power = zeros(Int(nfft / 2))
+            for i in 1:n_trials
+                psd = dsp.periodogram(x[i, :]; fs=fs, window=window)
+                power += psd.power[2:end]
+            end
+            power /= n_trials
+        end
     elseif method == "welch"
         @warn "Using Welch method. Don't trust the defaults!"
         psd = dsp.welch_pgram(x, fs; window=window, n=n, noverlap=noverlap)
     else
         error("Invalid method: $method")
     end
-    return psd.power, psd.freq
+    return power, psd.freq
 end
 
 """
