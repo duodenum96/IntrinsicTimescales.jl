@@ -8,8 +8,9 @@ using BayesianINT
 using ..Models
 using NonlinearSolve
 import DifferentialEquations as deq
+using Infiltrator
 
-export generate_ou_process, informed_prior_one_timescale
+export generate_ou_process, generate_ou_with_oscillation, informed_prior_one_timescale, generate_ou_process_sciml
 """
 Generate an Ornstein-Uhlenbeck process with a single timescale with vanilla Julia code.
 
@@ -32,11 +33,18 @@ function generate_ou_process(tau::Union{Float64, Vector{Float64}},
                             dt::Float64,
                             T::Float64,
                             num_trials::Int64;
-                            backend::String="sciml")
+                            backend::String="sciml",
+                            standardize::Bool=true)
     if backend == "vanilla"
         return generate_ou_process_vanilla(tau, true_D, dt, T, num_trials)
     elseif backend == "sciml"
-        return generate_ou_process_sciml(tau, true_D, dt, T, num_trials)
+        ou, sol = generate_ou_process_sciml(tau, true_D, dt, T, num_trials, standardize)
+        if sol.retcode == deq.ReturnCode.Success
+            return ou
+        else
+            ou = NaN * ones(num_trials, Int(T / dt))
+            return ou
+        end
     else
         error("Invalid backend: $backend. Must be 'vanilla' or 'sciml'.")
     end
@@ -51,17 +59,22 @@ function generate_ou_process_sciml(
     dt::Float64,
     T::Float64,
     num_trials::Int64,
+    standardize::Bool=true
 )
     f = (du, u, p, t) -> du .= -u ./ p[1]
-    g = (du, u, p, t) -> du .= 1.0 # Handle the variance below
+    g = (du, u, p, t) -> du .= sqrt(2.0 / p[1])
     p = (tau, true_D)
     u0 = randn(num_trials) # Quick hack instead of ensemble problem
     prob = deq.SDEProblem(f, g, u0, (0.0, T), p)
     times = dt:dt:T
-    sol = deq.solve(prob; saveat=times)
+    sol = deq.solve(prob, deq.SOSRI(); saveat=times)
     sol_matrix = reduce(hcat, sol.u)
-    ou_scaled = ((sol_matrix .- mean(sol_matrix, dims=2)) ./ std(sol_matrix, dims=2)) * true_D
-    return ou_scaled
+    if standardize
+        ou_scaled = ((sol_matrix .- mean(sol_matrix, dims=2)) ./ std(sol_matrix, dims=2)) * true_D
+    else
+        ou_scaled = sol_matrix
+    end
+    return ou_scaled, sol
 end
 
 """
@@ -86,6 +99,62 @@ function generate_ou_process_vanilla(
     ou_scaled = ((ou .- mean(ou, dims=2)) ./ std(ou, dims=2)) * true_D
 
     return ou_scaled
+end
+
+"""
+Generate a one-timescale OU process with an additive oscillation.
+
+# Arguments
+- `theta::Vector{Float64}`: [timescale of OU, frequency of oscillation, coefficient for OU]
+- `dt::Float64`: Time step size for the OU process generation
+- `bin_size::Float64`: Bin size for binning data and computing autocorrelation
+- `T::Float64`: Duration of trials
+- `num_trials::Int`: Number of trials
+- `data_mean::Float64`: Mean value of the OU process (average of firing rate)
+- `data_var::Float64`: Variance of the OU process (variance of firing rate)
+
+# Returns
+- `Tuple{Matrix{Float64}, Int}`: Tuple containing:
+  - Matrix of binned spike-counts (num_trials × num_bins)
+  - Number of bins/samples per trial
+"""
+function generate_ou_with_oscillation(theta::Vector{Float64},
+                                      dt::Float64,
+                                      T::Float64,
+                                      num_trials::Int,
+                                      data_mean::Float64,
+                                      data_var::Float64)
+    # Extract parameters
+    tau = theta[1]
+    freq = theta[2]
+    coeff = theta[3]
+
+    # Make sure coeff is bounded between 0 and 1
+    if coeff < 0.0
+        coeff = 1e-4
+    elseif coeff > 1.0
+        coeff = 1.0 - 1e-4
+    end
+
+    
+
+    # Generate OU process and oscillation
+    ou = generate_ou_process(tau, data_var, dt, T, num_trials; standardize=false)
+
+    # Create time matrix and random phases
+    time_mat = repeat(collect(dt:dt:T), 1, num_trials)'
+    phases = rand(num_trials, 1) * 2π
+
+    # Generate oscillation and combine with OU
+    oscil = sqrt(2.0) * sin.(phases .+ 2π * freq * time_mat)
+    data = sqrt(1.0 - coeff) * oscil .+ sqrt(coeff) * ou
+
+    data = (data .- mean(data, dims=2)) ./ std(data, dims=2)
+
+    # Scale to match target mean and variance
+    data_scaled = data_var * data .+ data_mean
+
+    return data_scaled
 end
 
 function informed_prior_one_timescale(data::AbstractMatrix)
