@@ -26,12 +26,16 @@ include("models/two_timescale.jl")
 include("models/one_timescale.jl")
 @reexport using .OneTimescale
 
+include("models/one_timescale_and_osc.jl")
+@reexport using .OneTimescaleAndOsc
+
 export AbstractTimescaleModel,
        BaseModel,
        generate_ou_process,
        linear_distance,
        logarithmic_distance,
        OneTimescaleModel,
-       TwoTimescaleModel
+       TwoTimescaleModel,
+       OneTimescaleAndOscModel
 
 end # module
