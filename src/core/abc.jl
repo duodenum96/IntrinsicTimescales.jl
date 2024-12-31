@@ -10,11 +10,13 @@ using ..Models
 using Statistics
 import Distributions as dist
 import StatsBase as sb
+using ProgressMeter
 
 export basic_abc, pmc_abc, effective_sample_size, weighted_covar
 
 function draw_theta_pmc(model, theta_prev, weights, tau_squared)
-    theta_star = theta_prev[:, sb.sample(collect(1:length(theta_prev)), sb.pweights(weights))]
+    theta_star = theta_prev[:,
+                            sb.sample(collect(1:length(theta_prev)), sb.pweights(weights))]
     theta = rand(dist.MvNormal(theta_star, tau_squared))
     # Only sample positive values
     while sum(theta .< 0) > 0
@@ -39,9 +41,7 @@ function basic_abc(model::Models.AbstractTimescaleModel;
     distances = zeros(max_iter)
     accepted_count = 0
 
-    
-
-    for trial_count in 1:max_iter
+    @showprogress dt=1 desc="ABC Sampling" for trial_count in 1:max_iter
 
         # Draw from prior or proposal
         if pmc_mode
@@ -52,6 +52,12 @@ function basic_abc(model::Models.AbstractTimescaleModel;
 
         # Generate data and compute distance
         d = Models.generate_data_and_reduce(model, theta)
+        # Handle convergence issues
+        if isnan(d)
+            distances[trial_count] = 1e5
+        else
+            distances[trial_count] = d
+        end
         samples[:, trial_count] = theta
         distances[trial_count] = d
 
@@ -245,7 +251,8 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             theta = result.theta_accepted
             tau_squared = 2 * cov(theta; dims=2)
             weights = fill(1.0 / size(theta, 2), size(theta, 2))
-            epsilon = sb.percentile(result.distances, 75)
+            nonnan_distances = result.distances[result.distances.<10]
+            epsilon = sb.percentile(nonnan_distances, 75)
             eff_sample = effective_sample_size(weights)
 
             output_record[i_step] = (theta_accepted=theta,
@@ -269,9 +276,10 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                                weights=weights_prev,
                                theta_prev=theta_prev,
                                tau_squared=tau_squared)
-
+            @infiltrate
             theta = result.theta_accepted
-            epsilon = sb.percentile(result.distances, 75)
+            nonnan_distances = result.distances[result.distances.<10]
+            epsilon = sb.percentile(nonnan_distances, 75)
             effective_sample = effective_sample_size(weights_prev)
 
             if sample_only
@@ -297,6 +305,8 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
         n_tot = output_record[i_step].n_total
         accept_rate = n_accept / n_tot
         println("Acceptance Rate = $(accept_rate)")
+        current_theta = mean(output_record[i_step].theta_accepted, dims=2)
+        println("Current theta = $(current_theta)")
         println("--------------------")
 
         if accept_rate < minAccRate
@@ -323,24 +333,24 @@ Find the MAP estimates from posteriors with grid search.
 # TODO: Figure out KDE
 # function find_MAP(theta_accepted::Matrix{Float64}, N::Int)
 #     num_params = size(theta_accepted, 1)
-    
+
 #     # Create grid of positions for each parameter
 #     positions = zeros(num_params, N)
 #     for i in 1:num_params
 #         param = @view theta_accepted[i,:]
 #         positions[i,:] = rand(Uniform(minimum(param), maximum(param)), N)
 #     end
-    
+
 #     # Estimate density using KDE
 #     kernel = kde(theta_accepted)
-    
+
 #     # Evaluate density at grid positions
 #     probs = pdf(kernel, positions)
-    
+
 #     # Find position with maximum probability
 #     _, max_idx = findmax(probs)
 #     theta_map = positions[:,max_idx]
-    
+
 #     return theta_map
 # end
 
