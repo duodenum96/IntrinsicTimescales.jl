@@ -9,7 +9,7 @@ abstract type AbstractTimescaleModel end
 """
 Base model interface for ABC computations
 """
-struct BaseModel{T,D,P} <: AbstractTimescaleModel
+struct BaseModel{T, D, P} <: AbstractTimescaleModel
     data::D
     prior::P
     data_sum_stats::T
@@ -49,6 +49,8 @@ Should return a distance D for comparing to the acceptance tolerance (epsilon).
 """
 function distance_function end
 
+function rescale_theta end
+
 # Combined generation and reduction step
 function generate_data_and_reduce(model::AbstractTimescaleModel, theta)
     synth = generate_data(model, theta)
@@ -76,7 +78,20 @@ end
 
 function distance_function(model::BaseModel, sum_stats1, sum_stats2)
     # Simple Euclidean distance for testing
-    return sqrt(sum((sum_stats1 .- sum_stats2).^2))
+    return sqrt(sum((sum_stats1 .- sum_stats2) .^ 2))
+end
+
+function bayesian_inference(model::BaseModel, epsilon_0=0.5,
+                            min_samples=100,
+                            steps=60,
+                            minAccRate=0.001,
+                            max_iter=500)
+    return pmc_abc(model;
+                      epsilon_0=epsilon_0,
+                      min_samples=min_samples,
+                      steps=steps,
+                      minAccRate=minAccRate,
+                      max_iter=max_iter)
 end
 
 end # module
