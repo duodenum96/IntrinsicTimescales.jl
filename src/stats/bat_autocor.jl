@@ -78,19 +78,19 @@ data is a matrix with dimensions (n_series × n_timepoints)
 
 returns a matrix with dimensions (n_series × n_lags)
 """
-function bat_autocorr(x::AbstractMatrix{<:Real})
+function bat_autocorr(x::AbstractMatrix{T}) where T<:Real
     n = size(x, 2)
     n2 = 2 * _ac_next_pow_two(n)
-    x2 = zeros(eltype(x), size(x, 1), n2)
+    x2 = zeros(T, size(x, 1), n2)
     idxs2 = firstindex(x2):(firstindex(x2) + n - 1)
     x2_view = view(x2, :, idxs2)
-    x2_view .= x .- mean(x, dims = 2)
+    x2_demeaned = x .- mean(x, dims = 2)
 
-    x2_fft = fft(x2, 2)
+    x2_fft = fft(x2_demeaned, 2)
     acf = real.(view(ifft(x2_fft .* conj.(x2_fft), 2), :, idxs2))
-    acf ./= acf[:, first(axes(acf, 2))]
+    acf2 = acf ./ acf[:, first(axes(acf, 2))]
 
-    return acf
+    return acf2
 end
 
 

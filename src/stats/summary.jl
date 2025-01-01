@@ -11,12 +11,12 @@ using LinearAlgebra
 using Infiltrator
 include("bat_autocor.jl")
 
-export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing
+export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing, comp_ac_time_adfriendly
 
 """
 Compute autocorrelation using FFT
 """
-function comp_ac_fft(data::AbstractMatrix; n_lags::Int=size(data, 2))
+function comp_ac_fft(data::AbstractMatrix{T}; n_lags::Int=size(data, 2)) where T<:Real
     ac = bat_autocorr(data)
 
     return mean(ac; dims=1)[1:n_lags][:]
@@ -92,16 +92,27 @@ function comp_cc(data1::AbstractMatrix,
     return cc_mean
 end
 
-function comp_ac_time(data::AbstractMatrix,
-                      max_lag::Int)
+function comp_ac_time(data::AbstractMatrix{T},
+                      max_lag::Int) where T<:Real
     
     lags = 0:(max_lag-1)
     n_trials = size(data, 1)
-    cc = zeros(n_trials, max_lag)
+    cc = zeros(T, n_trials, max_lag)
     for trial in 1:n_trials
         cc[trial, :] = sb.autocor(data[trial, :], lags)
     end
     cc_mean = mean(cc; dims=1)[:]
+    return cc_mean
+end
+
+function comp_ac_time_adfriendly(data::AbstractMatrix{T},
+                      max_lag::Int) where T<:Real
+    
+    lags = 0:(max_lag-1)
+    n_trials = size(data, 1)
+    cc = [acf_statsmodels(data[trial, :], nlags=max_lag-1) for trial in 1:n_trials]
+
+    cc_mean = mean(cc)  
     return cc_mean
 end
 
@@ -155,14 +166,14 @@ Tuple containing some combination of:
 - qstat : Vector{Float64} - Q-statistics (if qstat=true)
 - pvalue : Vector{Float64} - P-values (if qstat=true)
 """
-function acf_statsmodels(x::Union{Vector{Float64}, Vector{Union{Missing, Float64}}};
+function acf_statsmodels(x::Union{Vector{T}, Vector{Union{Missing, T}}};
             adjusted::Bool=false,
             nlags::Union{Int,Nothing}=nothing,
             qstat::Bool=false,
             isfft::Bool=false,
             alpha::Union{Float64,Nothing}=nothing,
             bartlett_confint::Bool=false,
-            missing_handling::String="conservative")
+            missing_handling::String="conservative") where T<:Real
 
     # Input validation
     missing_handling = lowercase(missing_handling)
@@ -225,12 +236,12 @@ References
        and amplitude modulation. Sankhya: The Indian Journal of
        Statistics, Series A, pp.383-392.
 """
-function acovf(x::Union{Vector{Float64}, Vector{Union{Missing, Float64}}};
+function acovf(x::Union{Vector{T}, Vector{Union{Missing, T}}};
                adjusted::Bool=false,
                demean::Bool=true,
                isfft::Bool=false,
                missing_handling::String="none",
-               nlag::Union{Int,Nothing}=nothing)
+               nlag::Union{Int,Nothing}=nothing) where T <: Real
 
     # Input validation
     missing_handling = lowercase(missing_handling)
@@ -273,16 +284,17 @@ function acovf(x::Union{Vector{Float64}, Vector{Union{Missing, Float64}}};
     end
 
     if !isfft && !isnothing(nlag)
-        acov = zeros(Union{Missing, Float64}, lag_len + 1)
-        acov[1] = dot(xo, xo)
-        for i in 1:lag_len
-            acov[i+1] = dot(view(xo, (i+1):length(xo)), view(xo, 1:(length(xo)-i)))
-        end
+        acov = [
+            i == 0 ? 
+                dot(xo, xo) : 
+                dot(view(xo, (i+1):length(xo)), view(xo, 1:(length(xo)-i)))
+            for i in 0:lag_len
+        ]
         if !deal_with_masked || missing_handling == "drop"
             if adjusted
-                acov ./= (n .- (0:lag_len))
+                acov2 = acov ./ (n .- (0:lag_len))
             else
-                acov ./= n
+                acov2 = acov ./ n
             end
         else
             if adjusted
@@ -293,12 +305,12 @@ function acovf(x::Union{Vector{Float64}, Vector{Union{Missing, Float64}}};
                                      view(notmask_int, 1:(length(notmask_int)-i)))
                 end
                 divisor[divisor .== 0] .= 1
-                acov ./= divisor
+                acov2 = acov ./ divisor
             else # biased, missing data but not "drop"
-                acov ./= sum(notmask_int)
+                acov2 = acov ./ sum(notmask_int)
             end
         end
-        return acov
+        return acov2
     end
 
     if adjusted && deal_with_masked && missing_handling == "conservative"
