@@ -35,7 +35,7 @@ using BayesianINT.OrnsteinUhlenbeck
                               n_lags)
 
     # Run PMC-ABC
-    results = pmc_abc(model;
+    results = bayesian_inference(model;
                       epsilon_0=0.1,
                       min_samples=100,
                       steps=10,
@@ -59,8 +59,8 @@ end
     true_freq = 10.0  # Hz
     true_coeff = 0.3  # oscillation coefficient
     dt = 1 / 1000
-    T = 20.0
-    num_trials = 15
+    T = 30.0
+    num_trials = 10
     n_lags = 50
     epsilon_0 = 1.0
 
@@ -89,13 +89,13 @@ end
                                     num_trials,       # numTrials
                                     data_mean,        # data_mean
                                     data_var,         # data_var
-                                    n_lags)
+                                    )
 
     # Run PMC-ABC
-    results = bayesian_inference(model;
+    results = Models.bayesian_inference(model;
                       epsilon_0=0.5,
                       min_samples=100,
-                      steps=60,
+                      steps=100,
                       minAccRate=0.001,
                       max_iter=500)
 

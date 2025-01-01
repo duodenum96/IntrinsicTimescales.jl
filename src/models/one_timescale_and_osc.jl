@@ -19,7 +19,7 @@ Theta: [tau, freq, coeff]
 """
 struct OneTimescaleAndOscModel <: AbstractTimescaleModel
     data::Matrix{Float64}
-    prior::Vector{Distribution}
+    prior::Union{Vector{Uniform{Float64}}, Vector{Distribution}}
     data_sum_stats::Vector{Float64}
     epsilon::Float64
     dt::Float64
@@ -31,13 +31,16 @@ struct OneTimescaleAndOscModel <: AbstractTimescaleModel
 end
 
 """
-Handle the scaling
+Handle the scaling using outer constructor
 """
-function OneTimescaleAndOscModel(data::Matrix{Float64}, prior::Vector{Distribution},
+function OneTimescaleAndOscModel(data::Matrix{Float64},
+                                 prior::Union{Vector{Uniform{Float64}},
+                                              Vector{Distribution}},
                                  data_sum_stats::Vector{Float64}, epsilon::Float64,
                                  dt::Float64, T::Float64, numTrials::Int,
                                  data_mean::Float64, data_var::Float64)
     # Internally rescale the priors to a unit scale
+    prior = convert(Vector{Distribution}, prior)
     prior_unit = [Uniform(0.0, 1.0) for _ in prior]
     # Get scales of original priors
     prior_scales = [(prior[i].a, prior[i].b - prior[i].a) for i in 1:length(prior)]
@@ -64,6 +67,13 @@ function Models.distance_function(model::OneTimescaleAndOscModel, sum_stats, dat
     end
 end
 
+
+
+function Models.rescale_theta(model::OneTimescaleAndOscModel, theta)
+    return [theta[i] * model.prior_scales[i][2] + model.prior_scales[i][1]
+            for i in eachindex(theta)]
+end
+
 function Models.generate_data_and_reduce(model::OneTimescaleAndOscModel, theta)
     # The scales of the parameters (tau and freq) are very different. This might cause numerical
     # problems in the ABC algorithm. To avoid this, we rescale the parameters to be on the same scale.
@@ -71,18 +81,13 @@ function Models.generate_data_and_reduce(model::OneTimescaleAndOscModel, theta)
     # We also rescale the data to a unit scale.
     theta_rescaled = Models.rescale_theta(model, theta)
 
-    synth = generate_data(model, theta_rescaled)
-    sum_stats = summary_stats(model, synth)
-    d = distance_function(model, sum_stats, model.data_sum_stats)
+    synth = Models.generate_data(model, theta_rescaled)
+    sum_stats = Models.summary_stats(model, synth)
+    d = Models.distance_function(model, sum_stats, model.data_sum_stats)
     return d
 end
 
-function Models.rescale_theta(model::OneTimescaleAndOscModel, theta)
-    return [theta[i] * model.prior_scales[i][2] + model.prior_scales[i][1]
-            for i in eachindex(theta)]
-end
-
-function Models.bayesian_inference(model::BaseModel, epsilon_0=0.5,
+function Models.bayesian_inference(model::OneTimescaleAndOscModel; epsilon_0=0.5,
                                    min_samples=100,
                                    steps=60,
                                    minAccRate=0.001,
@@ -93,7 +98,10 @@ function Models.bayesian_inference(model::BaseModel, epsilon_0=0.5,
                       steps=steps,
                       minAccRate=minAccRate,
                       max_iter=max_iter)
-    results.theta_accepted = rescale_theta(model, results.theta_accepted)
+    
+    for i_step in eachindex(results)
+        results[i_step].theta_accepted = Models.rescale_theta(model, results[i_step].theta_accepted)
+    end
     return results
 end
 
