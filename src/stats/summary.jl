@@ -173,7 +173,7 @@ function comp_ac_time_adfriendly(data::AbstractMatrix{T},
     return cc_mean
 end
 
-function comp_ac_time_missing(data::Union{AbstractMatrix{T}, AbstractMatrix{Union{Missing, T}}},
+function comp_ac_time_missing(data::AbstractMatrix{T},
                               max_lag::Int) where {T <: Real}
     n_trials = size(data, 1)
     cc = zeros(T, n_trials, max_lag)
@@ -223,7 +223,7 @@ Tuple containing some combination of:
 - qstat : Vector{Float64} - Q-statistics (if qstat=true)
 - pvalue : Vector{Float64} - P-values (if qstat=true)
 """
-function acf_statsmodels(x::Union{Vector{T}, Vector{Union{Missing, T}}};
+function acf_statsmodels(x::Vector{T};
                          adjusted::Bool=false,
                          nlags::Union{Int, Nothing}=nothing,
                          qstat::Bool=false,
@@ -292,7 +292,7 @@ References
        and amplitude modulation. Sankhya: The Indian Journal of
        Statistics, Series A, pp.383-392.
 """
-function acovf(x::Union{Vector{T}, Vector{Union{Missing, T}}};
+function acovf(x::Vector{T};
                adjusted::Bool=false,
                demean::Bool=true,
                isfft::Bool=false,
@@ -304,12 +304,12 @@ function acovf(x::Union{Vector{T}, Vector{Union{Missing, T}}};
     @assert missing_handling in ["none", "raise", "conservative", "drop"]
 
     # Handle missing values
-    deal_with_masked = missing_handling != "none" && any(ismissing.(x))
+    deal_with_masked = missing_handling != "none" && any(isnan.(x))
     if deal_with_masked
         if missing_handling == "raise"
             throw(ArgumentError("NaNs were encountered in the data"))
         end
-        notmask_bool = .!ismissing.(x)
+        notmask_bool = .!isnan.(x)
         if missing_handling == "conservative"
             # Must copy for thread safety
             x = copy(x)
