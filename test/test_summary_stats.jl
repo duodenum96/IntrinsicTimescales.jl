@@ -113,3 +113,50 @@ end
     ac_missing_single = comp_ac_time_missing(ou_missing, max_lags)
     @test maximum(abs.(ac_missing_single - ac_time)) < 0.001
 end
+
+@testset "PSD Implementations" begin
+    # Generate test data
+    fs = 100.0  # 100 Hz sampling rate
+    t = 0:1/fs:1  # 1 second of data
+    f1, f2 = 10.0, 25.0  # Two frequency components
+    
+    # Create a signal with two sine waves
+    signal = sin.(2π * f1 * t) .+ 0.5 * sin.(2π * f2 * t)
+    # Add some noise
+    noisy_signal = signal .+ 0.1 * randn(length(t))
+    
+    # Reshape to match expected input format (trials × samples)
+    x = reshape(noisy_signal, 1, :)
+    
+    # Compute PSDs using both methods
+    power_dsp, freq_dsp = comp_psd(x, fs, method="periodogram")
+    power_ad, freq_ad = comp_psd_adfriendly(x[:], fs)
+    
+    # Check if peaks are at expected frequencies
+    peak_indices_dsp = findlocalmaxima(power_dsp)
+    peak_indices_ad = findlocalmaxima(power_ad)
+    
+    peak_freqs_dsp = freq_dsp[peak_indices_dsp]
+    peak_freqs_ad = freq_ad[peak_indices_ad]
+    
+    # Check if we can detect both frequency components in both implementations
+    @test any(isapprox.(peak_freqs_dsp, f1, rtol=1.0))
+    @test any(isapprox.(peak_freqs_dsp, f2, rtol=1.0))
+    @test any(isapprox.(peak_freqs_ad, f1, rtol=1.0))
+    @test any(isapprox.(peak_freqs_ad, f2, rtol=1.0))
+
+    # Plot to check
+    plot(freq_dsp, power_dsp)
+    plot!(freq_ad, power_ad)
+end
+
+# Helper function to find local maxima
+function findlocalmaxima(x)
+    indices = Int[]
+    for i in 2:(length(x)-1)
+        if x[i] > x[i-1] && x[i] > x[i+1]
+            push!(indices, i)
+        end
+    end
+    return indices
+end 

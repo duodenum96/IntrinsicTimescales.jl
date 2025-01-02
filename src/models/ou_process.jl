@@ -31,18 +31,18 @@ The process is generated using the Euler-Maruyama method with the specified time
 function generate_ou_process(tau::Union{Float64, Vector{Float64}},
                             true_D::Float64,
                             dt::Float64,
-                            T::Float64,
+                            duration::Float64,
                             num_trials::Int64;
                             backend::String="sciml",
                             standardize::Bool=true)
     if backend == "vanilla"
-        return generate_ou_process_vanilla(tau, true_D, dt, T, num_trials)
+        return generate_ou_process_vanilla(tau, true_D, dt, duration, num_trials)
     elseif backend == "sciml"
-        ou, sol = generate_ou_process_sciml(tau, true_D, dt, T, num_trials, standardize)
+        ou, sol = generate_ou_process_sciml(tau, true_D, dt, duration, num_trials, standardize)
         if sol.retcode == deq.ReturnCode.Success
             return ou
         else
-            ou = NaN * ones(num_trials, Int(T / dt))
+            ou = NaN * ones(num_trials, Int(duration / dt))
             return ou
         end
     else
@@ -54,19 +54,19 @@ end
 Generate an Ornstein-Uhlenbeck process with a single timescale using DifferentialEquations.jl.
 """
 function generate_ou_process_sciml(
-    tau::Union{Float64, Vector{Float64}},
+    tau::Union{T, Vector{T}},
     true_D::Float64,
     dt::Float64,
-    T::Float64,
+    duration::Float64,
     num_trials::Int64,
     standardize::Bool=true
-)
+) where T <: Real
     f = (du, u, p, t) -> du .= -u ./ p[1]
     g = (du, u, p, t) -> du .= sqrt(2.0 / p[1])
-    p = (tau, true_D)
+    p = [tau, true_D]
     u0 = randn(num_trials) # Quick hack instead of ensemble problem
-    prob = deq.SDEProblem(f, g, u0, (0.0, T), p)
-    times = dt:dt:T
+    prob = deq.SDEProblem(f, g, u0, (0.0, duration), p)
+    times = dt:dt:duration
     sol = deq.solve(prob, deq.SOSRI(); saveat=times)
     sol_matrix = reduce(hcat, sol.u)
     if standardize
@@ -118,12 +118,12 @@ Generate a one-timescale OU process with an additive oscillation.
   - Matrix of binned spike-counts (num_trials × num_bins)
   - Number of bins/samples per trial
 """
-function generate_ou_with_oscillation(theta::Vector{Float64},
+function generate_ou_with_oscillation(theta::Vector{T},
                                       dt::Float64,
-                                      T::Float64,
+                                      duration::Float64,
                                       num_trials::Int,
                                       data_mean::Float64,
-                                      data_var::Float64)
+                                      data_var::Float64) where T <: Real
     # Extract parameters
     tau = theta[1]
     freq = theta[2]
@@ -136,13 +136,11 @@ function generate_ou_with_oscillation(theta::Vector{Float64},
         coeff = 1.0 - 1e-4
     end
 
-    
-
     # Generate OU process and oscillation
-    ou = generate_ou_process(tau, data_var, dt, T, num_trials; standardize=false)
+    ou = generate_ou_process_sciml(tau, data_var, dt, duration, num_trials, false)[1]
 
     # Create time matrix and random phases
-    time_mat = repeat(collect(dt:dt:T), 1, num_trials)'
+    time_mat = repeat(collect(dt:dt:duration), 1, num_trials)'
     phases = rand(num_trials, 1) * 2π
 
     # Generate oscillation and combine with OU

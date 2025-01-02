@@ -2,6 +2,9 @@
 """
 Compute summary statistics for time series data
 """
+
+using AbstractFFTs
+using ForwardDiff
 module SummaryStats
 using FFTW, Statistics
 import DSP as dsp
@@ -11,12 +14,13 @@ using LinearAlgebra
 using Infiltrator
 include("bat_autocor.jl")
 
-export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing, comp_ac_time_adfriendly
+export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing,
+       comp_ac_time_adfriendly, comp_psd_adfriendly
 
 """
 Compute autocorrelation using FFT
 """
-function comp_ac_fft(data::AbstractMatrix{T}; n_lags::Int=size(data, 2)) where T<:Real
+function comp_ac_fft(data::AbstractMatrix{T}; n_lags::Int=size(data, 2)) where {T <: Real}
     ac = bat_autocorr(data)
 
     return mean(ac; dims=1)[1:n_lags][:]
@@ -50,8 +54,8 @@ function comp_psd(x,
     n_trials = size(x, 1)
     if method == "periodogram"
         if n_trials == 1
-            psd = dsp.periodogram(x; fs=fs, window=window)
-            power = psd.power
+            psd = dsp.periodogram(x[:]; fs=fs, window=window)
+            power = psd.power[2:end]
         else
             nfft = dsp.nextfastfft(size(x, 2))
             power = zeros(Int(nfft / 2))
@@ -67,7 +71,62 @@ function comp_psd(x,
     else
         error("Invalid method: $method")
     end
-    return power, psd.freq
+    return power, psd.freq[2:end]
+end
+
+function comp_psd_adfriendly(x::AbstractVector{<:Real}, fs::Float64)
+    n = length(eachindex(x))
+    n2 = 2 * _ac_next_pow_two(n)
+    x2 = zeros(eltype(x), n2)
+    idxs2 = firstindex(x2):(firstindex(x2) + n - 1)
+    x2_demeaned = x .- mean(x)
+
+    # Compute window (Hamming)
+    window = 0.54 .- 0.46 .* cos.(2π .* (0:n-1) ./ (n - 1))
+
+    # Scale factor for power normalization
+    scale = 1.0 / (fs * sum(window .^ 2))
+
+    x2_fft = fft(x2_demeaned .* window)
+    psd = real.(view(x2_fft .* conj.(x2_fft), idxs2)) .* scale
+
+    freqs = fftfreq(n2, fs)[1:n]  # Get frequencies up to original signal length
+    freqs2 = freqs[freqs .≥ 0]     # Keep only positive frequencies
+
+    return psd[2:end], freqs2[2:end]
+end
+
+function comp_psd_adfriendly(x::AbstractMatrix{<:Real}, fs::Float64)
+    n_trials = size(x, 1)
+    n = size(x, 2)
+    n2 = 2 * _ac_next_pow_two(n)
+    
+    # Initialize output arrays
+    x2 = zeros(eltype(x), n_trials, n2)
+    idxs2 = firstindex(x2, 2):(firstindex(x2, 2) + n - 1)
+
+    x2_view = x .- mean(x, dims=2)
+
+    # Compute window (Hamming)
+    window = 0.54 .- 0.46 .* cos.(2π .* (0:n-1) ./ (n - 1))
+
+    # Scale factor for power normalization
+    scale = 1.0 / (fs * sum(window .^ 2))
+
+    # Apply window to each trial
+    x2_view_windowed = x2_view .* window'
+
+    # Compute FFT and PSD for each trial
+    x2_fft = fft(x2_view_windowed, 2)  # FFT along time dimension
+    psd = real.(view(x2_fft .* conj.(x2_fft), :, idxs2)) .* scale
+
+    # Average across trials
+    psd_mean = mean(psd, dims=1)[:]
+
+    freqs = fftfreq(n2, fs)[1:n]  # Get frequencies up to original signal length
+    freqs2 = freqs[freqs .≥ 0]     # Keep only positive frequencies
+
+    return psd_mean[2:end], freqs2[2:end]
 end
 
 """
@@ -93,8 +152,7 @@ function comp_cc(data1::AbstractMatrix,
 end
 
 function comp_ac_time(data::AbstractMatrix{T},
-                      max_lag::Int) where T<:Real
-    
+                      max_lag::Int) where {T <: Real}
     lags = 0:(max_lag-1)
     n_trials = size(data, 1)
     cc = zeros(T, n_trials, max_lag)
@@ -106,13 +164,12 @@ function comp_ac_time(data::AbstractMatrix{T},
 end
 
 function comp_ac_time_adfriendly(data::AbstractMatrix{T},
-                      max_lag::Int) where T<:Real
-    
+                                 max_lag::Int) where {T <: Real}
     lags = 0:(max_lag-1)
     n_trials = size(data, 1)
-    cc = [acf_statsmodels(data[trial, :], nlags=max_lag-1) for trial in 1:n_trials]
+    cc = [acf_statsmodels(data[trial, :], nlags=max_lag - 1) for trial in 1:n_trials]
 
-    cc_mean = mean(cc)  
+    cc_mean = mean(cc)
     return cc_mean
 end
 
@@ -121,7 +178,7 @@ function comp_ac_time_missing(data::AbstractMatrix,
     n_trials = size(data, 1)
     cc = zeros(n_trials, max_lag)
     for trial in 1:n_trials
-        cc[trial, :] = acf_statsmodels(data[trial, :], nlags=max_lag-1)
+        cc[trial, :] = acf_statsmodels(data[trial, :], nlags=max_lag - 1)
     end
     cc_mean = mean(cc; dims=1)[:]
     return cc_mean
@@ -167,13 +224,13 @@ Tuple containing some combination of:
 - pvalue : Vector{Float64} - P-values (if qstat=true)
 """
 function acf_statsmodels(x::Union{Vector{T}, Vector{Union{Missing, T}}};
-            adjusted::Bool=false,
-            nlags::Union{Int,Nothing}=nothing,
-            qstat::Bool=false,
-            isfft::Bool=false,
-            alpha::Union{Float64,Nothing}=nothing,
-            bartlett_confint::Bool=false,
-            missing_handling::String="conservative") where T<:Real
+                         adjusted::Bool=false,
+                         nlags::Union{Int, Nothing}=nothing,
+                         qstat::Bool=false,
+                         isfft::Bool=false,
+                         alpha::Union{Float64, Nothing}=nothing,
+                         bartlett_confint::Bool=false,
+                         missing_handling::String="conservative") where {T <: Real}
 
     # Input validation
     missing_handling = lowercase(missing_handling)
@@ -185,12 +242,11 @@ function acf_statsmodels(x::Union{Vector{T}, Vector{Union{Missing, T}}};
     end
 
     # Compute autocovariance
-    avf = acovf(x; adjusted=adjusted, demean=true, isfft=isfft, 
+    avf = acovf(x; adjusted=adjusted, demean=true, isfft=isfft,
                 missing_handling=missing_handling, nlag=nlags)
     acf_vals = avf[1:nlags+1] ./ avf[1]
 
     return acf_vals
-
 end
 
 """
@@ -241,7 +297,7 @@ function acovf(x::Union{Vector{T}, Vector{Union{Missing, T}}};
                demean::Bool=true,
                isfft::Bool=false,
                missing_handling::String="none",
-               nlag::Union{Int,Nothing}=nothing) where T <: Real
+               nlag::Union{Int, Nothing}=nothing) where {T <: Real}
 
     # Input validation
     missing_handling = lowercase(missing_handling)
@@ -267,7 +323,7 @@ function acovf(x::Union{Vector{T}, Vector{Union{Missing, T}}};
     # Demean the data
     if demean && deal_with_masked
         # whether "drop" or "conservative"
-        xo = x .- sum(x)/sum(notmask_int)
+        xo = x .- sum(x) / sum(notmask_int)
         if missing_handling == "conservative"
             xo[.!notmask_bool] .= 0
         end
@@ -278,18 +334,16 @@ function acovf(x::Union{Vector{T}, Vector{Union{Missing, T}}};
     end
 
     n = length(x)
-    lag_len = isnothing(nlag) ? n-1 : nlag
-    if !isnothing(nlag) && nlag > n-1
+    lag_len = isnothing(nlag) ? n - 1 : nlag
+    if !isnothing(nlag) && nlag > n - 1
         throw(ArgumentError("nlag must be smaller than nobs - 1"))
     end
 
     if !isfft && !isnothing(nlag)
-        acov = [
-            i == 0 ? 
-                dot(xo, xo) : 
+        acov = [i == 0 ?
+                dot(xo, xo) :
                 dot(view(xo, (i+1):length(xo)), view(xo, 1:(length(xo)-i)))
-            for i in 0:lag_len
-        ]
+                for i in 0:lag_len]
         if !deal_with_masked || missing_handling == "drop"
             if adjusted
                 acov2 = acov ./ (n .- (0:lag_len))
@@ -302,9 +356,9 @@ function acovf(x::Union{Vector{T}, Vector{Union{Missing, T}}};
                 divisor[1] = sum(notmask_int)
                 for i in 1:lag_len
                     divisor[i+1] = dot(view(notmask_int, (i+1):length(notmask_int)),
-                                     view(notmask_int, 1:(length(notmask_int)-i)))
+                                       view(notmask_int, 1:(length(notmask_int)-i)))
                 end
-                divisor[divisor .== 0] .= 1
+                divisor[divisor.==0] .= 1
                 acov2 = acov ./ divisor
             else # biased, missing data but not "drop"
                 acov2 = acov ./ sum(notmask_int)
@@ -315,7 +369,7 @@ function acovf(x::Union{Vector{T}, Vector{Union{Missing, T}}};
 
     if adjusted && deal_with_masked && missing_handling == "conservative"
         d = dsp.xcorr(notmask_int, notmask_int)
-        d[d .== 0] .= 1
+        d[d.==0] .= 1
     elseif adjusted
         xi = 1:n
         d = vcat(xi, xi[end-1:-1:1])

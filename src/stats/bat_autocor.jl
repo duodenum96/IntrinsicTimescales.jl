@@ -62,9 +62,9 @@ function bat_autocorr(x::AbstractVector{<:Real})
     x2 = zeros(eltype(x), n2)
     idxs2 = firstindex(x2):(firstindex(x2) + n - 1)
     x2_view = view(x2, idxs2)
-    x2_view .= x .- mean(x)
+    x2_demeaned = x .- mean(x)
 
-    x2_fft = fft(x2)
+    x2_fft = fft(x2_demeaned)
     acf = real.(view(ifft(x2_fft .* conj.(x2_fft)), idxs2))
     acf ./= first(acf)
 
