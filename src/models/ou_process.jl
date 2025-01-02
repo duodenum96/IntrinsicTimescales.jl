@@ -67,7 +67,7 @@ function generate_ou_process_sciml(
     u0 = randn(num_trials) # Quick hack instead of ensemble problem
     prob = deq.SDEProblem(f, g, u0, (0.0, duration), p)
     times = dt:dt:duration
-    sol = deq.solve(prob, deq.SOSRI(); saveat=times)
+    sol = deq.solve(prob, deq.SOSRA(); saveat=times)
     sol_matrix = reduce(hcat, sol.u)
     if standardize
         ou_scaled = ((sol_matrix .- mean(sol_matrix, dims=2)) ./ std(sol_matrix, dims=2)) * true_D
