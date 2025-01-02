@@ -173,10 +173,10 @@ function comp_ac_time_adfriendly(data::AbstractMatrix{T},
     return cc_mean
 end
 
-function comp_ac_time_missing(data::AbstractMatrix,
-                              max_lag::Int)
+function comp_ac_time_missing(data::Union{AbstractMatrix{T}, AbstractMatrix{Union{Missing, T}}},
+                              max_lag::Int) where {T <: Real}
     n_trials = size(data, 1)
-    cc = zeros(n_trials, max_lag)
+    cc = zeros(T, n_trials, max_lag)
     for trial in 1:n_trials
         cc[trial, :] = acf_statsmodels(data[trial, :], nlags=max_lag - 1)
     end
