@@ -52,16 +52,26 @@ tr.@model function fit_acf(data, prob)
 end
 
 model = fit_acf(data_acf, prob)
-advi = tr.ADVI(10, 1000, AutoForwardDiff())
+advi = tr.ADVI(10, 1000, AutoZygote())
 chain = tr.vi(model, advi)
 # chain_hmc = tr.sample(model, tr.NUTS(), tr.MCMCSerial(), 1000, 1; progress=true)
 inferred_params = (mean(rand(chain, 4000); dims=2)...,)
-inferred_params_var = (var(rand(chain, 4000); dims=2)...,)
+inferred_params_var = (std(rand(chain, 4000); dims=2)...,)
 
-tau_pred = inferred_params[1]
-sol = deq.solve(prob, deq.SOSRI(); saveat=times, p=[tau_pred])
-predicted_ts = Array(sol)
-predicted_acf = comp_ac_time_adfriendly(predicted_ts, nlags)
+tau_draws = rand(chain, 4000)[1, :][:]
+tau_selected = rand(tau_draws, 20)
 
-plot(1:nlags, data_acf, label="Data", linewidth=2, legend=:bottomright)
-plot!(1:nlags, predicted_acf, label="Predicted", linewidth=2, legend=:bottomright)
+plot(1:nlags, data_acf, label="Data", linewidth=2)
+predicted_acfs = zeros(length(tau_selected), nlags)
+for (i, tau_pred) in enumerate(tau_selected)
+    sol = deq.solve(prob, deq.SOSRI(); saveat=times, p=[tau_pred])
+    predicted_ts = Array(sol)
+    predicted_acfs[i,:] = comp_ac_time_adfriendly(predicted_ts, nlags)
+end
+
+lower_bound = [quantile(predicted_acfs[:,i], 0.025) for i in 1:nlags]
+upper_bound = [quantile(predicted_acfs[:,i], 0.975) for i in 1:nlags]
+plot!(1:nlags, [lower_bound upper_bound], fillrange=upper_bound, fillalpha=0.3, label="95% CI", color=:blue)
+
+histogram(tau_draws)
+vline!([true_tau])
