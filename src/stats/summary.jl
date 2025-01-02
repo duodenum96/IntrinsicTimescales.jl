@@ -176,10 +176,8 @@ end
 function comp_ac_time_missing(data::AbstractMatrix{T},
                               max_lag::Int) where {T <: Real}
     n_trials = size(data, 1)
-    cc = zeros(T, n_trials, max_lag)
-    for trial in 1:n_trials
-        cc[trial, :] = acf_statsmodels(data[trial, :], nlags=max_lag - 1)
-    end
+    cc = [acf_statsmodels(data[trial, :], nlags=max_lag - 1) for trial in 1:n_trials] # non-mutating
+    cc = reduce(hcat, cc)' # Convert to matrix with trials as rows
     cc_mean = mean(cc; dims=1)[:]
     return cc_mean
 end
@@ -322,11 +320,7 @@ function acovf(x::Vector{T};
 
     # Demean the data
     if demean && deal_with_masked
-        # whether "drop" or "conservative"
-        xo = x .- sum(x) / sum(notmask_int)
-        if missing_handling == "conservative"
-            xo[.!notmask_bool] .= 0
-        end
+        xo = map(v -> isnan(v) ? 0 : v - sum(x[notmask_bool]) / sum(notmask_int), x) # if nan, replace with 0, else, demean
     elseif demean
         xo = x .- mean(x)
     else
