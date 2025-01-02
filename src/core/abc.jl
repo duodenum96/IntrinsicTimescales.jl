@@ -196,6 +196,48 @@ function effective_sample_size(w::Vector{Float64})
     return sumw * sumw / sum2
 end
 
+"""
+Adaptively selects epsilon based on acceptance rate and distance distribution
+"""
+function select_epsilon(distances::Vector{Float64}, 
+                       current_epsilon::Float64;
+                       target_acc_rate::Float64=0.01,
+                       current_acc_rate::Float64=0.0,
+                       alpha::Float64=0.5)
+    # Filter out NaN and very large distances
+    valid_distances = distances[.!isnan.(distances)]
+    valid_distances = valid_distances[valid_distances .< 10.0]
+    
+    if isempty(valid_distances)
+        @warn "No valid distances for epsilon selection"
+        return current_epsilon
+    end
+    
+    # Compute quantiles of the distance distribution
+    q25 = sb.percentile(valid_distances, 25)
+    q50 = sb.percentile(valid_distances, 50)
+    q75 = sb.percentile(valid_distances, 75)
+    
+    # Adaptive selection based on acceptance rate
+    if current_acc_rate > 0.0
+        if current_acc_rate > target_acc_rate * 1.1
+            # Acceptance rate too high - decrease epsilon
+            new_epsilon = max(q25, current_epsilon * (1.0 - alpha))
+        elseif current_acc_rate < target_acc_rate * 0.9
+            # Acceptance rate too low - increase epsilon
+            new_epsilon = min(q75, current_epsilon * (1.0 + alpha))
+        else
+            # Acceptance rate is good - maintain current epsilon
+            new_epsilon = current_epsilon
+        end
+    else
+        # Initial epsilon selection
+        new_epsilon = q50
+    end
+    
+    return new_epsilon
+end
+
 # TODO: Implement parallelism
 """
 pmc_abc(model, data, inter_save_direc, inter_filename; 
@@ -232,27 +274,38 @@ A record array containing ABC output for each step with fields:
 - `eff sample`: Effective sample size (array of 1s if not in PMC mode)
 """
 function pmc_abc(model::Models.AbstractTimescaleModel;
-                 epsilon_0::Float64=1.0, min_samples::Int=10, steps::Int=10,
-                 sample_only::Bool=false, max_iter::Int=10000, minAccRate::Float64=0.0001)
-
+                 epsilon_0::Float64=1.0, 
+                 min_samples::Int=10, 
+                 steps::Int=10,
+                 sample_only::Bool=false, 
+                 max_iter::Int=10000, 
+                 minAccRate::Float64=0.0001,
+                 target_acc_rate::Float64=0.01)
+    
     # Initialize output record structure 
     output_record = Vector{NamedTuple}(undef, steps)
     epsilon = epsilon_0
-
+    
     for i_step in 1:steps
         println("Starting step $(i_step)")
         println("epsilon = $(epsilon)")
-
+        
         if i_step == 1  # First ABC calculation
             result = basic_abc(model,
-                               epsilon=epsilon,
-                               max_iter=max_iter,
-                               pmc_mode=false)
+                             epsilon=epsilon,
+                             max_iter=max_iter,
+                             pmc_mode=false)
+            
+            # Initial epsilon selection
+            epsilon = select_epsilon(result.distances, 
+                                  epsilon,
+                                  target_acc_rate=target_acc_rate)
+            
             theta = result.theta_accepted
             tau_squared = 2 * cov(theta; dims=2)
             weights = fill(1.0 / size(theta, 2), size(theta, 2))
             nonnan_distances = result.distances[result.distances.<10]
-            epsilon = sb.percentile(nonnan_distances, 75)
+            epsilon = sb.percentile(nonnan_distances, 25)
             eff_sample = effective_sample_size(weights)
 
             output_record[i_step] = (theta_accepted=theta,
@@ -270,13 +323,13 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             tau_squared = output_record[i_step-1].tau_squared
 
             result = basic_abc(model,
-                               epsilon=epsilon,
-                               max_iter=max_iter,
-                               pmc_mode=true,
-                               weights=weights_prev,
-                               theta_prev=theta_prev,
-                               tau_squared=tau_squared)
-            @infiltrate
+                             epsilon=epsilon,
+                             max_iter=max_iter,
+                             pmc_mode=true,
+                             weights=weights_prev,
+                             theta_prev=theta_prev,
+                             tau_squared=tau_squared)
+
             theta = result.theta_accepted
             nonnan_distances = result.distances[result.distances.<10]
             epsilon = sb.percentile(nonnan_distances, 75)
@@ -290,6 +343,13 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                                        weights_prev, model.prior)
                 tau_squared = 2 * weighted_covar(theta, weights)
             end
+
+            # Adaptive epsilon selection
+            current_acc_rate = result.n_accepted / result.n_total
+            epsilon = select_epsilon(result.distances, 
+                                  epsilon,
+                                  target_acc_rate=target_acc_rate,
+                                  current_acc_rate=current_acc_rate)
 
             output_record[i_step] = (theta_accepted=theta,
                                      D_accepted=result.distances,
@@ -310,6 +370,12 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
         println("--------------------")
 
         if accept_rate < minAccRate
+            println("epsilon = $(epsilon)")
+            println("Acceptance Rate = $(accept_rate)")
+            return output_record[1:i_step]
+        end
+
+        if epsilon < 5e-3 # TODO: Add this as an adjustable argument
             println("epsilon = $(epsilon)")
             println("Acceptance Rate = $(accept_rate)")
             return output_record[1:i_step]
