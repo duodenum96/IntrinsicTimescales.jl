@@ -20,7 +20,7 @@ function draw_theta_pmc(model, theta_prev, weights, tau_squared)
                             sb.sample(collect(1:length(theta_prev)), sb.pweights(weights))]
     
     # Add small diagonal term to ensure positive definiteness
-    jitter = 1e-6 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
+    jitter = 1e-5 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
     stabilized_cov = tau_squared + jitter
     
     theta = rand(dist.MvNormal(theta_star, stabilized_cov))
@@ -352,8 +352,8 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             # Add stabilization
             tau_squared += 1e-6 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
             weights = fill(1.0 / size(theta, 2), size(theta, 2))
-            nonnan_distances = result.distances[result.distances.<10]
-            epsilon = sb.percentile(nonnan_distances, 25)
+            # nonnan_distances = result.distances[result.distances.<10]
+            # epsilon = sb.percentile(result.distances, 25)
             eff_sample = effective_sample_size(weights)
 
             output_record[i_step] = (theta_accepted=theta,
@@ -380,7 +380,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 
             theta = result.theta_accepted
             nonnan_distances = result.distances[result.distances.<10]
-            epsilon = sb.percentile(nonnan_distances, 75)
+            # epsilon = sb.percentile(nonnan_distances, 75)
             effective_sample = effective_sample_size(weights_prev)
 
             if sample_only
