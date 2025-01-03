@@ -10,6 +10,7 @@ using Statistics
 using ..Models
 using ..OrnsteinUhlenbeck
 using BayesianINT
+using Infiltrator
 
 export OneTimescaleAndOscModel
 
@@ -55,19 +56,113 @@ function Models.generate_data(model::OneTimescaleAndOscModel, theta)
                                         model.data_mean, model.data_var)
 end
 
-function Models.summary_stats(model::OneTimescaleAndOscModel, data)
-    return comp_psd(data, 1 / model.dt)[1] # Remove DC component
+"""
+Find the dominant oscillatory peak in the PSD using prominence
+"""
+function find_oscillation_peak(psd::Vector{Float64}, freqs::Vector{Float64};
+                             min_freq::Float64=5.0 / 1000.0,
+                             max_freq::Float64=50.0 / 1000.0,
+                             min_prominence_ratio::Float64=0.1)  # minimum prominence as fraction of max PSD
+    # Consider only frequencies in the specified range
+    freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
+    search_psd = psd[freq_mask]
+    search_freqs = freqs[freq_mask]
+    
+    # Find peaks
+    peak_indices = Int[]
+    for i in 2:length(search_psd)-1
+        if search_psd[i] > search_psd[i-1] && search_psd[i] > search_psd[i+1]
+            push!(peak_indices, i)
+        end
+    end
+    
+    # If no peaks found, return NaN
+    if isempty(peak_indices)
+        return NaN
+    end
+    
+    # Calculate prominence for each peak
+    prominences = Float64[]
+    for idx in peak_indices
+        # Find higher of the two minima on either side of peak
+        left_min = minimum(search_psd[1:idx])
+        right_min = minimum(search_psd[idx:end])
+        base = max(left_min, right_min)
+        
+        # Prominence is height above this base
+        prominence = search_psd[idx] - base
+        push!(prominences, prominence)
+    end
+    
+    # Filter peaks by minimum prominence
+    min_prominence = maximum(search_psd) * min_prominence_ratio
+    valid_peaks = peak_indices[prominences .>= min_prominence]
+    valid_prominences = prominences[prominences .>= min_prominence]
+    
+    # If no peaks meet prominence criterion, return NaN
+    if isempty(valid_peaks)
+        return NaN
+    end
+    
+    # Return frequency of the most prominent peak
+    best_peak_idx = valid_peaks[argmax(valid_prominences)]
+    return search_freqs[best_peak_idx]
 end
 
+"""
+Compute combined distance using PSD shape and peak location
+"""
+function combined_distance(model_psd::Vector{Float64}, 
+                         data_psd::Vector{Float64}, 
+                         freqs::Vector{Float64};
+                         peak_weight::Float64=0.3,
+                         min_freq::Float64=5.0 / 1000.0,
+                         max_freq::Float64=50.0 / 1000.0)
+    # 1. Regular PSD distance
+    psd_dist = logarithmic_distance(model_psd, data_psd)
+    
+    # 2. Peak frequency distance
+    model_peak = find_oscillation_peak(model_psd, freqs, 
+                                     min_freq=min_freq, 
+                                     max_freq=max_freq)
+    data_peak = find_oscillation_peak(data_psd, freqs, 
+                                    min_freq=min_freq, 
+                                    max_freq=max_freq)
+    
+    # Handle case where no peak is found
+    if isnan(model_peak) || isnan(data_peak)
+        return 1e5
+    end
+    
+    # Normalize peak distance relative to frequency range
+    freq_range = max_freq - min_freq
+    peak_dist = abs(model_peak - data_peak) / freq_range
+    @infiltrate
+    # Combine distances with weighting
+    total_dist = (1.0 - peak_weight) * psd_dist + peak_weight * peak_dist
+    
+    return total_dist
+end
+
+"""
+Modified summary_stats to return both PSD and frequencies
+"""
+function Models.summary_stats(model::OneTimescaleAndOscModel, data)
+    return comp_psd(data, 1 / model.dt) # Remove DC component
+end
+
+"""
+Modified distance function to use combined distance
+"""
 function Models.distance_function(model::OneTimescaleAndOscModel, sum_stats, data_sum_stats)
-    if any(isnan.(sum_stats)) || any(isnan.(data_sum_stats))
+    if any(isnan.(sum_stats[1])) || any(isnan.(data_sum_stats))
         return 1e5
     else
-        return logarithmic_distance(sum_stats, data_sum_stats)
+        return combined_distance(sum_stats[1], 
+                               data_sum_stats, 
+                               sum_stats[2])
     end
 end
-
-
 
 function Models.rescale_theta(model::OneTimescaleAndOscModel, theta)
     return [theta[i] * model.prior_scales[i][2] + model.prior_scales[i][1]
@@ -79,9 +174,9 @@ function Models.generate_data_and_reduce(model::OneTimescaleAndOscModel, theta)
     # problems in the ABC algorithm. To avoid this, we rescale the parameters to be on the same scale.
     # We scale the priors to a unit scale and then rescale the parameters to the original scale.
     # We also rescale the data to a unit scale.
-    theta_rescaled = Models.rescale_theta(model, theta)
+    # theta_rescaled = Models.rescale_theta(model, theta)
 
-    synth = Models.generate_data(model, theta_rescaled)
+    synth = Models.generate_data(model, theta)
     sum_stats = Models.summary_stats(model, synth)
     d = Models.distance_function(model, sum_stats, model.data_sum_stats)
     return d
