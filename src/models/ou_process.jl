@@ -137,7 +137,10 @@ function generate_ou_with_oscillation(theta::Vector{T},
     end
 
     # Generate OU process and oscillation
-    ou = generate_ou_process_sciml(tau, data_var, dt, duration, num_trials, false)[1]
+    ou, sol = generate_ou_process_sciml(tau, data_var, dt, duration, num_trials, false)
+    if sol.retcode != deq.ReturnCode.Success
+        ou = NaN * ones(num_trials, Int(duration / dt))
+    end
 
     # Create time matrix and random phases
     time_mat = repeat(collect(dt:dt:duration), 1, num_trials)'
