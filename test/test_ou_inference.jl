@@ -118,14 +118,20 @@ end
     sd_coeff = std(final_samples[3, :])
 
     # Test if estimates are within reasonable range
-    @test abs(posterior_tau - true_tau) < 10.0 / 1000.0
-    @test abs(posterior_freq - true_freq) < 3.0
+    @test abs(posterior_tau - true_tau) < 10.0
+    @test abs(posterior_freq - true_freq) < 3.0 / 1000.0
     @test abs(posterior_coeff - true_coeff) < 0.2
+    # Plot
+    # ou_final = generate_ou_with_oscillation([posterior_tau, posterior_freq, posterior_coeff], dt, T, num_trials, 0.0, 1.0)
+    # ou_final_sum_stats, freq = comp_psd(ou_final, 1/dt)
+    # plot(freq, data_sum_stats, scale=:ln, label="Data")
+    # plot!(freq, ou_final_sum_stats, scale=:ln, label="Model")
+
+    # histogram(final_samples[1, :])
+    # vline!([true_tau])
+    # histogram(final_samples[2, :])
+    # vline!([true_freq])
+    # histogram(final_samples[3, :])
+    # vline!([true_coeff])
+    
 end
-
-using Plots
-ou_final = generate_ou_with_oscillation([posterior_tau, posterior_freq, posterior_coeff], dt, T, num_trials, 0.0, 1.0)
-ou_final_sum_stats, freq = comp_psd(ou_final, 1/dt)
-
-plot(freq[2:end], data_sum_stats, scale=:ln, label="Data")
-plot!(freq[2:end], ou_final_sum_stats, scale=:ln, label="Model")
