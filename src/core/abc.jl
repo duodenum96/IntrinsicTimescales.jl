@@ -11,16 +11,23 @@ using Statistics
 import Distributions as dist
 import StatsBase as sb
 using ProgressMeter
+using LinearAlgebra
 
 export basic_abc, pmc_abc, effective_sample_size, weighted_covar
 
 function draw_theta_pmc(model, theta_prev, weights, tau_squared)
     theta_star = theta_prev[:,
                             sb.sample(collect(1:length(theta_prev)), sb.pweights(weights))]
-    theta = rand(dist.MvNormal(theta_star, tau_squared))
+    
+    # Add small diagonal term to ensure positive definiteness
+    jitter = 1e-6 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
+    stabilized_cov = tau_squared + jitter
+    
+    theta = rand(dist.MvNormal(theta_star, stabilized_cov))
+    
     # Only sample positive values
     while sum(theta .< 0) > 0
-        theta = rand(dist.MvNormal(theta_star, tau_squared))
+        theta = rand(dist.MvNormal(theta_star, stabilized_cov))
     end
     return theta
 end
@@ -199,11 +206,14 @@ end
 """
 Adaptively selects epsilon based on acceptance rate and distance distribution
 """
-function select_epsilon(distances::Vector{Float64}, 
-                       current_epsilon::Float64;
-                       target_acc_rate::Float64=0.01,
-                       current_acc_rate::Float64=0.0,
-                       alpha::Float64=0.5)
+function select_epsilon(
+    distances::Vector{Float64}, 
+    current_epsilon::Float64;
+    target_acc_rate::Float64=0.01,
+    current_acc_rate::Float64=0.0,
+    iteration::Int=1,
+    total_iterations::Int=100
+)
     # Filter out NaN and very large distances
     valid_distances = distances[.!isnan.(distances)]
     valid_distances = valid_distances[valid_distances .< 10.0]
@@ -213,29 +223,65 @@ function select_epsilon(distances::Vector{Float64},
         return current_epsilon
     end
     
-    # Compute quantiles of the distance distribution
+    # Compute quantiles
     q25 = sb.percentile(valid_distances, 25)
     q50 = sb.percentile(valid_distances, 50)
     q75 = sb.percentile(valid_distances, 75)
     
+    # Get adaptive alpha value
+    alpha = compute_adaptive_alpha(
+        iteration,
+        current_acc_rate,
+        target_acc_rate,
+        total_iterations=total_iterations
+    )
+    
     # Adaptive selection based on acceptance rate
     if current_acc_rate > 0.0
         if current_acc_rate > target_acc_rate * 1.1
-            # Acceptance rate too high - decrease epsilon
             new_epsilon = max(q25, current_epsilon * (1.0 - alpha))
         elseif current_acc_rate < target_acc_rate * 0.9
-            # Acceptance rate too low - increase epsilon
             new_epsilon = min(q75, current_epsilon * (1.0 + alpha))
         else
-            # Acceptance rate is good - maintain current epsilon
             new_epsilon = current_epsilon
         end
     else
-        # Initial epsilon selection
         new_epsilon = q50
     end
     
     return new_epsilon
+end
+
+"""
+Compute adaptive alpha value based on iteration and convergence metrics
+"""
+function compute_adaptive_alpha(
+    iteration::Int,
+    current_acc_rate::Float64,
+    target_acc_rate::Float64;
+    alpha_max::Float64=0.9,
+    alpha_min::Float64=0.1,
+    total_iterations::Int=100
+)
+    # Base decay factor based on iteration progress
+    progress = iteration / total_iterations
+    base_alpha = alpha_max * (1 - progress) + alpha_min * progress
+    
+    # Adjust based on how far we are from target acceptance rate
+    acc_rate_diff = abs(current_acc_rate - target_acc_rate) / target_acc_rate
+    
+    if acc_rate_diff > 2.0
+        # Far from target: more aggressive adaptation
+        alpha = min(alpha_max, base_alpha * 1.5)
+    elseif acc_rate_diff < 0.2
+        # Close to target: more conservative adaptation
+        alpha = max(alpha_min, base_alpha * 0.5)
+    else
+        # Normal range: use base alpha
+        alpha = base_alpha
+    end
+    
+    return alpha
 end
 
 # TODO: Implement parallelism
@@ -303,6 +349,8 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             
             theta = result.theta_accepted
             tau_squared = 2 * cov(theta; dims=2)
+            # Add stabilization
+            tau_squared += 1e-6 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
             weights = fill(1.0 / size(theta, 2), size(theta, 2))
             nonnan_distances = result.distances[result.distances.<10]
             epsilon = sb.percentile(nonnan_distances, 25)
@@ -346,10 +394,14 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 
             # Adaptive epsilon selection
             current_acc_rate = result.n_accepted / result.n_total
-            epsilon = select_epsilon(result.distances, 
-                                  epsilon,
-                                  target_acc_rate=target_acc_rate,
-                                  current_acc_rate=current_acc_rate)
+            epsilon = select_epsilon(
+                result.distances, 
+                epsilon,
+                target_acc_rate=target_acc_rate,
+                current_acc_rate=current_acc_rate,
+                iteration=i_step,
+                total_iterations=steps
+            )
 
             output_record[i_step] = (theta_accepted=theta,
                                      D_accepted=result.distances,
