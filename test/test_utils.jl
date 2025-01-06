@@ -12,7 +12,7 @@ using BayesianINT.SummaryStats
         amp = 100.0
         psd = @. amp / (1 + (freqs/f_knee)^2)
         
-        detected_knee = find_knee_frequency(psd, freqs)
+        detected_knee = find_knee_frequency(psd, freqs)[2]
         @test isapprox(detected_knee, f_knee, rtol=0.1)
     end
     
@@ -26,7 +26,7 @@ using BayesianINT.SummaryStats
         noise = randn(length(freqs)) * 0.05 * amp
         noisy_psd = base_psd + noise
         
-        detected_knee = find_knee_frequency(noisy_psd, freqs)
+        detected_knee = find_knee_frequency(noisy_psd, freqs)[2]
         @test isapprox(detected_knee, f_knee, rtol=0.2)
     end
     
@@ -37,8 +37,8 @@ using BayesianINT.SummaryStats
         amp = 100.0
         psd = @. amp / (1 + (freqs/f_knee)^2)
         
-        knee1 = find_knee_frequency(psd, freqs, min_freq=0.1/1000.0, max_freq=50.0)
-        knee2 = find_knee_frequency(psd, freqs, min_freq=1.0 / 1000.0, max_freq=20.0 / 1000.0)
+        knee1 = find_knee_frequency(psd, freqs, min_freq=0.1/1000.0, max_freq=50.0)[2]
+        knee2 = find_knee_frequency(psd, freqs, min_freq=1.0 / 1000.0, max_freq=20.0 / 1000.0)[2]
         
         @test isapprox(knee1, knee2, rtol=0.2)
         @test isapprox(knee1, f_knee, rtol=0.2)
@@ -50,11 +50,11 @@ using BayesianINT.SummaryStats
         
         # Flat PSD
         flat_psd = ones(length(freqs))
-        @test isnan(find_knee_frequency(flat_psd, freqs))
+        @test isnan(find_knee_frequency(flat_psd, freqs)[2])
         
         # Very noisy data
         random_psd = randn(length(freqs))
-        @test isnan(find_knee_frequency(random_psd, freqs))
+        @test isnan(find_knee_frequency(random_psd, freqs)[2])
     end
     
     # Test 5: OU process
@@ -66,7 +66,7 @@ using BayesianINT.SummaryStats
         num_trials = 100
         ou = generate_ou_process(tau, 1.0, dt, T, num_trials)
         psd, freqs = comp_psd(ou, 1/dt)
-        detected_knee = find_knee_frequency(psd, freqs, min_freq = freqs[1], max_freq = freqs[end])
+        detected_knee = find_knee_frequency(psd, freqs, min_freq = freqs[1], max_freq = freqs[end])[2]
         # Theoretically, tau = 1 / 2pi * f_knee
         @test isapprox(tau, (1 / (2π * detected_knee)), rtol=2)
 
@@ -81,7 +81,7 @@ using BayesianINT.SummaryStats
         data = generate_ou_with_oscillation([true_tau, true_freq, true_coeff],
                                             dt, T, num_trials, 0.0, 1.0)
         psd, freqs = comp_psd(data, 1/dt)
-        detected_knee = find_knee_frequency(psd, freqs, min_freq = freqs[1], max_freq = freqs[end])
+        detected_knee = find_knee_frequency(psd, freqs, min_freq = freqs[1], max_freq = freqs[end])[2]
         # Theoretically, tau = 1 / 2pi * f_knee
         @test isapprox(true_tau, (1 / (2π * detected_knee)), rtol=2)
     end

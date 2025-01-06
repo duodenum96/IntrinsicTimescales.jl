@@ -4,7 +4,7 @@ module Utils
 
 using Statistics
 using NonlinearSolve
-export expdecayfit, find_oscillation_peak, find_knee_frequency
+export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit, lorentzian_initial_guess, lorentzian
 
 """
 Fit an exponential decay to the data
@@ -71,35 +71,31 @@ function find_oscillation_peak(psd::Vector{Float64}, freqs::Vector{Float64};
 end
 
 function lorentzian(f, u)
-    return u[1] ./ (1 .+ (f ./ u[2]).^2)
+    return u[1] ./ (1 .+ (f ./ u[2]) .^ 2)
 end
 
 # Define the residual function for NonlinearLeastSquares
 function residual!(du, u, p)
-    du .= mean(sqrt.(abs2.(lorentzian(fit_freqs, u) .- fit_psd)))
+    du .= mean(sqrt.(abs2.(lorentzian(p[1], u) .- p[2])))
     return nothing
 end
 
 function lorentzian_initial_guess(psd::Vector{Float64}, freqs::Vector{Float64};
-                                  min_freq::Float64=0.1 / 1000.0,
-                                  max_freq::Float64=100.0 / 1000.0)
-    # Consider only frequencies in the specified range
-    freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
-    fit_psd = psd[freq_mask]
-    fit_freqs = freqs[freq_mask]
+                                  min_freq::Float64=freqs[1],
+                                  max_freq::Float64=freqs[end])
 
     # Initial parameter guess
     # u[1]: estimate amplitude from low frequency power
     # u[2]: rough estimate of knee frequency from power spectrum
-    initial_amp = mean(fit_psd[fit_freqs.<=min_freq*2])
+    initial_amp = mean(psd[freqs.<=min_freq*2])
     half_power = initial_amp / 2
-    knee_guess_idx = findlast(fit_psd .>= half_power)
+    knee_guess_idx = findlast(psd .>= half_power)
 
     # Ensure valid initial guesses
     if isnothing(knee_guess_idx)
-        knee_guess = (minimum(fit_freqs) + maximum(fit_freqs)) / 2
+        knee_guess = (minimum(freqs) + maximum(freqs)) / 2
     else
-        knee_guess = fit_freqs[knee_guess_idx]
+        knee_guess = freqs[knee_guess_idx]
     end
 
     u0 = [initial_amp, knee_guess]
@@ -112,32 +108,20 @@ Find the knee frequency by fitting a Lorentzian function to the PSD
 Returns the frequency where power drops to half of its peak value
 """
 function find_knee_frequency(psd::Vector{Float64}, freqs::Vector{Float64};
-                             min_freq::Float64=0.1 / 1000.0,
-                             max_freq::Float64=100.0 / 1000.0)
-    # Consider only frequencies in the specified range
-    freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
-    fit_psd = psd[freq_mask]
-    fit_freqs = freqs[freq_mask]
+                             min_freq::Float64=freqs[1],
+                             max_freq::Float64=freqs[end])
 
     # Initial parameter guess
-    u0 = lorentzian_initial_guess(fit_psd, fit_freqs)
+    u0 = lorentzian_initial_guess(psd, freqs, min_freq=min_freq, max_freq=max_freq)
 
     # Set up and solve the nonlinear least squares problem
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual!,
-                                                          resid_prototype=zeros(2)), u0)
+                                                          resid_prototype=zeros(2)), u0,
+                                        p=[freqs, psd])
 
-    try
-        # TODO: Find a reasonable tolerance. Even in very good fits, residual error is 4.5. 
-        sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), abstol=5, verbose=false)
-        if SciMLBase.successful_retcode(sol)
-            # Return the characteristic frequency (knee frequency)
-            return sol.u[2]
-        end
-    catch e
-        @warn "Fitting failed: $e"
-    end
-
-    return NaN
+    # TODO: Find a reasonable tolerance. Even in very good fits, residual error is 4.5. 
+    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), abstol=5, verbose=false)
+    return (sol.u[1], sol.u[2])
 end
 
 """
@@ -151,17 +135,24 @@ the following steps are also performed:
 5) Iterate until convergence
 """
 function fooof_fit(psd::Vector{Float64}, freqs::Vector{Float64};
-                   min_freq::Float64=0.1 / 1000.0,
-                   max_freq::Float64=100.0 / 1000.0)
-
+                   min_freq::Float64=freqs[1],
+                   max_freq::Float64=freqs[end])
     freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
     fit_psd = psd[freq_mask]
     fit_freqs = freqs[freq_mask]
 
     # 1) Fit a Lorentzian to the PSD
+    amp, knee = find_knee_frequency(fit_psd, fit_freqs; min_freq=min_freq,
+                                    max_freq=max_freq)
 
+    # 2) Subtract Lorentzian
+    lorentzian_psd = lorentzian(fit_freqs, [amp, knee])
+    residual_psd = fit_psd .- lorentzian_psd
 
-end # module
-
+    # 3) Find oscillation peaks
+    osc_peak = find_oscillation_peak(residual_psd, fit_freqs; min_freq=min_freq,
+                                     max_freq=max_freq)
+    return knee, osc_peak
+end
 
 end # module

@@ -76,19 +76,13 @@ end
     data_mean = mean(data)
     data_var = std(data)
 
-    # Set up priors
-    priors = [
-        Uniform(30.0, 120.0),  # tau prior
-        Uniform(1.0 / 1000.0, 60.0 / 1000.0),    # frequency prior
-        Uniform(0.0, 1.0)      # oscillation coefficient prior
-    ]
-
-    data_sum_stats = comp_psd(data, 1/dt)[1]
+    data_psd, data_freq = comp_psd(data, 1/dt)
+    # priors = informed_prior(model, data_freq)
 
     # Create model
     model = OneTimescaleAndOscModel(data,              # data
-                                    priors,           # prior
-                                    data_sum_stats,   # data_sum_stats
+                                    "informed",       # prior
+                                    [data_psd, data_freq],   # data_sum_stats
                                     epsilon_0,        # epsilon
                                     dt,               # dt
                                     T,                # T

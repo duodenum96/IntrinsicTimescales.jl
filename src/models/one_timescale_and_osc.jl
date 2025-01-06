@@ -13,22 +13,54 @@ using BayesianINT.Utils
 using BayesianINT
 using Infiltrator
 
-export OneTimescaleAndOscModel
+export OneTimescaleAndOscModel, informed_prior
+
+function informed_prior(psd::Vector{Float64}, freqs::Vector{Float64})
+    u0 = lorentzian_initial_guess(psd, freqs)
+    amp, knee = u0
+    lorentzian_psd = lorentzian(freqs, [amp, knee])
+    residual_psd = psd .- lorentzian_psd
+
+    # 3) Find oscillation peaks
+    osc_peak = find_oscillation_peak(residual_psd, freqs; min_freq=freqs[1],
+                                     max_freq=freqs[end])
+
+    priors = [Normal(1 / knee, 1), Normal(osc_peak, 0.1), Uniform(0.0, 1.0)]
+
+    return priors
+end
 
 """
 One-timescale OU process model + Additive oscillation
 Theta: [tau, freq, coeff]
+Prior: "informed" or a vector of distributions
+data_sum_stats: [psd, freqs]
 """
 struct OneTimescaleAndOscModel <: AbstractTimescaleModel
     data::Matrix{Float64}
-    prior::Union{Vector{Uniform{Float64}}, Vector{Distribution}}
-    data_sum_stats::Vector{Float64}
+    prior::Union{Vector{Distribution}}
+    data_sum_stats::Vector{Vector{Float64}}
     epsilon::Float64
     dt::Float64
     T::Float64
     numTrials::Int
     data_mean::Float64
     data_var::Float64
+end
+
+# Constructor for informed prior
+function OneTimescaleAndOscModel(data,
+                                 prior::String,
+                                 data_sum_stats, epsilon,
+                                 dt, T, numTrials,
+                                 data_mean, data_var)
+    if prior == "informed"
+        priors = informed_prior(data_sum_stats[1], data_sum_stats[2])
+    else
+        priors = prior
+    end
+    return OneTimescaleAndOscModel(data, priors, data_sum_stats, epsilon, dt, T, numTrials,
+                                   data_mean, data_var)
 end
 
 # Implementation of required methods
@@ -43,24 +75,21 @@ Compute combined distance using PSD shape and peak location
 function combined_distance(model_psd::Vector{Float64},
                            data_psd::Vector{Float64},
                            freqs::Vector{Float64};
-                           peak_weight::Float64=0.4,
-                           knee_weight::Float64=0.4,
-                           psd_weight::Float64=0.2,
+                           peak_weight::Float64=0.45,
+                           knee_weight::Float64=0.45,
+                           psd_weight::Float64=0.1,
                            min_freq::Float64=2.0 / 1000.0,
                            max_freq::Float64=50.0 / 1000.0)
     # 1. Regular PSD distance
     psd_dist = logarithmic_distance(model_psd, data_psd)
 
     # 2. Peak frequency distance
-    model_peak = Utils.find_oscillation_peak(model_psd, freqs,
+    model_knee, model_peak = Utils.fooof_fit(model_psd, freqs,
                                              min_freq=min_freq,
                                              max_freq=max_freq)
-    data_peak = Utils.find_oscillation_peak(data_psd, freqs,
-                                            min_freq=min_freq,
-                                            max_freq=max_freq)
-
-    model_knee = Utils.find_knee_frequency(model_psd, freqs)
-    data_knee = Utils.find_knee_frequency(data_psd, freqs)
+    data_knee, data_peak = Utils.fooof_fit(data_psd, freqs,
+                                           min_freq=min_freq,
+                                           max_freq=max_freq)
 
     # Handle case where no peak or knee is found
     if isnan(model_peak) || isnan(data_peak) || isnan(model_knee) || isnan(data_knee)
@@ -88,10 +117,10 @@ end
 Modified distance function to use combined distance
 """
 function Models.distance_function(model::OneTimescaleAndOscModel, sum_stats, data_sum_stats)
-    if any(isnan.(sum_stats[1])) || any(isnan.(data_sum_stats))
+    if any(isnan.(sum_stats[1]))
         return 1e5
     else
-        return combined_distance(sum_stats[1], data_sum_stats, sum_stats[2]) # sum_stats[2] is the frequencies
+        return combined_distance(sum_stats[1], data_sum_stats[1], sum_stats[2]) # sum_stats[2] is the frequencies
     end
 end
 
