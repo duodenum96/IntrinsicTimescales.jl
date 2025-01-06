@@ -23,6 +23,7 @@ function draw_theta_pmc(model, theta_prev, weights, tau_squared)
     jitter = 1e-5 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
     stabilized_cov = tau_squared + jitter
     
+    # TODO: Add model specific theta handling (so that coefficients are positive)
     theta = rand(dist.MvNormal(theta_star, stabilized_cov))
     
     # Only sample positive values
@@ -49,7 +50,7 @@ function basic_abc(model::Models.AbstractTimescaleModel;
     accepted_count = 0
 
     @showprogress dt=1 desc="ABC Sampling" for trial_count in 1:max_iter
-
+    # Threads.@threads for trial_count in 1:max_iter
         # Draw from prior or proposal
         if pmc_mode
             theta = draw_theta_pmc(model, theta_prev, weights, tau_squared)
@@ -67,12 +68,11 @@ function basic_abc(model::Models.AbstractTimescaleModel;
         end
         samples[:, trial_count] = theta
         distances[trial_count] = d
-
-        if d <= epsilon
-            accepted_count += 1
-            isaccepted[trial_count] = 1
-        end
     end # for
+
+    isaccepted = distances .<= epsilon
+    accepted_count = sum(isaccepted)
+
     theta_accepted = samples[:, isaccepted.==1]
     weights = ones(length(theta_accepted))
     tau_squared = zeros(length(theta_accepted), length(theta_accepted))

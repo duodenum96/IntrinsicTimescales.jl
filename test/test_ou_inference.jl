@@ -63,10 +63,10 @@ end
     # Generate synthetic data with known parameters
     true_tau = 100.0
     true_freq = 10.0 / 1000.0  # mHz
-    true_coeff = 0.95  # oscillation coefficient
+    true_coeff = 0.7  # oscillation coefficient
     dt = 1.0
-    T = 30000.0
-    num_trials = 10
+    T = 1000.0
+    num_trials = 100
     n_lags = 100
     epsilon_0 = 1.0
 
@@ -91,12 +91,14 @@ end
                                     data_var)         # data_var
 
     # Run PMC-ABC
-    results = pmc_abc(model;
+    @profile results = pmc_abc(model;
                       epsilon_0=0.5,
                       min_samples=100,
-                      steps=100,
+                      steps=10,
                       minAccRate=0.01,
                       max_iter=100)
+
+    # println("Time taken: $timex seconds")
 
     # Get final posterior samples
     final_samples = results[end].theta_accepted
@@ -115,16 +117,16 @@ end
     @test abs(posterior_freq - true_freq) < 3.0 / 1000.0
     @test abs(posterior_coeff - true_coeff) < 0.2
     # Plot
-    # ou_final = generate_ou_with_oscillation([posterior_tau, posterior_freq, posterior_coeff], dt, T, num_trials, 0.0, 1.0)
-    # ou_final_sum_stats, freq = comp_psd(ou_final, 1/dt)
-    # plot(freq, data_sum_stats, scale=:ln, label="Data")
-    # plot!(freq, ou_final_sum_stats, scale=:ln, label="Model")
+    ou_final = generate_ou_with_oscillation([posterior_tau, posterior_freq, posterior_coeff], dt, T, num_trials, 0.0, 1.0)
+    ou_final_sum_stats, freq = comp_psd(ou_final, 1/dt)
+    plot(freq, data_psd, scale=:ln, label="Data")
+    plot!(freq, ou_final_sum_stats, scale=:ln, label="Model")
 
-    # histogram(final_samples[1, :])
-    # vline!([true_tau])
-    # histogram(final_samples[2, :])
-    # vline!([true_freq])
-    # histogram(final_samples[3, :])
-    # vline!([true_coeff])
+    histogram(final_samples[1, :])
+    vline!([true_tau])
+    histogram(final_samples[2, :])
+    vline!([true_freq])
+    histogram(final_samples[3, :])
+    vline!([true_coeff])
     
 end
