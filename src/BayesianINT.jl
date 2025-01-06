@@ -17,6 +17,9 @@ include("stats/summary.jl")
 include("stats/distances.jl")
 @reexport using .Distances
 
+include("utils/utils.jl")
+@reexport using .Utils
+
 include("models/ou_process.jl")
 @reexport using .OrnsteinUhlenbeck
 
@@ -28,6 +31,8 @@ include("models/one_timescale.jl")
 
 include("models/one_timescale_and_osc.jl")
 @reexport using .OneTimescaleAndOsc
+
+
 
 export AbstractTimescaleModel,
        BaseModel,
