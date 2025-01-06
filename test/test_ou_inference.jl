@@ -53,7 +53,7 @@ using BayesianINT.OrnsteinUhlenbeck
     tau_std = std(final_samples[1, :])
 
     # Test if estimates are within reasonable range
-    @test abs(posterior_tau - true_tau) < 5.0
+    @test abs(posterior_tau - true_tau) < 1.0
     # Plot
     # histogram(final_samples[1, :])
     # vline!([true_tau])
@@ -94,8 +94,7 @@ end
                                     T,                # T
                                     num_trials,       # numTrials
                                     data_mean,        # data_mean
-                                    data_var,         # data_var
-                                    [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]) # prior_scales (avoid rescaling)
+                                    data_var)         # data_var
 
     # Run PMC-ABC
     results = pmc_abc(model;
