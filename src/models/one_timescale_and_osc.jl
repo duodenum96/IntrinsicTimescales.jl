@@ -9,9 +9,9 @@ using Distributions
 using Statistics
 using ..Models
 using ..OrnsteinUhlenbeck
+using BayesianINT.Utils
 using BayesianINT
 using Infiltrator
-using ..Utils
 
 export OneTimescaleAndOscModel
 
