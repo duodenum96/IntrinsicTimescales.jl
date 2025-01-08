@@ -3,6 +3,7 @@
 # TODO: There are many possible performance improvements in the basic_abc function. The core 
 # challange is to eliminate if statements in the for loop. 
 # TODO: Switch to StaticArrays
+
 module ABC
 
 using Infiltrator
@@ -39,41 +40,40 @@ Basic ABC rejection sampling algorithm
 function basic_abc(model::Models.AbstractTimescaleModel;
                    epsilon::Float64,
                    max_iter::Int,
+                   min_accepted::Int,
                    pmc_mode::Bool=false,
-                   weights=nothing,
-                   theta_prev=nothing,
-                   tau_squared=nothing)
+                   weights=Array{Float64},
+                   theta_prev=Array{Float64},
+                   tau_squared=Array{Float64})
+    
     n_theta = length(model.prior)
-    samples = zeros(n_theta, max_iter)
+    samples = zeros(max_iter, n_theta)
     isaccepted = zeros(max_iter)
     distances = zeros(max_iter)
     accepted_count = 0
 
     @showprogress dt=1 desc="ABC Sampling" for trial_count in 1:max_iter
-    # Threads.@threads for trial_count in 1:max_iter
         # Draw from prior or proposal
         if pmc_mode
             theta = draw_theta_pmc(model, theta_prev, weights, tau_squared)
         else
             theta = Models.draw_theta(model)
         end
-
-        # Generate data and compute distance
         d = Models.generate_data_and_reduce(model, theta)
-        # Handle convergence issues
-        if isnan(d)
-            distances[trial_count] = 1e5
-        else
-            distances[trial_count] = d
-        end
-        samples[:, trial_count] = theta
+        samples[trial_count, :] = theta
         distances[trial_count] = d
+        if d <= epsilon
+            accepted_count += 1
+        end
+        if accepted_count == min_accepted
+            break
+        end
     end # for
 
     isaccepted = distances .<= epsilon
     accepted_count = sum(isaccepted)
 
-    theta_accepted = samples[:, isaccepted.==1]
+    theta_accepted = samples[isaccepted.==1, :]
     weights = ones(length(theta_accepted))
     tau_squared = zeros(length(theta_accepted), length(theta_accepted))
     eff_sample = length(theta_accepted)
@@ -88,6 +88,155 @@ function basic_abc(model::Models.AbstractTimescaleModel;
             weights=weights,
             tau_squared=tau_squared,
             eff_sample=eff_sample)
+end
+
+"""
+
+Perform a sequence of ABC posterior approximations using the sequential population Monte Carlo algorithm.
+
+# Arguments
+- `model`: Model object that is a subclass of AbstractTimescaleModel
+- `data`: The "observed" data set for inference
+- `inter_save_direc`: Directory to save intermediate results
+- `inter_filename`: Filename for intermediate results
+- `epsilon_0=1.0`: Initial tolerance to accept parameter draws
+- `min_samples=10`: Minimum number of posterior samples
+- `steps=10`: Number of PMC steps to attempt
+- `resume=nothing`: Record array of previous PMC sequence to continue from
+- `parallel=false`: Whether to run in parallel mode
+- `n_procs="all"`: Number of processes for parallel mode, "all" uses all cores
+- `sample_only=false`: Whether to only sample without computing weights
+- `minError=0.0001`: Minimum error threshold
+- `minAccRate=0.0001`: Minimum acceptance rate threshold
+
+# Returns
+A record array containing ABC output for each step with fields:
+- `theta accepted`: Array of posterior samples
+- `D accepted`: Array of accepted distances  
+- `n accepted`: Number of accepted samples
+- `n total`: Total number of samples attempted
+- `epsilon`: Distance tolerance used
+- `weights`: Importance sampling weights (array of 1s if not in PMC mode)
+- `tau_squared`: Gaussian kernel variances (array of 0s if not in PMC mode)
+- `eff sample`: Effective sample size (array of 1s if not in PMC mode)
+"""
+function pmc_abc(model::Models.AbstractTimescaleModel;
+                 epsilon_0::Float64=1.0, 
+                 max_iter::Int=10000,
+                 min_accepted::Int=100,
+                 steps::Int=10,
+                 sample_only::Bool=false, 
+                 minAccRate::Float64=0.01,
+                 target_acc_rate::Float64=0.01)
+    
+    # Initialize output record structure 
+    output_record = Vector{NamedTuple}(undef, steps)
+    epsilon = epsilon_0
+    
+    for i_step in 1:steps
+        println("Starting step $(i_step)")
+        println("epsilon = $(epsilon)")
+        
+        if i_step == 1  # First ABC calculation
+            result = basic_abc(model,
+                             epsilon=epsilon,
+                             max_iter=max_iter,
+                             min_accepted=min_accepted,
+                             pmc_mode=false)
+            
+            # Initial epsilon selection
+            epsilon = select_epsilon(result.distances[:], 
+                                  epsilon,
+                                  target_acc_rate=target_acc_rate)
+            
+            theta = result.theta_accepted
+            tau_squared = 2 * cov(theta; dims=2)
+            # Add stabilization
+            tau_squared += 1e-6 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
+            weights = fill(1.0 / size(theta, 2), size(theta, 2))
+            # nonnan_distances = result.distances[result.distances.<10]
+            # epsilon = sb.percentile(result.distances, 25)
+            eff_sample = effective_sample_size(weights)
+
+            output_record[i_step] = (theta_accepted=theta,
+                                     D_accepted=result.distances,
+                                     n_accepted=result.n_accepted,
+                                     n_total=result.n_total,
+                                     epsilon=epsilon,
+                                     weights=weights,
+                                     tau_squared=tau_squared,
+                                     eff_sample=eff_sample)
+
+        else
+            theta_prev = output_record[i_step-1].theta_accepted
+            weights_prev = output_record[i_step-1].weights
+            tau_squared = output_record[i_step-1].tau_squared
+
+            result = basic_abc(model,
+                             epsilon=epsilon,
+                             max_iter=max_iter,
+                             pmc_mode=true,
+                             weights=weights_prev,
+                             theta_prev=theta_prev,
+                             tau_squared=tau_squared)
+
+            theta = result.theta_accepted
+            nonnan_distances = result.distances[result.distances.<10]
+            # epsilon = sb.percentile(nonnan_distances, 75)
+            effective_sample = effective_sample_size(weights_prev)
+
+            if sample_only
+                weights = Float64[]
+                tau_squared = zeros(0, 0)
+            else
+                weights = calc_weights(theta_prev, theta, tau_squared,
+                                       weights_prev, model.prior)
+                tau_squared = 2 * weighted_covar(theta, weights)
+            end
+
+            # Adaptive epsilon selection
+            current_acc_rate = result.n_accepted / result.n_total
+            epsilon = select_epsilon(
+                result.distances, 
+                epsilon,
+                target_acc_rate=target_acc_rate,
+                current_acc_rate=current_acc_rate,
+                iteration=i_step,
+                total_iterations=steps
+            )
+
+            output_record[i_step] = (theta_accepted=theta,
+                                     D_accepted=result.distances,
+                                     n_accepted=result.n_accepted,
+                                     n_total=result.n_total,
+                                     epsilon=epsilon,
+                                     weights=weights,
+                                     tau_squared=tau_squared,
+                                     eff_sample=effective_sample)
+        end
+
+        n_accept = output_record[i_step].n_accepted
+        n_tot = output_record[i_step].n_total
+        accept_rate = n_accept / n_tot
+        println("Acceptance Rate = $(accept_rate)")
+        current_theta = mean(output_record[i_step].theta_accepted, dims=2)
+        println("Current theta = $(current_theta)")
+        println("--------------------")
+
+        if accept_rate < minAccRate
+            println("epsilon = $(epsilon)")
+            println("Acceptance Rate = $(accept_rate)")
+            return output_record[1:i_step]
+        end
+
+        if epsilon < 5e-3 # TODO: Add this as an adjustable argument
+            println("epsilon = $(epsilon)")
+            println("Acceptance Rate = $(accept_rate)")
+            return output_record[1:i_step]
+        end
+    end
+
+    return output_record
 end
 
 """
@@ -284,158 +433,7 @@ function compute_adaptive_alpha(
     return alpha
 end
 
-# TODO: Implement parallelism
-"""
-pmc_abc(model, data, inter_save_direc, inter_filename; 
-        epsilon_0=1.0, min_samples=10, steps=10, resume=nothing, 
-        parallel=false, n_procs="all", sample_only=false, 
-        minError=0.0001, minAccRate=0.0001)
 
-Perform a sequence of ABC posterior approximations using the sequential population Monte Carlo algorithm.
-
-# Arguments
-- `model`: Model object that is a subclass of AbstractTimescaleModel
-- `data`: The "observed" data set for inference
-- `inter_save_direc`: Directory to save intermediate results
-- `inter_filename`: Filename for intermediate results
-- `epsilon_0=1.0`: Initial tolerance to accept parameter draws
-- `min_samples=10`: Minimum number of posterior samples
-- `steps=10`: Number of PMC steps to attempt
-- `resume=nothing`: Record array of previous PMC sequence to continue from
-- `parallel=false`: Whether to run in parallel mode
-- `n_procs="all"`: Number of processes for parallel mode, "all" uses all cores
-- `sample_only=false`: Whether to only sample without computing weights
-- `minError=0.0001`: Minimum error threshold
-- `minAccRate=0.0001`: Minimum acceptance rate threshold
-
-# Returns
-A record array containing ABC output for each step with fields:
-- `theta accepted`: Array of posterior samples
-- `D accepted`: Array of accepted distances  
-- `n accepted`: Number of accepted samples
-- `n total`: Total number of samples attempted
-- `epsilon`: Distance tolerance used
-- `weights`: Importance sampling weights (array of 1s if not in PMC mode)
-- `tau_squared`: Gaussian kernel variances (array of 0s if not in PMC mode)
-- `eff sample`: Effective sample size (array of 1s if not in PMC mode)
-"""
-function pmc_abc(model::Models.AbstractTimescaleModel;
-                 epsilon_0::Float64=1.0, 
-                 min_samples::Int=10, 
-                 steps::Int=10,
-                 sample_only::Bool=false, 
-                 max_iter::Int=10000, 
-                 minAccRate::Float64=0.0001,
-                 target_acc_rate::Float64=0.01)
-    
-    # Initialize output record structure 
-    output_record = Vector{NamedTuple}(undef, steps)
-    epsilon = epsilon_0
-    
-    for i_step in 1:steps
-        println("Starting step $(i_step)")
-        println("epsilon = $(epsilon)")
-        
-        if i_step == 1  # First ABC calculation
-            result = basic_abc(model,
-                             epsilon=epsilon,
-                             max_iter=max_iter,
-                             pmc_mode=false)
-            
-            # Initial epsilon selection
-            epsilon = select_epsilon(result.distances, 
-                                  epsilon,
-                                  target_acc_rate=target_acc_rate)
-            
-            theta = result.theta_accepted
-            tau_squared = 2 * cov(theta; dims=2)
-            # Add stabilization
-            tau_squared += 1e-6 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
-            weights = fill(1.0 / size(theta, 2), size(theta, 2))
-            # nonnan_distances = result.distances[result.distances.<10]
-            # epsilon = sb.percentile(result.distances, 25)
-            eff_sample = effective_sample_size(weights)
-
-            output_record[i_step] = (theta_accepted=theta,
-                                     D_accepted=result.distances,
-                                     n_accepted=result.n_accepted,
-                                     n_total=result.n_total,
-                                     epsilon=epsilon,
-                                     weights=weights,
-                                     tau_squared=tau_squared,
-                                     eff_sample=eff_sample)
-
-        else
-            theta_prev = output_record[i_step-1].theta_accepted
-            weights_prev = output_record[i_step-1].weights
-            tau_squared = output_record[i_step-1].tau_squared
-
-            result = basic_abc(model,
-                             epsilon=epsilon,
-                             max_iter=max_iter,
-                             pmc_mode=true,
-                             weights=weights_prev,
-                             theta_prev=theta_prev,
-                             tau_squared=tau_squared)
-
-            theta = result.theta_accepted
-            nonnan_distances = result.distances[result.distances.<10]
-            # epsilon = sb.percentile(nonnan_distances, 75)
-            effective_sample = effective_sample_size(weights_prev)
-
-            if sample_only
-                weights = Float64[]
-                tau_squared = zeros(0, 0)
-            else
-                weights = calc_weights(theta_prev, theta, tau_squared,
-                                       weights_prev, model.prior)
-                tau_squared = 2 * weighted_covar(theta, weights)
-            end
-
-            # Adaptive epsilon selection
-            current_acc_rate = result.n_accepted / result.n_total
-            epsilon = select_epsilon(
-                result.distances, 
-                epsilon,
-                target_acc_rate=target_acc_rate,
-                current_acc_rate=current_acc_rate,
-                iteration=i_step,
-                total_iterations=steps
-            )
-
-            output_record[i_step] = (theta_accepted=theta,
-                                     D_accepted=result.distances,
-                                     n_accepted=result.n_accepted,
-                                     n_total=result.n_total,
-                                     epsilon=epsilon,
-                                     weights=weights,
-                                     tau_squared=tau_squared,
-                                     eff_sample=effective_sample)
-        end
-
-        n_accept = output_record[i_step].n_accepted
-        n_tot = output_record[i_step].n_total
-        accept_rate = n_accept / n_tot
-        println("Acceptance Rate = $(accept_rate)")
-        current_theta = mean(output_record[i_step].theta_accepted, dims=2)
-        println("Current theta = $(current_theta)")
-        println("--------------------")
-
-        if accept_rate < minAccRate
-            println("epsilon = $(epsilon)")
-            println("Acceptance Rate = $(accept_rate)")
-            return output_record[1:i_step]
-        end
-
-        if epsilon < 5e-3 # TODO: Add this as an adjustable argument
-            println("epsilon = $(epsilon)")
-            println("Acceptance Rate = $(accept_rate)")
-            return output_record[1:i_step]
-        end
-    end
-
-    return output_record
-end
 """
     find_MAP(theta_accepted::Matrix{Float64}, N::Int)
 
