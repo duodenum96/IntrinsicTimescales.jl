@@ -50,6 +50,10 @@ function generate_ou_process(tau::Union{Float64, Vector{Float64}},
     end
 end
 
+# OU Process Differential Equations for DifferentialEquations.jl interface
+f = (du, u, p, t) -> du .= -u ./ p[1]
+g = (du, u, p, t) -> du .= sqrt(2.0 / p[1])
+
 """
 Generate an Ornstein-Uhlenbeck process with a single timescale using DifferentialEquations.jl.
 """
@@ -61,9 +65,8 @@ function generate_ou_process_sciml(
     num_trials::Int64,
     standardize::Bool=true
 ) where T <: Real
-    f = (du, u, p, t) -> du .= -u ./ p[1]
-    g = (du, u, p, t) -> du .= sqrt(2.0 / p[1])
-    p = [tau, true_D]
+    
+    p = (tau, true_D)
     u0 = randn(num_trials) # Quick hack instead of ensemble problem
     prob = deq.SDEProblem(f, g, u0, (0.0, duration), p)
     times = dt:dt:duration
