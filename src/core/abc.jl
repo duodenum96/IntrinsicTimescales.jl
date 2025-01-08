@@ -149,7 +149,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                                      target_acc_rate=target_acc_rate)
 
             theta = result.theta_accepted
-            tau_squared = 2 * cov(theta; dims=2)
+            tau_squared = 2 * cov(theta; dims=1)
             # Add stabilization
             tau_squared += 1e-6 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
             weights = fill(1.0 / size(theta, 2), size(theta, 2))
