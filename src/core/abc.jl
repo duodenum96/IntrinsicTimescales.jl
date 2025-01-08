@@ -90,35 +90,31 @@ function basic_abc(model::Models.AbstractTimescaleModel;
             eff_sample=eff_sample)
 end
 
-"""
 
-Perform a sequence of ABC posterior approximations using the sequential population Monte Carlo algorithm.
+"""
+    pmc_abc(model::Models.AbstractTimescaleModel; epsilon_0=1.0, max_iter=10000, min_accepted=100, steps=10, sample_only=false, minAccRate=0.01, target_acc_rate=0.01)
+
+Perform Population Monte Carlo Approximate Bayesian Computation (PMC-ABC) inference.
 
 # Arguments
-- `model`: Model object that is a subclass of AbstractTimescaleModel
-- `data`: The "observed" data set for inference
-- `inter_save_direc`: Directory to save intermediate results
-- `inter_filename`: Filename for intermediate results
-- `epsilon_0=1.0`: Initial tolerance to accept parameter draws
-- `min_samples=10`: Minimum number of posterior samples
-- `steps=10`: Number of PMC steps to attempt
-- `resume=nothing`: Record array of previous PMC sequence to continue from
-- `parallel=false`: Whether to run in parallel mode
-- `n_procs="all"`: Number of processes for parallel mode, "all" uses all cores
-- `sample_only=false`: Whether to only sample without computing weights
-- `minError=0.0001`: Minimum error threshold
-- `minAccRate=0.0001`: Minimum acceptance rate threshold
+- `model::Models.AbstractTimescaleModel`: Model to perform inference on
+- `epsilon_0::Float64=1.0`: Initial epsilon threshold for acceptance
+- `max_iter::Int=10000`: Maximum number of iterations per step
+- `min_accepted::Int=100`: Minimum number of accepted samples required
+- `steps::Int=10`: Number of PMC steps to perform
+- `sample_only::Bool=false`: If true, only perform sampling without adaptation
+- `minAccRate::Float64=0.01`: Minimum acceptance rate before stopping
+- `target_acc_rate::Float64=0.01`: Target acceptance rate for epsilon adaptation
 
 # Returns
-A record array containing ABC output for each step with fields:
-- `theta accepted`: Array of posterior samples
-- `D accepted`: Array of accepted distances  
-- `n accepted`: Number of accepted samples
-- `n total`: Total number of samples attempted
-- `epsilon`: Distance tolerance used
-- `weights`: Importance sampling weights (array of 1s if not in PMC mode)
-- `tau_squared`: Gaussian kernel variances (array of 0s if not in PMC mode)
-- `eff sample`: Effective sample size (array of 1s if not in PMC mode)
+Vector of NamedTuples containing results for each PMC step, including:
+- Accepted parameters (theta_accepted)
+- Distances (D_accepted) 
+- Number of accepted/total samples
+- Epsilon threshold
+- Sample weights
+- Covariance matrix (tau_squared)
+- Effective sample size
 """
 function pmc_abc(model::Models.AbstractTimescaleModel;
                  epsilon_0::Float64=1.0, 
@@ -127,7 +123,8 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                  steps::Int=10,
                  sample_only::Bool=false, 
                  minAccRate::Float64=0.01,
-                 target_acc_rate::Float64=0.01)
+                 target_acc_rate::Float64=0.01,
+                 target_epsilon::Float64=5e-3)
     
     # Initialize output record structure 
     output_record = Vector{NamedTuple}(undef, steps)
@@ -159,6 +156,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             eff_sample = effective_sample_size(weights)
 
             output_record[i_step] = (theta_accepted=theta,
+                                     samples=result.samples,
                                      D_accepted=result.distances,
                                      n_accepted=result.n_accepted,
                                      n_total=result.n_total,
@@ -181,8 +179,6 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                              tau_squared=tau_squared)
 
             theta = result.theta_accepted
-            nonnan_distances = result.distances[result.distances.<10]
-            # epsilon = sb.percentile(nonnan_distances, 75)
             effective_sample = effective_sample_size(weights_prev)
 
             if sample_only
@@ -219,7 +215,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
         n_tot = output_record[i_step].n_total
         accept_rate = n_accept / n_tot
         println("Acceptance Rate = $(accept_rate)")
-        current_theta = mean(output_record[i_step].theta_accepted, dims=2)
+        current_theta = mean(output_record[i_step].theta_accepted, dims=1)
         println("Current theta = $(current_theta)")
         println("--------------------")
 
@@ -229,7 +225,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             return output_record[1:i_step]
         end
 
-        if epsilon < 5e-3 # TODO: Add this as an adjustable argument
+        if epsilon < target_epsilon
             println("epsilon = $(epsilon)")
             println("Acceptance Rate = $(accept_rate)")
             return output_record[1:i_step]
