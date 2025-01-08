@@ -19,14 +19,14 @@ export basic_abc, pmc_abc, effective_sample_size, weighted_covar
 function draw_theta_pmc(model, theta_prev, weights, tau_squared)
     theta_star = theta_prev[:,
                             sb.sample(collect(1:length(theta_prev)), sb.pweights(weights))]
-    
+
     # Add small diagonal term to ensure positive definiteness
     jitter = 1e-5 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
     stabilized_cov = tau_squared + jitter
-    
+
     # TODO: Add model specific theta handling (so that coefficients are positive)
     theta = rand(dist.MvNormal(theta_star, stabilized_cov))
-    
+
     # Only sample positive values
     while sum(theta .< 0) > 0
         theta = rand(dist.MvNormal(theta_star, stabilized_cov))
@@ -45,7 +45,6 @@ function basic_abc(model::Models.AbstractTimescaleModel;
                    weights=Array{Float64},
                    theta_prev=Array{Float64},
                    tau_squared=Array{Float64})
-    
     n_theta = length(model.prior)
     samples = zeros(max_iter, n_theta)
     isaccepted = zeros(max_iter)
@@ -90,7 +89,6 @@ function basic_abc(model::Models.AbstractTimescaleModel;
             eff_sample=eff_sample)
 end
 
-
 """
     pmc_abc(model::Models.AbstractTimescaleModel; epsilon_0=1.0, max_iter=10000, min_accepted=100, steps=10, sample_only=false, minAccRate=0.01, target_acc_rate=0.01)
 
@@ -117,35 +115,35 @@ Vector of NamedTuples containing results for each PMC step, including:
 - Effective sample size
 """
 function pmc_abc(model::Models.AbstractTimescaleModel;
-                 epsilon_0::Float64=1.0, 
+                 epsilon_0::Float64=1.0,
                  max_iter::Int=10000,
                  min_accepted::Int=100,
                  steps::Int=10,
-                 sample_only::Bool=false, 
+                 sample_only::Bool=false,
                  minAccRate::Float64=0.01,
                  target_acc_rate::Float64=0.01,
                  target_epsilon::Float64=5e-3)
-    
+
     # Initialize output record structure 
     output_record = Vector{NamedTuple}(undef, steps)
     epsilon = epsilon_0
-    
+
     for i_step in 1:steps
         println("Starting step $(i_step)")
         println("epsilon = $(epsilon)")
-        
+
         if i_step == 1  # First ABC calculation
             result = basic_abc(model,
-                             epsilon=epsilon,
-                             max_iter=max_iter,
-                             min_accepted=min_accepted,
-                             pmc_mode=false)
-            
+                               epsilon=epsilon,
+                               max_iter=max_iter,
+                               min_accepted=min_accepted,
+                               pmc_mode=false)
+
             # Initial epsilon selection
-            epsilon = select_epsilon(result.distances[:], 
-                                  epsilon,
-                                  target_acc_rate=target_acc_rate)
-            
+            epsilon = select_epsilon(result.distances[:],
+                                     epsilon,
+                                     target_acc_rate=target_acc_rate)
+
             theta = result.theta_accepted
             tau_squared = 2 * cov(theta; dims=2)
             # Add stabilization
@@ -171,12 +169,12 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             tau_squared = output_record[i_step-1].tau_squared
 
             result = basic_abc(model,
-                             epsilon=epsilon,
-                             max_iter=max_iter,
-                             pmc_mode=true,
-                             weights=weights_prev,
-                             theta_prev=theta_prev,
-                             tau_squared=tau_squared)
+                               epsilon=epsilon,
+                               max_iter=max_iter,
+                               pmc_mode=true,
+                               weights=weights_prev,
+                               theta_prev=theta_prev,
+                               tau_squared=tau_squared)
 
             theta = result.theta_accepted
             effective_sample = effective_sample_size(weights_prev)
@@ -192,14 +190,12 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 
             # Adaptive epsilon selection
             current_acc_rate = result.n_accepted / result.n_total
-            epsilon = select_epsilon(
-                result.distances, 
-                epsilon,
-                target_acc_rate=target_acc_rate,
-                current_acc_rate=current_acc_rate,
-                iteration=i_step,
-                total_iterations=steps
-            )
+            epsilon = select_epsilon(result.distances,
+                                     epsilon,
+                                     target_acc_rate=target_acc_rate,
+                                     current_acc_rate=current_acc_rate,
+                                     iteration=i_step,
+                                     total_iterations=steps)
 
             output_record[i_step] = (theta_accepted=theta,
                                      D_accepted=result.distances,
@@ -256,14 +252,14 @@ function calc_weights(theta_prev::Union{Vector{Float64}, Matrix{Float64}},
         prior = convert(Vector{dist.Distribution}, prior)
     end
 
-    weights_new = zeros(size(theta, 2))
+    weights_new = similar(weights)
 
-    if length(size(theta)) == 1
+    if size(theta, 2) == 1 # θ is always a matrix
         # Case for single parameter vector
-        norm = zeros(length(theta))
+        norm = similar(theta)
         for (i, T) in enumerate(theta)
             for j in axes(theta_prev, 2)
-                norm[j] = dist.pdf(dist.Normal(theta_prev[1, j], sqrt(tau_squared[1, 1])),
+                norm[j] = dist.pdf(dist.Normal(theta_prev[j, 1], sqrt(tau_squared[1, 1])),
                                    T)
             end
             weights_new[i] = dist.pdf(prior[1], T) / sum(weights .* norm)
@@ -273,18 +269,18 @@ function calc_weights(theta_prev::Union{Vector{Float64}, Matrix{Float64}},
 
     else
         # Case for multiple parameter vectors
-        norm = zeros(size(theta_prev, 2))
-        for i in axes(theta, 2)
-            prior_prob = zeros(size(theta, 1))
-            for j in axes(theta, 1)
-                prior_prob[j] = dist.pdf(prior[j], theta[j, i])
+        norm = zeros(size(theta_prev, 1))
+        for i in axes(theta, 1)
+            prior_prob = zeros(size(theta, 2))
+            for j in axes(theta, 2)
+                prior_prob[j] = dist.pdf(prior[j], theta[i, j])
             end
             # Assumes independent priors
             p = prod(prior_prob)
 
-            for j in axes(theta_prev, 2)
-                norm[j] = dist.pdf(dist.MvNormal(theta_prev[:, j], tau_squared),
-                                   theta[:, i])
+            for j in axes(theta_prev, 1)
+                norm[j] = dist.pdf(dist.MvNormal(theta_prev[j, :], tau_squared),
+                                   theta[i, :])
             end
 
             weights_new[i] = p / sum(weights .* norm)
@@ -351,36 +347,32 @@ end
 """
 Adaptively selects epsilon based on acceptance rate and distance distribution
 """
-function select_epsilon(
-    distances::Vector{Float64}, 
-    current_epsilon::Float64;
-    target_acc_rate::Float64=0.01,
-    current_acc_rate::Float64=0.0,
-    iteration::Int=1,
-    total_iterations::Int=100
-)
+function select_epsilon(distances::Vector{Float64},
+                        current_epsilon::Float64;
+                        target_acc_rate::Float64=0.01,
+                        current_acc_rate::Float64=0.0,
+                        iteration::Int=1,
+                        total_iterations::Int=100)
     # Filter out NaN and very large distances
     valid_distances = distances[.!isnan.(distances)]
-    valid_distances = valid_distances[valid_distances .< 10.0]
-    
+    valid_distances = valid_distances[valid_distances.<10.0]
+
     if isempty(valid_distances)
         @warn "No valid distances for epsilon selection"
         return current_epsilon
     end
-    
+
     # Compute quantiles
     q25 = sb.percentile(valid_distances, 25)
     q50 = sb.percentile(valid_distances, 50)
     q75 = sb.percentile(valid_distances, 75)
-    
+
     # Get adaptive alpha value
-    alpha = compute_adaptive_alpha(
-        iteration,
-        current_acc_rate,
-        target_acc_rate,
-        total_iterations=total_iterations
-    )
-    
+    alpha = compute_adaptive_alpha(iteration,
+                                   current_acc_rate,
+                                   target_acc_rate,
+                                   total_iterations=total_iterations)
+
     # Adaptive selection based on acceptance rate
     if current_acc_rate > 0.0
         if current_acc_rate > target_acc_rate * 1.1
@@ -393,28 +385,26 @@ function select_epsilon(
     else
         new_epsilon = q50
     end
-    
+
     return new_epsilon
 end
 
 """
 Compute adaptive alpha value based on iteration and convergence metrics
 """
-function compute_adaptive_alpha(
-    iteration::Int,
-    current_acc_rate::Float64,
-    target_acc_rate::Float64;
-    alpha_max::Float64=0.9,
-    alpha_min::Float64=0.1,
-    total_iterations::Int=100
-)
+function compute_adaptive_alpha(iteration::Int,
+                                current_acc_rate::Float64,
+                                target_acc_rate::Float64;
+                                alpha_max::Float64=0.9,
+                                alpha_min::Float64=0.1,
+                                total_iterations::Int=100)
     # Base decay factor based on iteration progress
     progress = iteration / total_iterations
     base_alpha = alpha_max * (1 - progress) + alpha_min * progress
-    
+
     # Adjust based on how far we are from target acceptance rate
     acc_rate_diff = abs(current_acc_rate - target_acc_rate) / target_acc_rate
-    
+
     if acc_rate_diff > 2.0
         # Far from target: more aggressive adaptation
         alpha = min(alpha_max, base_alpha * 1.5)
@@ -425,10 +415,9 @@ function compute_adaptive_alpha(
         # Normal range: use base alpha
         alpha = base_alpha
     end
-    
+
     return alpha
 end
-
 
 """
     find_MAP(theta_accepted::Matrix{Float64}, N::Int)
