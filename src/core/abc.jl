@@ -152,7 +152,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             tau_squared = 2 * cov(theta; dims=1)
             # Add stabilization
             tau_squared += 1e-6 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
-            weights = fill(1.0 / size(theta, 2), size(theta, 2))
+            weights = fill(1.0 / size(theta, 1), size(theta, 1))
             # nonnan_distances = result.distances[result.distances.<10]
             # epsilon = sb.percentile(result.distances, 25)
             eff_sample = effective_sample_size(weights)
@@ -313,7 +313,7 @@ function weighted_covar(x::Union{Vector{Float64}, Matrix{Float64}}, w::Vector{Fl
     if ndims(x) == 1
         @assert length(x) == length(w)
     else
-        @assert size(x, 2) == length(w)
+        @assert size(x, 1) == length(w)
     end
 
     sum2 = sum(w .^ 2)
@@ -323,11 +323,11 @@ function weighted_covar(x::Union{Vector{Float64}, Matrix{Float64}}, w::Vector{Fl
         var = sum(w .* (x .- xbar) .^ 2)
         return var * sumw / (sumw * sumw - sum2)
     else
-        xbar = [sum(w .* x[i, :]) for i in axes(x, 1)]
-        covar = zeros(size(x, 1), size(x, 1))
-        for k in axes(x, 1)
-            for j in axes(x, 1)
-                for i in axes(x, 2)
+        xbar = [sum(w .* x[:, i]) for i in axes(x, 2)]
+        covar = zeros(size(x, 2), size(x, 2))
+        for k in axes(x, 2)
+            for j in axes(x, 2)
+                for i in axes(x, 1)
                     covar[j, k] += (x[j, i] - xbar[j]) * (x[k, i] - xbar[k]) * w[i]
                 end
             end
