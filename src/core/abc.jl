@@ -51,7 +51,7 @@ function basic_abc(model::Models.AbstractTimescaleModel;
     distances = zeros(max_iter)
     accepted_count = 0
 
-    prog = ProgressUnknown(desc="Titles read:") # Progress meter for accepted samples
+    prog = ProgressUnknown(desc="Accepted samples:") # Progress meter for accepted samples
 
     for trial_count in 1:max_iter
         # Draw from prior or proposal
