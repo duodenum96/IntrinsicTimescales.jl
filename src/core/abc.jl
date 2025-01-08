@@ -51,7 +51,9 @@ function basic_abc(model::Models.AbstractTimescaleModel;
     distances = zeros(max_iter)
     accepted_count = 0
 
-    @showprogress dt=1 desc="ABC Sampling" for trial_count in 1:max_iter
+    prog = ProgressUnknown(desc="Titles read:") # Progress meter for accepted samples
+
+    for trial_count in 1:max_iter
         # Draw from prior or proposal
         if pmc_mode
             theta = draw_theta_pmc(model, theta_prev, weights, tau_squared)
@@ -63,8 +65,10 @@ function basic_abc(model::Models.AbstractTimescaleModel;
         distances[trial_count] = d
         if d <= epsilon
             accepted_count += 1
+            next!(prog)
         end
         if accepted_count == min_accepted
+            finish!(prog)
             break
         end
     end # for
