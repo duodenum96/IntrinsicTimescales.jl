@@ -130,7 +130,7 @@ end
     noisy_signal = signal .+ 0.1 * randn(length(t))
     
     # Reshape to match expected input format (trials × samples)
-    x = reshape(noisy_signal, 1, :)
+    x = noisy_signal
     
     # Compute PSDs using both methods
     power_dsp, freq_dsp = comp_psd(x, fs, method="periodogram")
@@ -152,6 +152,8 @@ end
     # Plot to check
     plot(freq_dsp, power_dsp)
     plot!(freq_ad, power_ad)
+    vline!([f1])
+    vline!([f2])
 end
 
 # Helper function to find local maxima
