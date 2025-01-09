@@ -3,20 +3,19 @@
 Compute summary statistics for time series data
 """
 
-using AbstractFFTs
-using ForwardDiff
 module SummaryStats
 using FFTW, Statistics
 import DSP as dsp
 import StatsBase as sb
 using Missings
 using LinearAlgebra
+import LombScargle as ls
 using Infiltrator
 include("bat_autocor.jl")
 
 export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing,
-       comp_ac_time_adfriendly, comp_psd_adfriendly
-
+       comp_ac_time_adfriendly, comp_psd_adfriendly, comp_psd_lombscargle, 
+       prepare_lombscargle, _comp_psd_lombscargle
 """
 Compute autocorrelation using FFT
 """
@@ -51,7 +50,6 @@ function comp_psd(x::Vector{T},
                   window=dsp.hamming,
                   n=div(length(x), 8),
                   noverlap=div(n, 2)) where {T <: Real}
-    
     if method == "periodogram"
         psd = dsp.periodogram(x[:]; fs=fs, window=window)
         power = psd.power[2:end]
@@ -70,7 +68,6 @@ function comp_psd(x::AbstractMatrix{T},
                   window=dsp.hamming,
                   n=div(size(x, 2), 8),
                   noverlap=div(n, 2)) where {T <: Real}
-    
     n_trials = size(x, 1)
     if method == "periodogram"
         nfft = dsp.nextfastfft(size(x, 2))
@@ -142,6 +139,75 @@ function comp_psd_adfriendly(x::AbstractMatrix{<:Real}, fs::Float64)
     freqs2 = freqs[freqs.≥0]     # Keep only positive frequencies
 
     return psd_mean[2:end], freqs2[2:end]
+end
+
+"""
+Lomb-Scargle periodogram for time series data with missing values
+"""
+function _comp_psd_lombscargle(times::AbstractVector{<:Real},
+                               signal::AbstractVector{<:Real},
+                               frequency_grid::AbstractVector{<:Real})
+    plan = ls.plan(times, signal, frequencies=frequency_grid)
+    psd = ls.lombscargle(plan)
+    return psd.power
+end
+
+"""
+    prepare_lombscargle(times::AbstractVector{<:Real}, data::AbstractMatrix{<:Real}, nanmask::AbstractMatrix{Bool})
+
+Prepare time series data with missing values (NaNs) for Lomb-Scargle periodogram analysis by masking out NaN values.
+    Challange: Each trial may have a different number of NaNs.
+    The way we deal with is going from matrix to a vector of vectors.
+    Each vector is a trial with NaNs removed.
+
+# Arguments
+- `times`: Vector of time points
+- `data`: Matrix of time series data, with trials as rows and time points as columns
+- `nanmask`: Boolean matrix indicating location of NaN values (true where NaN)
+
+# Returns
+- `times_masked`: Vector of vectors of time points with NaN values removed (each vector is a trial)
+- `signal_masked`: Vector of vectors of data values with NaN values removed (each vector is a trial)
+"""
+function prepare_lombscargle(times::AbstractVector{T}, data::AbstractMatrix{T},
+                             nanmask::AbstractMatrix{Bool}, dt::Float64) where {T <: Real}
+    n_trials = size(data, 1)
+    times_masked = Vector{Vector{T}}(undef, n_trials)
+    signal_masked = Vector{Vector{T}}(undef, n_trials)
+    for i in 1:n_trials
+        times_masked[i] = times[.!nanmask[i, :]]
+        signal_masked[i] = data[i, .!nanmask[i, :]]
+    end
+    # Create a common frequency grid based on the shortest time series
+    # (most conservative approach to avoid aliasing)
+    shortest_times = times_masked[argmin(length.(times_masked))]
+    frequency_grid = ls.autofrequency(shortest_times, maximum_frequency=1/(2dt))
+
+    return times_masked, signal_masked, frequency_grid
+end
+
+function comp_psd_lombscargle(times::AbstractVector{<:Real}, data::AbstractMatrix{<:Real},
+                              nanmask::AbstractMatrix{Bool}, dt::Float64)
+    times_masked, signal_masked, frequency_grid = prepare_lombscargle(times, data, nanmask, dt)
+    n_trials = length(signal_masked)
+    psd = Vector{Vector{Float64}}(undef, n_trials)
+    for i in 1:n_trials
+        psd[i] = _comp_psd_lombscargle(times_masked[i], signal_masked[i], frequency_grid)
+    end
+    psd_mean = mean(hcat(psd...), dims=2)[:]
+    return psd_mean, collect(frequency_grid)
+end
+
+"""
+Lomb-Scargle periodogram for single trial
+"""
+function comp_psd_lombscargle(times::AbstractVector{<:Real}, data::AbstractVector{<:Real},
+                              nanmask::AbstractVector{Bool}, dt::Float64)
+    times_masked = times[.!nanmask]
+    signal_masked = data[.!nanmask]
+    frequency_grid = ls.autofrequency(times_masked, maximum_frequency=1/(2dt))
+    psd = _comp_psd_lombscargle(times_masked, signal_masked, frequency_grid)
+    return psd, frequency_grid
 end
 
 """

@@ -167,3 +167,80 @@ end
     # vline!([f2])
 end
 
+@testset "Lomb-Scargle PSD" begin
+    # Generate test data with known frequencies
+    fs = 100.0  # 100 Hz sampling rate
+    dt = 1/fs
+    t = 0:dt:10  # 10 seconds of data
+    f1, f2 = 5.0, 15.0  # Two frequency components
+    
+    # Create signal with two sine waves
+    signal = sin.(2π * f1 * t) .+ 0.5 * sin.(2π * f2 * t)
+    
+    # Test 1: Single trial without missing data
+    nanmask_single = fill(false, length(t))
+    psd_single, freq_single = comp_psd_lombscargle(collect(t), signal, nanmask_single, dt)
+    
+    # Find peaks in the spectrum
+    peak_indices = findlocalmaxima(psd_single)
+    peak_freqs = freq_single[peak_indices]
+    
+    # Check if we can detect both frequency components
+    @test any(isapprox.(peak_freqs, f1, rtol=0.1))
+    @test any(isapprox.(peak_freqs, f2, rtol=0.1))
+    
+    # Test 2: Multiple trials
+    n_trials = 5
+    data = repeat(signal', n_trials, 1)  # Create matrix with identical trials
+    nanmask_multi = fill(false, n_trials, length(t))
+    
+    psd_multi, freq_multi = comp_psd_lombscargle(collect(t), data, nanmask_multi, dt)
+    
+    # Find peaks in the multi-trial spectrum
+    peak_indices_multi = findlocalmaxima(psd_multi)
+    peak_freqs_multi = freq_multi[peak_indices_multi]
+    
+    # Check if we can detect both frequency components
+    @test any(isapprox.(peak_freqs_multi, f1, rtol=0.1))
+    @test any(isapprox.(peak_freqs_multi, f2, rtol=0.1))
+    
+    # Test 3: Data with missing values
+    # Create random missing data pattern (10% missing)
+    n_missing = div(length(t), 10)
+    nanmask_missing = fill(false, n_trials, length(t))
+    for trial in 1:n_trials
+        missing_indices = rand(1:length(t), n_missing)
+        nanmask_missing[trial, missing_indices] .= true
+        data[trial, missing_indices] .= NaN
+    end
+    
+    psd_missing, freq_missing = comp_psd_lombscargle(collect(t), data, nanmask_missing, dt)
+    
+    # Find peaks in the spectrum with missing data
+    peak_indices_missing = findlocalmaxima(psd_missing)
+    peak_freqs_missing = freq_missing[peak_indices_missing]
+    
+    # Check if we can still detect both frequency components
+    @test any(isapprox.(peak_freqs_missing, f1, rtol=0.1))
+    @test any(isapprox.(peak_freqs_missing, f2, rtol=0.1))
+    
+    # Test 4: Check prepare_lombscargle function
+    times_masked, signal_masked, freq_grid = prepare_lombscargle(collect(t), data, nanmask_missing, dt)
+    
+    # Check dimensions
+    @test length(times_masked) == n_trials
+    @test length(signal_masked) == n_trials
+    
+    # Check that masked data excludes NaNs
+    for trial in 1:n_trials
+        @test !any(isnan.(signal_masked[trial]))
+        @test length(times_masked[trial]) == length(signal_masked[trial])
+        @test length(times_masked[trial]) == count(.!nanmask_missing[trial, :])
+    end
+    
+    # Check frequency grid
+    @test issorted(freq_grid)
+    @test freq_grid[1] > 0  # Should start above 0
+    @test freq_grid[end] <= fs/2  # Should not exceed Nyquist frequency
+end
+
