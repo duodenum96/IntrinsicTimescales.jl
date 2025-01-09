@@ -5,7 +5,7 @@ module Utils
 using Statistics
 using NonlinearSolve
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
-       lorentzian_initial_guess, lorentzian
+       lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay
 
 """
 Exponential decay fit
@@ -16,8 +16,7 @@ lags is a 1D vector (x axis)
 """
 function expdecay(tau, lags)
     # Return best fit parameters
-    acf = exp.(-(1 / tau) * lags)
-    return acf
+    return exp.(-(1 / tau) * lags)
 end
 
 """
@@ -27,7 +26,7 @@ u: parameters
 p: data
 """
 function residual_expdecay!(du, u, p)
-    du .= mean(sqrt.(abs2.(expdecay(u[1], p[1]) .- p[2])))
+    du .= mean(abs2.(expdecay(u[1], p[1]) .- p[2]))
     return nothing
 end
 
@@ -40,7 +39,17 @@ function fit_expdecay(lags, acf)
     return sol.u[1]
 end
 
+acw50_analytical(tau) = -tau * log(0.5)
 
+"""
+lags: 1D vector of lags
+acf: 1D vector or 2D matrix where each row is an ACF
+"""
+acw50(lags::Vector{T}, acf::Vector{T}) where {T <: Real} = lags[findfirst(acf .<= 0.5)]
+
+function acw50(lags::Vector{T}, acf::AbstractMatrix{T}) where {T <: Real}
+    return mean([acw50(lags, acf[:, i]) for i in axes(acf, 2)])
+end
 
 function lorentzian(f, u)
     return u[1] ./ (1 .+ (f ./ u[2]) .^ 2)
