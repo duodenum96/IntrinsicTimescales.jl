@@ -1,0 +1,54 @@
+# src/models/one_timescale.jl
+
+module OneTimescaleWithMissing
+
+using Distributions
+using ..Models
+using ..OrnsteinUhlenbeck
+using BayesianINT
+
+export OneTimescaleWithMissingModel
+
+"""
+One-timescale OU process model with missing data as NaNs
+Strategy: In the generative model, we generate the data without NaNs, then replace the 
+missing_mask with NaNs.
+"""
+struct OneTimescaleWithMissingModel <: AbstractTimescaleModel
+    data::Matrix{Float64}
+    prior::Vector{Any}
+    data_sum_stats::Vector{Float64}
+    epsilon::Float64
+    dt::Float64
+    T::Float64
+    numTrials::Int
+    data_var::Float64
+    n_lags::Int
+    missing_mask::Matrix{Bool}
+end
+
+"""
+Constructor for OneTimescaleWithMissingModel
+"""
+function OneTimescaleWithMissingModel(data, prior, data_sum_stats, epsilon, dt, T, numTrials, data_var, n_lags)
+    missing_mask = isnan.(data)
+    return OneTimescaleWithMissingModel(data, prior, data_sum_stats, epsilon, dt, T, numTrials, data_var, n_lags, missing_mask)
+end
+
+# Implementation of required methods
+function Models.generate_data(model::OneTimescaleWithMissingModel, theta)
+    tau = theta
+    data = generate_ou_process(tau, model.data_var, model.dt, model.T, model.numTrials; backend="sciml")
+    data[model.missing_mask] .= NaN
+    return data
+end
+
+function Models.summary_stats(model::OneTimescaleWithMissingModel, data)
+    return comp_ac_time_missing(data, model.n_lags)
+end
+
+function Models.distance_function(model::OneTimescaleWithMissingModel, sum_stats, data_sum_stats)
+    return linear_distance(sum_stats, data_sum_stats)
+end
+
+end # module OneTimescaleWithMissing
