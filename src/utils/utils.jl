@@ -7,12 +7,12 @@ using NonlinearSolve
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit, lorentzian_initial_guess, lorentzian
 
 """
-Fit an exponential decay to the data
-p[1] * exp(-p[2] * data)
-data is a 1D vector (ACF)
+Exponential decay fit
+acf = u[1] * exp(-u[2] * lags)
+acf is a 1D vector (ACF)
 lags is a 1D vector (x axis)
 """
-function expdecayfit(data, lags)
+function expdecayfit(acf, lags)
     # Return best fit parameters
     return fit.param
 end
@@ -75,7 +75,7 @@ function lorentzian(f, u)
 end
 
 # Define the residual function for NonlinearLeastSquares
-function residual!(du, u, p)
+function residual_lorentzian!(du, u, p)
     du .= mean(sqrt.(abs2.(lorentzian(p[1], u) .- p[2])))
     return nothing
 end
@@ -115,7 +115,7 @@ function find_knee_frequency(psd::Vector{Float64}, freqs::Vector{Float64};
     u0 = lorentzian_initial_guess(psd, freqs, min_freq=min_freq, max_freq=max_freq)
 
     # Set up and solve the nonlinear least squares problem
-    prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual!,
+    prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_lorentzian!,
                                                           resid_prototype=zeros(2)), u0,
                                         p=[freqs, psd])
 

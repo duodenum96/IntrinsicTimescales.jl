@@ -14,7 +14,7 @@ One-timescale OU process model
 """
 struct OneTimescaleModel <: AbstractTimescaleModel
     data::Matrix{Float64}
-    prior::Union{Vector{Distribution}, String}
+    prior::Vector{Any}
     data_sum_stats::Vector{Float64}
     epsilon::Float64
     dt::Float64
