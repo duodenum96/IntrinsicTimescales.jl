@@ -41,12 +41,12 @@ using Revise
             # Test 1D case
             x = [1.0, 2.0, 3.0]
             w = [0.2, 0.3, 0.5]
-            var = ABC.weighted_covar(x, w)
-            @test var isa Float64
-            @test var > 0
+            covar = ABC.weighted_covar(x, w)
+            @test covar isa Float64
+            @test covar > 0
             
             # Test 2D case
-            X = [1.0 2.0 3.0; 4.0 5.0 6.0]
+            X = [1.0 2.0; 3.0 4.0; 5.0 6.0]
             covar = ABC.weighted_covar(X, w)
             @test size(covar) == (2, 2)
             @test issymmetric(covar)
@@ -75,6 +75,30 @@ using Revise
             @test length(new_weights) == size(theta, 2)
             @test all(w -> 0 ≤ w ≤ 1, new_weights)
             @test sum(new_weights) ≈ 1.0
+        end
+        
+        @testset "MAP Estimation" begin
+            # Create test data from a known distribution
+            true_params = [3.0, 5.0]
+            n_samples = 1000
+            theta_accepted = zeros(n_samples, 2)
+            theta_accepted[:,1] = rand(Normal(true_params[1], 0.5), n_samples)
+            theta_accepted[:,2] = rand(Normal(true_params[2], 0.5), n_samples)
+            
+            # Test MAP estimation
+            N = 1000
+            theta_map = ABC.find_MAP(theta_accepted, N)
+            
+            # Basic tests
+            @test length(theta_map) == 2
+            @test all(isfinite.(theta_map))
+            
+            # MAP estimates should be close to true parameters
+            @test all(isapprox.(theta_map, true_params, atol=1.0))
+            
+            # Test with different N values
+            theta_map_small = ABC.find_MAP(theta_accepted, 100)
+            @test length(theta_map_small) == 2
         end
     end
     

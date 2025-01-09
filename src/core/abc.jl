@@ -13,8 +13,9 @@ import Distributions as dist
 import StatsBase as sb
 using ProgressMeter
 using LinearAlgebra
+using KernelDensity
 
-export basic_abc, pmc_abc, effective_sample_size, weighted_covar
+export basic_abc, pmc_abc, effective_sample_size, weighted_covar, find_MAP
 
 function draw_theta_pmc(model, theta_prev, weights, tau_squared)
     theta_star = theta_prev[sb.sample(collect(1:length(theta_prev)), sb.pweights(weights)),
@@ -438,28 +439,27 @@ Find the MAP estimates from posteriors with grid search.
 # Returns
 - `theta_map::Vector{Float64}`: MAP estimates of the parameters
 """
-# TODO: Figure out KDE
-# function find_MAP(theta_accepted::Matrix{Float64}, N::Int)
-#     num_params = size(theta_accepted, 1)
+function find_MAP(theta_accepted::Matrix{Float64}, N::Int)
+    num_params = size(theta_accepted, 2)
 
-#     # Create grid of positions for each parameter
-#     positions = zeros(num_params, N)
-#     for i in 1:num_params
-#         param = @view theta_accepted[i,:]
-#         positions[i,:] = rand(Uniform(minimum(param), maximum(param)), N)
-#     end
+    # Create grid of positions for each parameter
+    positions = zeros(Float64, N, num_params)
+    for i in 1:num_params
+        param = @view theta_accepted[:,i]
+        @inbounds positions[:,i] = rand(dist.Uniform(minimum(param), maximum(param)), N)
+    end
 
-#     # Estimate density using KDE
-#     kernel = kde(theta_accepted)
+    # Estimate density using KDE
+    kernel = [kde(theta_accepted[:, i]) for i in 1:num_params]
 
-#     # Evaluate density at grid positions
-#     probs = pdf(kernel, positions)
+    # Evaluate density at grid positions
+    probs = [pdf(kernel[i], positions[:,i]) for i in 1:num_params]
 
-#     # Find position with maximum probability
-#     _, max_idx = findmax(probs)
-#     theta_map = positions[:,max_idx]
+    # Find position with maximum probability
+    max_idx = [findmax(probs[i])[2] for i in 1:num_params]
+    theta_map = [positions[max_idx[i], i] for i in 1:num_params]
 
-#     return theta_map
-# end
+    return theta_map
+end
 
 end # module
