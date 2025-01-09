@@ -87,3 +87,48 @@ using BayesianINT.SummaryStats
     end
     
 end
+
+@testset "Exponential decay fitting tests" begin
+    @testset "Basic exponential decay" begin
+        # Create synthetic data with known tau
+        true_tau = 10.0
+        lags = collect(0.0:0.5:20.0)
+        perfect_acf = exp.(-(1/true_tau) * lags)
+        
+        # Test expdecay function
+        @test all(isapprox.(expdecay(true_tau, lags), perfect_acf))
+        
+        # Test fitting function
+        fitted_tau = fit_expdecay(lags, perfect_acf)
+        @test isapprox(fitted_tau, true_tau, rtol=0.01)
+    end
+    
+    @testset "Noisy exponential decay" begin
+        # Create synthetic data with noise
+        Random.seed!(666)
+        true_tau = 5.0
+        lags = collect(0.0:0.5:20.0)
+        perfect_acf = exp.(-(1/true_tau) * lags)
+        noisy_acf = perfect_acf + randn(length(lags)) * 0.05
+        
+        # Test fitting with noisy data
+        fitted_tau = fit_expdecay(lags, noisy_acf)
+        @test isapprox(fitted_tau, true_tau, rtol=0.1)
+    end
+    
+    @testset "Edge cases" begin
+        lags = collect(0.0:0.5:20.0)
+        
+        # Test very small tau
+        small_tau = 0.1
+        small_acf = exp.(-(1/small_tau) * lags)
+        fitted_small = fit_expdecay(lags, small_acf)
+        @test isapprox(fitted_small, small_tau, rtol=0.1)
+        
+        # Test large tau
+        large_tau = 100.0
+        large_acf = exp.(-(1/large_tau) * lags)
+        fitted_large = fit_expdecay(lags, large_acf)
+        @test isapprox(fitted_large, large_tau, rtol=0.1)
+    end
+end
