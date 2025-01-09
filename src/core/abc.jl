@@ -62,8 +62,8 @@ function basic_abc(model::Models.AbstractTimescaleModel;
             theta = Models.draw_theta(model)
         end
         d = Models.generate_data_and_reduce(model, theta)
-        samples[trial_count, :] = theta
-        distances[trial_count] = d
+        @inbounds samples[trial_count, :] = theta
+        @inbounds distances[trial_count] = d
         iter += 1
         if d <= epsilon
             accepted_count += 1
@@ -332,7 +332,7 @@ function weighted_covar(x::Union{Vector{Float64}, Matrix{Float64}}, w::Vector{Fl
         for k in axes(x, 2)
             for j in axes(x, 2)
                 for i in axes(x, 1)
-                    covar[j, k] += (x[i, j] - xbar[j]) * (x[i, k] - xbar[k]) * w[i]
+                    @inbounds covar[j, k] += (x[i, j] - xbar[j]) * (x[i, k] - xbar[k]) * w[i]
                 end
             end
         end
