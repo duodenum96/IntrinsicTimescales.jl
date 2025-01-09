@@ -5,6 +5,8 @@ using Statistics
 using BayesianINT
 using BayesianINT.Models
 using BayesianINT.OrnsteinUhlenbeck
+using LinearAlgebra
+BLAS.set_num_threads(16)
 # using Plots
 
 @testset "OU Parameter Inference" begin
@@ -38,19 +40,21 @@ using BayesianINT.OrnsteinUhlenbeck
                               n_lags)
 
     # Run PMC-ABC
-    results = pmc_abc(model;
-                      epsilon_0=1e-1,
-                      min_samples=100,
+    timex = @elapsed results = pmc_abc(model;
+                      epsilon_0=0.01,
+                      min_accepted=100,
                       steps=60,
                       minAccRate=0.01,
-                      max_iter=100)
+                      max_iter=10000,
+                      epsilon_target=1e-4)
 
+    println("Time taken: $timex seconds")
     # Get final posterior samples
     final_samples = results[end].theta_accepted
 
     # Calculate posterior means
-    posterior_tau = mean(final_samples[1, :])
-    tau_std = std(final_samples[1, :])
+    posterior_tau = mean(final_samples[:, 1])
+    tau_std = std(final_samples[:, 1])
 
     # Test if estimates are within reasonable range
     @test abs(posterior_tau - true_tau) < 1.0

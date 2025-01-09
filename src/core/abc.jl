@@ -17,8 +17,8 @@ using LinearAlgebra
 export basic_abc, pmc_abc, effective_sample_size, weighted_covar
 
 function draw_theta_pmc(model, theta_prev, weights, tau_squared)
-    theta_star = theta_prev[:,
-                            sb.sample(collect(1:length(theta_prev)), sb.pweights(weights))]
+    theta_star = theta_prev[sb.sample(collect(1:length(theta_prev)), sb.pweights(weights)),
+                            :]
 
     # Add small diagonal term to ensure positive definiteness
     jitter = 1e-5 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
@@ -51,8 +51,8 @@ function basic_abc(model::Models.AbstractTimescaleModel;
     distances = zeros(max_iter)
     accepted_count = 0
 
-    prog = ProgressUnknown(desc="Accepted samples:") # Progress meter for accepted samples
-
+    prog = ProgressUnknown(desc="Accepted samples:", showspeed=true) # Progress meter for accepted samples
+    iter = 0
     for trial_count in 1:max_iter
         # Draw from prior or proposal
         if pmc_mode
@@ -63,20 +63,22 @@ function basic_abc(model::Models.AbstractTimescaleModel;
         d = Models.generate_data_and_reduce(model, theta)
         samples[trial_count, :] = theta
         distances[trial_count] = d
+        iter += 1
         if d <= epsilon
             accepted_count += 1
             next!(prog)
         end
         if accepted_count == min_accepted
+            accepted_count += 1
             finish!(prog)
             break
         end
     end # for
 
-    isaccepted = distances .<= epsilon
+    isaccepted = distances[1:iter] .<= epsilon
     accepted_count = sum(isaccepted)
+    theta_accepted = samples[1:iter, :][isaccepted, :]
 
-    theta_accepted = samples[isaccepted.==1, :]
     weights = ones(length(theta_accepted))
     tau_squared = zeros(length(theta_accepted), length(theta_accepted))
     eff_sample = length(theta_accepted)
@@ -84,9 +86,9 @@ function basic_abc(model::Models.AbstractTimescaleModel;
     return (samples=samples,
             isaccepted=isaccepted,
             theta_accepted=theta_accepted,
-            distances=distances,
+            distances=distances[1:iter],
             n_accepted=accepted_count,
-            n_total=max_iter,
+            n_total=iter,
             epsilon=epsilon,
             weights=weights,
             tau_squared=tau_squared,
@@ -144,6 +146,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                                pmc_mode=false)
 
             # Initial epsilon selection
+            @infiltrate
             epsilon = select_epsilon(result.distances[:],
                                      epsilon,
                                      target_acc_rate=target_acc_rate)
@@ -175,6 +178,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             result = basic_abc(model,
                                epsilon=epsilon,
                                max_iter=max_iter,
+                               min_accepted=min_accepted,
                                pmc_mode=true,
                                weights=weights_prev,
                                theta_prev=theta_prev,
@@ -194,6 +198,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 
             # Adaptive epsilon selection
             current_acc_rate = result.n_accepted / result.n_total
+            @infiltrate
             epsilon = select_epsilon(result.distances,
                                      epsilon,
                                      target_acc_rate=target_acc_rate,
@@ -328,7 +333,7 @@ function weighted_covar(x::Union{Vector{Float64}, Matrix{Float64}}, w::Vector{Fl
         for k in axes(x, 2)
             for j in axes(x, 2)
                 for i in axes(x, 1)
-                    covar[j, k] += (x[j, i] - xbar[j]) * (x[k, i] - xbar[k]) * w[i]
+                    covar[j, k] += (x[i, j] - xbar[j]) * (x[i, k] - xbar[k]) * w[i]
                 end
             end
         end
