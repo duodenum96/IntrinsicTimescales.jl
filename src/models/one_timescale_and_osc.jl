@@ -38,7 +38,7 @@ data_sum_stats: [psd, freqs]
 """
 struct OneTimescaleAndOscModel <: AbstractTimescaleModel
     data::Matrix{Float64}
-    prior::Union{Vector{Distribution}}
+    prior::Vector{Any}
     data_sum_stats::Vector{Vector{Float64}}
     epsilon::Float64
     dt::Float64

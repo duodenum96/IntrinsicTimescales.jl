@@ -9,31 +9,54 @@ using BayesianINT
 
 export OneTimescaleAndOscWithMissingModel
 
+function informed_prior(psd, freqs)
+    u0 = lorentzian_initial_guess(psd, freqs)
+    amp, knee = u0
+    lorentzian_psd = lorentzian(freqs, [amp, knee])
+    residual_psd = psd .- lorentzian_psd
+
+    osc_peak = find_oscillation_peak(residual_psd, freqs; min_freq=freqs[1],
+                                     max_freq=freqs[end])
+
+    priors = [Normal(1 / knee, 1), Normal(osc_peak, 0.1), Uniform(0.0, 1.0)]
+
+    return priors
+end
+
 struct OneTimescaleAndOscWithMissingModel <: AbstractTimescaleModel
     data::Matrix{Float64}
     times::Vector{Float64}
     prior::Vector{Any}
-    data_sum_stats::Vector{Float64}
+    data_sum_stats::Vector{Vector{Float64}}
     epsilon::Float64
     dt::Float64
     T::Float64
     numTrials::Int
+    data_mean::Float64
     data_var::Float64
-    n_lags::Int
     missing_mask::Matrix{Bool}
 end
 
 function OneTimescaleAndOscWithMissingModel(data, times, prior, data_sum_stats, epsilon, dt,
-                                            T, numTrials, data_var, n_lags)
+                                            T, numTrials, data_mean, data_var)
+    if prior == "informed"
+        prior2 = informed_prior(data_sum_stats[1], data_sum_stats[2])
+    elseif prior isa Vector{Distribution}
+        prior2 = prior
+    else
+        error("Invalid prior type")
+    end
     missing_mask = isnan.(data)
-    return OneTimescaleAndOscWithMissingModel(data, times, prior, data_sum_stats, epsilon,
-                                              dt, T, numTrials, data_var, n_lags,
+    return OneTimescaleAndOscWithMissingModel(data, times, prior2, data_sum_stats, epsilon,
+                                              dt, T, numTrials, data_mean, data_var,
                                               missing_mask)
 end
 
 function Models.generate_data(model::OneTimescaleAndOscWithMissingModel, theta)
-    return generate_ou_with_oscillation(theta, model.dt, model.T, model.numTrials,
+    data = generate_ou_with_oscillation(theta, model.dt, model.T, model.numTrials,
                                         model.data_mean, model.data_var)
+    data[model.missing_mask] .= NaN
+    return data
 end
 
 """
@@ -81,10 +104,17 @@ function Models.summary_stats(model::OneTimescaleAndOscWithMissingModel, data)
 end
 
 function Models.distance_function(model::OneTimescaleAndOscWithMissingModel, sum_stats, data_sum_stats)
+    # Some power values can be negative, replace with some tiny number
+    if any(sum_stats[1] .< 0)
+        sum_stats[1][sum_stats[1] .< 0] .= 1e-10
+    end
+    if any(data_sum_stats[1] .< 0)
+        data_sum_stats[1][data_sum_stats[1] .< 0] .= 1e-10
+    end
     return combined_distance(sum_stats[1], data_sum_stats[1], sum_stats[2])
 end
 
-function Models.generate_data_and_reduce(model::OneTimescaleAndOscModel, theta)
+function Models.generate_data_and_reduce(model::OneTimescaleAndOscWithMissingModel, theta)
     synth = Models.generate_data(model, theta)
     sum_stats = Models.summary_stats(model, synth)
     d = Models.distance_function(model, sum_stats, model.data_sum_stats)
