@@ -53,7 +53,9 @@ BLAS.set_num_threads(16)
     final_samples = results[end].theta_accepted
 
     # Calculate posterior means
-    posterior_tau = mean(final_samples[:, 1])
+    N_MAP = 10000
+    posterior_MAP = find_MAP(final_samples, N_MAP)
+    posterior_tau = posterior_MAP[1]
     tau_std = std(final_samples[:, 1])
 
     # Test if estimates are within reasonable range
@@ -109,9 +111,11 @@ end
     final_samples = results[end].theta_accepted
 
     # Calculate posterior means/MAPs
-    posterior_tau = mean(final_samples[:, 1])
-    posterior_freq = mean(final_samples[:, 2])
-    posterior_coeff = mean(final_samples[:, 3])
+    N_MAP = 10000
+    posterior_MAP = find_MAP(final_samples, N_MAP)
+    posterior_tau = posterior_MAP[1]
+    posterior_freq = posterior_MAP[2]
+    posterior_coeff = posterior_MAP[3]
 
     sd_tau = std(final_samples[:, 1])
     sd_freq = std(final_samples[:, 2])
@@ -181,9 +185,10 @@ end
 
     # Get final posterior samples
     final_samples = results[end].theta_accepted
-
+    N_MAP = 10000
     # Calculate posterior means
-    posterior_tau = mean(final_samples[:, 1])
+    posterior_MAP = find_MAP(final_samples, N_MAP)
+    posterior_tau = posterior_MAP[1]
     tau_std = std(final_samples[:, 1])
 
     # Test if estimates are within reasonable range
