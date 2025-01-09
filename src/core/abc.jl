@@ -53,7 +53,7 @@ function basic_abc(model::Models.AbstractTimescaleModel;
 
     prog = ProgressUnknown(desc="Accepted samples:", showspeed=true) # Progress meter for accepted samples
     iter = 0
-    for trial_count in 1:max_iter
+    @inbounds for trial_count in 1:max_iter
         # Draw from prior or proposal
         if pmc_mode
             theta = draw_theta_pmc(model, theta_prev, weights, tau_squared)
@@ -146,7 +146,6 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                                pmc_mode=false)
 
             # Initial epsilon selection
-            @infiltrate
             epsilon = select_epsilon(result.distances[:],
                                      epsilon,
                                      target_acc_rate=target_acc_rate)
@@ -198,7 +197,6 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 
             # Adaptive epsilon selection
             current_acc_rate = result.n_accepted / result.n_total
-            @infiltrate
             epsilon = select_epsilon(result.distances,
                                      epsilon,
                                      target_acc_rate=target_acc_rate,

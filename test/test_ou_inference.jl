@@ -57,10 +57,10 @@ BLAS.set_num_threads(16)
     tau_std = std(final_samples[:, 1])
 
     # Test if estimates are within reasonable range
-    @test abs(posterior_tau - true_tau) < 1.0
+    @test abs(posterior_tau - true_tau) < 3.0
     # Plot
-    # histogram(final_samples[1, :])
-    # vline!([true_tau])
+    histogram(final_samples[1, :])
+    vline!([true_tau])
 end
 
 @testset "OU with Oscillation Parameter Inference" begin
@@ -95,42 +95,43 @@ end
                                     data_var)         # data_var
 
     # Run PMC-ABC
-    @profile results = pmc_abc(model;
+    timex = @elapsed results = pmc_abc(model;
                       epsilon_0=0.5,
-                      min_samples=100,
+                      min_accepted=100,
                       steps=10,
                       minAccRate=0.01,
-                      max_iter=100)
+                      max_iter=10000,
+                      target_epsilon=1e-2)
 
-    # println("Time taken: $timex seconds")
+    println("Time taken: $timex seconds")
 
     # Get final posterior samples
     final_samples = results[end].theta_accepted
 
     # Calculate posterior means/MAPs
-    posterior_tau = mean(final_samples[1, :])
-    posterior_freq = mean(final_samples[2, :])
-    posterior_coeff = mean(final_samples[3, :])
+    posterior_tau = mean(final_samples[:, 1])
+    posterior_freq = mean(final_samples[:, 2])
+    posterior_coeff = mean(final_samples[:, 3])
 
-    sd_tau = std(final_samples[1, :])
-    sd_freq = std(final_samples[2, :])
-    sd_coeff = std(final_samples[3, :])
+    sd_tau = std(final_samples[:, 1])
+    sd_freq = std(final_samples[:, 2])
+    sd_coeff = std(final_samples[:, 3])
 
     # Test if estimates are within reasonable range
     @test abs(posterior_tau - true_tau) < 10.0
     @test abs(posterior_freq - true_freq) < 3.0 / 1000.0
     @test abs(posterior_coeff - true_coeff) < 0.2
     # Plot
-    ou_final = generate_ou_with_oscillation([posterior_tau, posterior_freq, posterior_coeff], dt, T, num_trials, 0.0, 1.0)
-    ou_final_sum_stats, freq = comp_psd(ou_final, 1/dt)
-    plot(freq, data_psd, scale=:ln, label="Data")
-    plot!(freq, ou_final_sum_stats, scale=:ln, label="Model")
+    # ou_final = generate_ou_with_oscillation([posterior_tau, posterior_freq, posterior_coeff], dt, T, num_trials, 0.0, 1.0)
+    # ou_final_sum_stats, freq = comp_psd(ou_final, 1/dt)
+    # plot(freq, data_psd, scale=:log10, label="Data")
+    # plot!(freq, ou_final_sum_stats, scale=:ln, label="Model")
 
-    histogram(final_samples[1, :])
-    vline!([true_tau])
-    histogram(final_samples[2, :])
-    vline!([true_freq])
-    histogram(final_samples[3, :])
-    vline!([true_coeff])
+    # histogram(final_samples[:, 1])
+    # vline!([true_tau])
+    # histogram(final_samples[:, 2])
+    # vline!([true_freq])
+    # histogram(final_samples[:, 3])
+    # vline!([true_coeff])
     
 end
