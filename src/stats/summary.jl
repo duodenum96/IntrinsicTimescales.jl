@@ -45,26 +45,41 @@ See the documentation of DSP.jl for more details.
 NOTE: If you are using Welch method, don't trust the defaults! Make sure you have reasonable 
 overlap and window size.
 """
-function comp_psd(x,
+function comp_psd(x::Vector{T},
                   fs::Float64;
                   method::String="periodogram",
                   window=dsp.hamming,
                   n=div(length(x), 8),
-                  noverlap=div(n, 2))
+                  noverlap=div(n, 2)) where {T <: Real}
+    
+    if method == "periodogram"
+        psd = dsp.periodogram(x[:]; fs=fs, window=window)
+        power = psd.power[2:end]
+    elseif method == "welch"
+        @warn "Using Welch method. Don't trust the defaults!"
+        psd = dsp.welch_pgram(x, fs; window=window, n=n, noverlap=noverlap)
+    else
+        error("Invalid method: $method")
+    end
+    return power, psd.freq[2:end]
+end
+
+function comp_psd(x::AbstractMatrix{T},
+                  fs::Float64;
+                  method::String="periodogram",
+                  window=dsp.hamming,
+                  n=div(size(x, 2), 8),
+                  noverlap=div(n, 2)) where {T <: Real}
+    
     n_trials = size(x, 1)
     if method == "periodogram"
-        if n_trials == 1
-            psd = dsp.periodogram(x[:]; fs=fs, window=window)
-            power = psd.power[2:end]
-        else
-            nfft = dsp.nextfastfft(size(x, 2))
-            power = zeros(Int(nfft / 2))
-            for i in 1:n_trials
-                psd = dsp.periodogram(x[i, :]; fs=fs, window=window)
-                power += psd.power[2:end]
-            end
-            power /= n_trials
+        nfft = dsp.nextfastfft(size(x, 2))
+        power = zeros(T, Int(nfft / 2))
+        for i in 1:n_trials
+            psd = dsp.periodogram(x[i, :]; fs=fs, window=window)
+            power += psd.power[2:end]
         end
+        power /= n_trials
     elseif method == "welch"
         @warn "Using Welch method. Don't trust the defaults!"
         psd = dsp.welch_pgram(x, fs; window=window, n=n, noverlap=noverlap)
@@ -78,7 +93,7 @@ function comp_psd_adfriendly(x::AbstractVector{<:Real}, fs::Float64)
     n = length(eachindex(x))
     n2 = 2 * _ac_next_pow_two(n)
     x2 = zeros(eltype(x), n2)
-    idxs2 = firstindex(x2):(firstindex(x2) + n - 1)
+    idxs2 = firstindex(x2):(firstindex(x2)+n-1)
     x2_demeaned = x .- mean(x)
 
     # Compute window (Hamming)
@@ -91,7 +106,7 @@ function comp_psd_adfriendly(x::AbstractVector{<:Real}, fs::Float64)
     psd = real.(view(x2_fft .* conj.(x2_fft), idxs2)) .* scale
 
     freqs = fftfreq(n2, fs)[1:n]  # Get frequencies up to original signal length
-    freqs2 = freqs[freqs .≥ 0]     # Keep only positive frequencies
+    freqs2 = freqs[freqs.≥0]     # Keep only positive frequencies
 
     return psd[2:end], freqs2[2:end]
 end
@@ -100,10 +115,10 @@ function comp_psd_adfriendly(x::AbstractMatrix{<:Real}, fs::Float64)
     n_trials = size(x, 1)
     n = size(x, 2)
     n2 = 2 * _ac_next_pow_two(n)
-    
+
     # Initialize output arrays
     x2 = zeros(eltype(x), n_trials, n2)
-    idxs2 = firstindex(x2, 2):(firstindex(x2, 2) + n - 1)
+    idxs2 = firstindex(x2, 2):(firstindex(x2, 2)+n-1)
 
     x2_view = x .- mean(x, dims=2)
 
@@ -124,7 +139,7 @@ function comp_psd_adfriendly(x::AbstractMatrix{<:Real}, fs::Float64)
     psd_mean = mean(psd, dims=1)[:]
 
     freqs = fftfreq(n2, fs)[1:n]  # Get frequencies up to original signal length
-    freqs2 = freqs[freqs .≥ 0]     # Keep only positive frequencies
+    freqs2 = freqs[freqs.≥0]     # Keep only positive frequencies
 
     return psd_mean[2:end], freqs2[2:end]
 end
