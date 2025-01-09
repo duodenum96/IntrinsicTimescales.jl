@@ -20,7 +20,7 @@ include("stats/distances.jl")
 include("utils/utils.jl")
 @reexport using .Utils
 
-include("models/ou_process.jl")
+include("utils/ou_process.jl")
 @reexport using .OrnsteinUhlenbeck
 
 include("models/two_timescale.jl")
