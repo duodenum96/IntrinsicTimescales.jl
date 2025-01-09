@@ -43,7 +43,7 @@ tr.@model function fit_acf(data, prob)
     predicted_acf = comp_ac_time_adfriendly(predicted_ts, nlags)
     # predicted_acf = comp_ac_fft(predicted_ts; n_lags=nlags)
 
-    # Likelihood
+    # Likelihood``
     for i in eachindex(data)
         data[i] ~ tr.Normal(predicted_acf[i], σ^2)
     end

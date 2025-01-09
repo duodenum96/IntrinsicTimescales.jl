@@ -3,6 +3,17 @@ using Statistics
 using Test
 using BayesianINT
 
+# Helper function to find local maxima
+function findlocalmaxima(x)
+    indices = Int[]
+    for i in 2:(length(x)-1)
+        if x[i] > x[i-1] && x[i] > x[i+1]
+            push!(indices, i)
+        end
+    end
+    return indices
+end 
+
 @testset "Summary Statistics" begin
     @testset "Autocorrelation FFT" begin
         # Generate simple test signal
@@ -150,19 +161,9 @@ end
     @test any(isapprox.(peak_freqs_ad, f2, rtol=1.0))
 
     # Plot to check
-    plot(freq_dsp, power_dsp)
-    plot!(freq_ad, power_ad)
-    vline!([f1])
-    vline!([f2])
+    # plot(freq_dsp, power_dsp)
+    # plot!(freq_ad, power_ad)
+    # vline!([f1])
+    # vline!([f2])
 end
 
-# Helper function to find local maxima
-function findlocalmaxima(x)
-    indices = Int[]
-    for i in 2:(length(x)-1)
-        if x[i] > x[i-1] && x[i] > x[i+1]
-            push!(indices, i)
-        end
-    end
-    return indices
-end 

@@ -32,6 +32,9 @@ include("models/one_timescale.jl")
 include("models/one_timescale_and_osc.jl")
 @reexport using .OneTimescaleAndOsc
 
+include("models/one_timescale_with_missing.jl")
+@reexport using .OneTimescaleWithMissing
+
 
 
 export AbstractTimescaleModel,

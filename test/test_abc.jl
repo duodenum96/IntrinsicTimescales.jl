@@ -24,7 +24,8 @@ using Revise
         result = ABC.basic_abc(
             model,
             epsilon=1.0,
-            max_iter=1000
+            max_iter=1000,
+            min_accepted=10
         )
         
         # Test basic properties
@@ -91,7 +92,8 @@ using Revise
         results = ABC.pmc_abc(
             model;
             epsilon_0=1.0,
-            min_samples=10,
+            min_accepted=10,
+            max_iter=10,
             steps=2,
             minAccRate=0.001
         )
