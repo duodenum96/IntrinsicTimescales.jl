@@ -6,7 +6,7 @@ using BayesianINT
 using BayesianINT.Models
 using BayesianINT.OrnsteinUhlenbeck
 using LinearAlgebra
-BLAS.set_num_threads(16)
+BLAS.set_num_threads(20)
 # using Plots
 
 @testset "OU Parameter Inference" begin
@@ -40,13 +40,13 @@ BLAS.set_num_threads(16)
                               n_lags)
 
     # Run PMC-ABC
-    timex = @elapsed results = pmc_abc(model;
-                                       epsilon_0=0.01,
+    results = pmc_abc(model;
+                                       epsilon_0=0.5,
                                        min_accepted=100,
                                        steps=60,
                                        minAccRate=0.01,
                                        max_iter=10000,
-                                       target_epsilon=1e-4)
+                                       target_epsilon=1e-2)
 
     println("Time taken: $timex seconds")
     # Get final posterior samples
@@ -179,7 +179,7 @@ end
                                        steps=60,
                                        minAccRate=0.01,
                                        max_iter=10000,
-                                       target_epsilon=1e-3)
+                                       target_epsilon=1e-2)
 
     println("Time taken: $timex seconds")
 

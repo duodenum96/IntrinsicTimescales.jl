@@ -25,7 +25,6 @@ function draw_theta_pmc(model, theta_prev, weights, tau_squared)
     jitter = 1e-5 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
     stabilized_cov = tau_squared + jitter
 
-    # TODO: Add model specific theta handling (so that coefficients are positive)
     theta = rand(dist.MvNormal(theta_star, stabilized_cov))
 
     # Only sample positive values
