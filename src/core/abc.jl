@@ -18,7 +18,7 @@ using KernelDensity
 export basic_abc, pmc_abc, effective_sample_size, weighted_covar, find_MAP
 
 function draw_theta_pmc(model, theta_prev, weights, tau_squared)
-    theta_star = theta_prev[sb.sample(collect(1:length(theta_prev)), sb.pweights(weights)),
+    @inbounds theta_star = theta_prev[sb.sample(collect(1:length(theta_prev)), sb.pweights(weights)),
                             :]
 
     # Add small diagonal term to ensure positive definiteness

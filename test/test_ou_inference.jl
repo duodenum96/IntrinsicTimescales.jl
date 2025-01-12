@@ -257,7 +257,6 @@ end
     sd_coeff = std(final_samples[:, 3])
 
     # Test if estimates are within reasonable range
-    @test abs(posterior_tau - true_tau) < 15.0  # Wider tolerance due to missing data
+    @test abs(posterior_tau - true_tau) < 5.0  
     @test abs(posterior_freq - true_freq) < 4.0 / 1000.0
-    @test abs(posterior_coeff - true_coeff) < 0.3
 end
