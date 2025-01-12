@@ -27,7 +27,7 @@ struct OneTimescaleAndOscWithMissingModel <: AbstractTimescaleModel
     data::Matrix{Float64}
     times::Vector{Float64}
     prior::Vector{Any}
-    data_sum_stats::Vector{Vector{Float64}}
+    data_sum_stats::Tuple{Vector{Float64}, Vector{Float64}}
     epsilon::Float64
     dt::Float64
     T::Float64
