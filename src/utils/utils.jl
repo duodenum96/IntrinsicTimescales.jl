@@ -5,7 +5,8 @@ module Utils
 using Statistics
 using NonlinearSolve
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
-       lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay
+       lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
+       acw50, acw50_analytical, acw0
 
 """
 Exponential decay fit
@@ -49,6 +50,11 @@ acw50(lags::Vector{T}, acf::Vector{T}) where {T <: Real} = lags[findfirst(acf .<
 
 function acw50(lags::Vector{T}, acf::AbstractMatrix{T}) where {T <: Real}
     return mean([acw50(lags, acf[:, i]) for i in axes(acf, 2)])
+end
+
+acw0(lags::Vector{T}, acf::Vector{T}) where {T <: Real} = lags[findfirst(acf .<= 0.0)]
+function acw0(lags::Vector{T}, acf::AbstractMatrix{T}) where {T <: Real}
+    return mean([acw0(lags, acf[:, i]) for i in axes(acf, 2)])
 end
 
 function lorentzian(f, u)
@@ -117,7 +123,8 @@ the following steps are also performed:
 """
 function fooof_fit(psd::Vector{Float64}, freqs::Vector{Float64};
                    min_freq::Float64=freqs[1],
-                   max_freq::Float64=freqs[end])
+                   max_freq::Float64=freqs[end];
+                   find_oscillation_peak::Bool=true)
     freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
     fit_psd = psd[freq_mask]
     fit_freqs = freqs[freq_mask]
@@ -130,10 +137,14 @@ function fooof_fit(psd::Vector{Float64}, freqs::Vector{Float64};
     lorentzian_psd = lorentzian(fit_freqs, [amp, knee])
     residual_psd = fit_psd .- lorentzian_psd
 
-    # 3) Find oscillation peaks
-    osc_peak = find_oscillation_peak(residual_psd, fit_freqs; min_freq=min_freq,
-                                     max_freq=max_freq)
-    return knee, osc_peak
+    # 3) Find oscillation peak if requested (not needed for fMRI)
+    if find_oscillation_peak
+        osc_peak = find_oscillation_peak(residual_psd, fit_freqs; min_freq=min_freq,
+                                         max_freq=max_freq)
+        return knee, osc_peak
+    else
+        return knee
+    end
 end
 
 """
