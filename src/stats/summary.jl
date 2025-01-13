@@ -169,11 +169,11 @@ Prepare time series data with missing values (NaNs) for Lomb-Scargle periodogram
 - `times_masked`: Vector of vectors of time points with NaN values removed (each vector is a trial)
 - `signal_masked`: Vector of vectors of data values with NaN values removed (each vector is a trial)
 """
-function prepare_lombscargle(times::AbstractVector{T}, data::AbstractMatrix{T},
-                             nanmask::AbstractMatrix{Bool}, dt::Float64) where {T <: Real}
+function prepare_lombscargle(times::AbstractVector{Float64}, data::AbstractMatrix{Float64},
+                             nanmask::AbstractMatrix{Bool}, dt::Float64)
     n_trials = size(data, 1)
-    times_masked = Vector{Vector{T}}(undef, n_trials)
-    signal_masked = Vector{Vector{T}}(undef, n_trials)
+    times_masked = Vector{Vector{Float64}}(undef, n_trials)
+    signal_masked = Vector{Vector{Float64}}(undef, n_trials)
     for i in 1:n_trials
         times_masked[i] = times[.!nanmask[i, :]]
         signal_masked[i] = data[i, .!nanmask[i, :]]

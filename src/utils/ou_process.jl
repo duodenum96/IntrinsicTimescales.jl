@@ -28,7 +28,7 @@ Bayesian inference doesn't have to deal with it.
 
 The process is generated using the Euler-Maruyama method with the specified time step dt.
 """
-function generate_ou_process(tau::Union{Real, Vector{Real}},
+function generate_ou_process(tau::Union{Real, Vector{<:Real}},
                             true_D::Real,
                             dt::Real,
                             duration::Real,

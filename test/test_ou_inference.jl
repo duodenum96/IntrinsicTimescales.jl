@@ -88,7 +88,7 @@ end
     # Create model
     model = OneTimescaleAndOscModel(data,              # data
                                     "informed",       # prior
-                                    [data_psd, data_freq],   # data_sum_stats
+                                    (data_psd, data_freq),   # data_sum_stats
                                     epsilon_0,        # epsilon
                                     dt,               # dt
                                     T,                # T
