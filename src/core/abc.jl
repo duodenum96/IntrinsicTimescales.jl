@@ -39,8 +39,8 @@ Basic ABC rejection sampling algorithm
 """
 function basic_abc(model::Models.AbstractTimescaleModel;
                    epsilon::Float64,
-                   max_iter::Int,
-                   min_accepted::Int,
+                   max_iter::Integer,
+                   min_accepted::Integer,
                    pmc_mode::Bool=false,
                    weights=Array{Float64},
                    theta_prev=Array{Float64},
@@ -121,10 +121,10 @@ Vector of NamedTuples containing results for each PMC step, including:
 - Effective sample size
 """
 function pmc_abc(model::Models.AbstractTimescaleModel;
-                 epsilon_0::Float64=1.0,
-                 max_iter::Int=10000,
-                 min_accepted::Int=100,
-                 steps::Int=10,
+                 epsilon_0::Real=1.0,
+                 max_iter::Integer=10000,
+                 min_accepted::Integer=100,
+                 steps::Integer=10,
                  sample_only::Bool=false,
                  minAccRate::Float64=0.01,
                  target_acc_rate::Float64=0.01,
@@ -358,8 +358,8 @@ function select_epsilon(distances::Vector{Float64},
                         current_epsilon::Float64;
                         target_acc_rate::Float64=0.01,
                         current_acc_rate::Float64=0.0,
-                        iteration::Int=1,
-                        total_iterations::Int=100)
+                        iteration::Integer=1,
+                        total_iterations::Integer=100)
     # Filter out NaN and very large distances
     valid_distances = distances[.!isnan.(distances)]
     valid_distances = valid_distances[valid_distances.<10.0]
@@ -399,12 +399,12 @@ end
 """
 Compute adaptive alpha value based on iteration and convergence metrics
 """
-function compute_adaptive_alpha(iteration::Int,
+function compute_adaptive_alpha(iteration::Integer,
                                 current_acc_rate::Float64,
                                 target_acc_rate::Float64;
                                 alpha_max::Float64=0.9,
                                 alpha_min::Float64=0.1,
-                                total_iterations::Int=100)
+                                total_iterations::Integer=100)
     # Base decay factor based on iteration progress
     progress = iteration / total_iterations
     base_alpha = alpha_max * (1 - progress) + alpha_min * progress
@@ -438,7 +438,7 @@ Find the MAP estimates from posteriors with grid search.
 # Returns
 - `theta_map::Vector{Float64}`: MAP estimates of the parameters
 """
-function find_MAP(theta_accepted::Matrix{Float64}, N::Int)
+function find_MAP(theta_accepted::Matrix{Float64}, N::Integer)
     num_params = size(theta_accepted, 2)
 
     # Create grid of positions for each parameter

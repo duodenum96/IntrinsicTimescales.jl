@@ -19,7 +19,7 @@ export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing,
 """
 Compute autocorrelation using FFT
 """
-function comp_ac_fft(data::AbstractMatrix{T}; n_lags::Int=size(data, 2)) where {T <: Real}
+function comp_ac_fft(data::AbstractMatrix{T}; n_lags::Integer=size(data, 2)) where {T <: Real}
     ac = bat_autocorr(data)
 
     return mean(ac; dims=1)[1:n_lags][:]
@@ -213,10 +213,10 @@ end
 """
 Compute cross-correlation in time domain
 """
-function comp_cc(data1::AbstractMatrix,
-                 data2::AbstractMatrix,
-                 max_lag::Int,
-                 num_bin::Int)
+function comp_cc(data1::AbstractMatrix{T},
+                 data2::AbstractMatrix{T},
+                 max_lag::Integer,
+                 num_bin::Integer) where {T <: Real}
     num_trials = size(data1, 1)
     cc_sum = zeros(max_lag + 1)
 
@@ -233,7 +233,7 @@ function comp_cc(data1::AbstractMatrix,
 end
 
 function comp_ac_time(data::AbstractMatrix{T},
-                      max_lag::Int) where {T <: Real}
+                      max_lag::Integer) where {T <: Real}
     lags = 0:(max_lag-1)
     n_trials = size(data, 1)
     cc = zeros(T, n_trials, max_lag)
@@ -245,7 +245,7 @@ function comp_ac_time(data::AbstractMatrix{T},
 end
 
 function comp_ac_time_adfriendly(data::AbstractMatrix{T},
-                                 max_lag::Int) where {T <: Real}
+                                 max_lag::Integer) where {T <: Real}
     lags = 0:(max_lag-1)
     n_trials = size(data, 1)
     cc = [acf_statsmodels(data[trial, :], nlags=max_lag - 1) for trial in 1:n_trials]
@@ -255,7 +255,7 @@ function comp_ac_time_adfriendly(data::AbstractMatrix{T},
 end
 
 function comp_ac_time_missing(data::AbstractMatrix{T},
-                              max_lag::Int) where {T <: Real}
+                              max_lag::Integer) where {T <: Real}
     n_trials = size(data, 1)
     cc = [acf_statsmodels(data[trial, :], nlags=max_lag - 1) for trial in 1:n_trials] # non-mutating
     cc = reduce(hcat, cc)' # Convert to matrix with trials as rows

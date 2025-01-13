@@ -24,16 +24,16 @@ function informed_prior(psd, freqs)
 end
 
 struct OneTimescaleAndOscWithMissingModel <: AbstractTimescaleModel
-    data::Matrix{Float64}
-    times::Vector{Float64}
+    data::Matrix{Real}
+    times::AbstractVector{Real}
     prior::Vector{Any}
-    data_sum_stats::Tuple{Vector{Float64}, Vector{Float64}}
-    epsilon::Float64
-    dt::Float64
-    T::Float64
-    numTrials::Int
-    data_mean::Float64
-    data_var::Float64
+    data_sum_stats::Tuple{Vector{Real}, Vector{Real}}
+    epsilon::Real
+    dt::Real
+    T::Real
+    numTrials::Integer
+    data_mean::Real
+    data_var::Real
     missing_mask::Matrix{Bool}
 end
 

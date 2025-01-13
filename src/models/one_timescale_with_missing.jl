@@ -15,15 +15,15 @@ Strategy: In the generative model, we generate the data without NaNs, then repla
 missing_mask with NaNs.
 """
 struct OneTimescaleWithMissingModel <: AbstractTimescaleModel
-    data::Matrix{Float64}
+    data::Matrix{<:Real}
     prior::Vector{Any}
-    data_sum_stats::Vector{Float64}
-    epsilon::Float64
-    dt::Float64
-    T::Float64
-    numTrials::Int
-    data_var::Float64
-    n_lags::Int
+    data_sum_stats::Vector{Real}
+    epsilon::Real
+    dt::Real
+    T::Real
+    numTrials::Integer
+    data_var::Real
+    n_lags::Integer
     missing_mask::Matrix{Bool}
 end
 

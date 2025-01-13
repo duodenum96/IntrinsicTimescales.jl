@@ -8,7 +8,7 @@ using BayesianINT
 using ..Models
 using NonlinearSolve
 import DifferentialEquations as deq
-using Infiltrator
+using StaticArrays
 
 export generate_ou_process, generate_ou_with_oscillation, informed_prior_one_timescale, generate_ou_process_sciml
 """
@@ -28,11 +28,11 @@ Bayesian inference doesn't have to deal with it.
 
 The process is generated using the Euler-Maruyama method with the specified time step dt.
 """
-function generate_ou_process(tau::Union{Float64, Vector{Float64}},
-                            true_D::Float64,
-                            dt::Float64,
-                            duration::Float64,
-                            num_trials::Int64;
+function generate_ou_process(tau::Union{Real, Vector{Real}},
+                            true_D::Real,
+                            dt::Real,
+                            duration::Real,
+                            num_trials::Integer;
                             backend::String="sciml",
                             standardize::Bool=true)
     if backend == "vanilla"
@@ -52,17 +52,17 @@ end
 
 # OU Process Differential Equations for DifferentialEquations.jl interface
 f = (du, u, p, t) -> du .= -u ./ p[1]
-g = (du, u, p, t) -> du .= sqrt(2.0 / p[1])
+g = (du, u, p, t) -> du .= 1.0
 
 """
 Generate an Ornstein-Uhlenbeck process with a single timescale using DifferentialEquations.jl.
 """
 function generate_ou_process_sciml(
     tau::Union{T, Vector{T}},
-    true_D::Float64,
-    dt::Float64,
-    duration::Float64,
-    num_trials::Int64,
+    true_D::Real,
+    dt::Real,
+    duration::Real,
+    num_trials::Integer,
     standardize::Bool=true
 ) where T <: Real
     
@@ -70,7 +70,7 @@ function generate_ou_process_sciml(
     u0 = randn(num_trials) # Quick hack instead of ensemble problem
     prob = deq.SDEProblem(f, g, u0, (0.0, duration), p)
     times = dt:dt:duration
-    sol = deq.solve(prob, deq.SOSRA(); saveat=times)
+    sol = deq.solve(prob, deq.SOSRA(); saveat=times, verbose=false)
     sol_matrix = reduce(hcat, sol.u)
     if standardize
         ou_scaled = ((sol_matrix .- mean(sol_matrix, dims=2)) ./ std(sol_matrix, dims=2)) * true_D
@@ -84,11 +84,11 @@ end
 Generate an Ornstein-Uhlenbeck process with a single timescale using vanilla Julia code.
 """
 function generate_ou_process_vanilla(
-    tau::Union{Float64, Vector{Float64}},
-    true_D::Float64,
-    dt::Float64,
-    T::Float64,
-    num_trials::Int64
+    tau::Union{Real, Vector{Real}},
+    true_D::Real,
+    dt::Real,
+    T::Real,
+    num_trials::Integer
 )
     num_bin = Int(T / dt)
     noise = randn(num_trials, num_bin)
@@ -122,11 +122,11 @@ Generate a one-timescale OU process with an additive oscillation.
   - Number of bins/samples per trial
 """
 function generate_ou_with_oscillation(theta::Vector{T},
-                                      dt::Float64,
-                                      duration::Float64,
-                                      num_trials::Int,
-                                      data_mean::Float64,
-                                      data_var::Float64) where T <: Real
+                                      dt::Real,
+                                      duration::Real,
+                                      num_trials::Integer,
+                                      data_mean::Real,
+                                      data_var::Real) where T <: Real
     # Extract parameters
     tau = theta[1]
     freq = theta[2]
@@ -161,9 +161,11 @@ function generate_ou_with_oscillation(theta::Vector{T},
     return data_scaled
 end
 
-function informed_prior_one_timescale(data::AbstractMatrix)
-    # TODO: Implement this
-    data_ac = comp_ac_fft(data; normalize=false)
-    # Fit an exponential decay to the data_ac and make informed priors for tau and D
-end
+"""
+Plan: Revamp this module. 
+- If n_trials < 20, use StaticArrays
+- Else, use the current implementation
+- Recycle problem using remake(prob, p=p)
+
+"""
 end # module OrnsteinUhlenbeck

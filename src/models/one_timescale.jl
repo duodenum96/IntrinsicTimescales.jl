@@ -9,33 +9,39 @@ using BayesianINT
 
 export OneTimescaleModel
 
-function informed_prior(data_sum_stats::Vector{Float64}, dt::Float64, n_lags::Int)
-    tau = expdecay_fit(data_sum_stats, (0:n_lags) * dt)
-    return [Normal(tau, 1)]
+function informed_prior(data_sum_stats::Vector{<:Real}, dt::Real, n_lags::Real)
+    lags = collect((0.0:(n_lags-1)) * dt)
+    tau = fit_expdecay(lags, data_sum_stats)
+    return [Normal(tau*1000, 1000)] # Convert to ms
 end
 
 """
 One-timescale OU process model
 """
 struct OneTimescaleModel <: AbstractTimescaleModel
-    data::Matrix{Float64}
+    data::Matrix{Real}
     prior::Vector{Any}
-    data_sum_stats::Vector{Float64}
-    epsilon::Float64
-    dt::Float64
-    T::Float64
-    numTrials::Int
-    data_var::Float64
-    n_lags::Int
+    data_sum_stats::Vector{<:Real}
+    epsilon::Real
+    dt::Real
+    T::Real
+    numTrials::Real
+    data_var::Real
+    n_lags::Real
 end
 
 function OneTimescaleModel(data, prior::String, data_sum_stats, epsilon, dt, T, numTrials, data_var, n_lags)
     if prior == "informed"
-        prior = informed_prior(data_sum_stats, dt, n_lags)
+        if length(data_sum_stats) != n_lags
+            data_sum_stats_trunc = data_sum_stats[1:n_lags]
+        else
+            data_sum_stats_trunc = data_sum_stats
+        end
+        prior = informed_prior(data_sum_stats_trunc, dt, n_lags)
     else
         raise(ArgumentError("Prior must be either 'informed' or a vector of priors given by Distributions.jl"))
     end
-    return OneTimescaleModel(data, prior, data_sum_stats, epsilon, dt, T, numTrials, data_var, n_lags)
+    return OneTimescaleModel(data, prior, data_sum_stats_trunc, epsilon, dt, T, numTrials, data_var, n_lags)
 end
 
 # Implementation of required methods

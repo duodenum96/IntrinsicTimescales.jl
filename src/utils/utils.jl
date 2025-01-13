@@ -123,7 +123,7 @@ the following steps are also performed:
 """
 function fooof_fit(psd::Vector{Float64}, freqs::Vector{Float64};
                    min_freq::Float64=freqs[1],
-                   max_freq::Float64=freqs[end];
+                   max_freq::Float64=freqs[end],
                    find_oscillation_peak::Bool=true)
     freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
     fit_psd = psd[freq_mask]
@@ -133,12 +133,13 @@ function fooof_fit(psd::Vector{Float64}, freqs::Vector{Float64};
     amp, knee = find_knee_frequency(fit_psd, fit_freqs; min_freq=min_freq,
                                     max_freq=max_freq)
 
-    # 2) Subtract Lorentzian
-    lorentzian_psd = lorentzian(fit_freqs, [amp, knee])
-    residual_psd = fit_psd .- lorentzian_psd
+    
 
     # 3) Find oscillation peak if requested (not needed for fMRI)
     if find_oscillation_peak
+        # 2) Subtract Lorentzian
+        lorentzian_psd = lorentzian(fit_freqs, [amp, knee])
+        residual_psd = fit_psd .- lorentzian_psd
         osc_peak = find_oscillation_peak(residual_psd, fit_freqs; min_freq=min_freq,
                                          max_freq=max_freq)
         return knee, osc_peak
