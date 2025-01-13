@@ -2,6 +2,9 @@
 
 TODO: 
 
+- Move from matrices to vector of arrays or views for storage (see https://www.youtube.com/watch?v=AXHLyHfyEuA&t=1s)
+`u = Vector{typeof(u0)}(undef, n)`
+
 - Implement two timescale model
 
 - Move OU generation to utils

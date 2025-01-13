@@ -89,10 +89,10 @@ end
     τ = 1.0  # time constant
     D = 1.0  # noise amplitude
     t = dt:dt:T
-    num_trials = 5
+    num_trials = 20
     ou_process = generate_ou_process(τ, D, dt, T, num_trials)
     
-    max_lags = 150
+    max_lags = 100
     ac_time = comp_ac_time(ou_process, max_lags)
     ac_time_missing = comp_ac_time_missing(ou_process, max_lags)
     ac_fft = comp_ac_fft(ou_process; n_lags=max_lags)
