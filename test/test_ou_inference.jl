@@ -40,13 +40,13 @@ BLAS.set_num_threads(20)
                               n_lags)
 
     # Run PMC-ABC
-    results = pmc_abc(model;
-                                       epsilon_0=0.5,
-                                       min_accepted=100,
-                                       steps=60,
-                                       minAccRate=0.01,
-                                       max_iter=10000,
-                                       target_epsilon=1e-2)
+    timex = @elapsed results = pmc_abc(model;
+                      epsilon_0=0.5,
+                      min_accepted=100,
+                      steps=60,
+                      minAccRate=0.01,
+                      max_iter=10000,
+                      target_epsilon=1e-2)
 
     println("Time taken: $timex seconds")
     # Get final posterior samples
@@ -256,6 +256,6 @@ end
     sd_coeff = std(final_samples[:, 3])
 
     # Test if estimates are within reasonable range
-    @test abs(posterior_tau - true_tau) < 5.0  
+    @test abs(posterior_tau - true_tau) < 5.0
     @test abs(posterior_freq - true_freq) < 4.0 / 1000.0
 end
