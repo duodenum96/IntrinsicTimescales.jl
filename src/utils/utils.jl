@@ -6,7 +6,7 @@ using Statistics
 using NonlinearSolve
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
-       acw50, acw50_analytical, acw0
+       acw50, acw50_analytical, acw0, tau_from_acw50
 
 """
 Exponential decay fit
@@ -32,15 +32,16 @@ function residual_expdecay!(du, u, p)
 end
 
 function fit_expdecay(lags, acf)
-    u0 = [1.0]
+    u0 = [tau_from_acw50(acw50(lags, acf))]
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay!,
                                                           resid_prototype=zeros(1)), u0,
                                         p=[lags, acf])
-    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), abstol=0.01, verbose=false) # TODO: Find a reasonable tolerance. 
+    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.001, verbose=true) # TODO: Find a reasonable tolerance. 
     return sol.u[1]
 end
 
 acw50_analytical(tau) = -tau * log(0.5)
+tau_from_acw50(acw50) = -acw50 / log(0.5)
 
 """
 lags: 1D vector of lags

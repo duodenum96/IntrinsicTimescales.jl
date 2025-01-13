@@ -159,7 +159,7 @@ end
     ]
     data_acf = comp_ac_time_missing(data, n_lags)
     data_mean = mean(filter(!isnan, data))
-    data_var = std(filter(!isnan, data))
+    data_var = mean([std(filter(!isnan, data[i, :])) for i in 1:num_trials])
     # Create model
     model = OneTimescaleWithMissingModel(data,              # data
                                          priors,            # prior
@@ -178,7 +178,7 @@ end
                                        steps=60,
                                        minAccRate=0.01,
                                        max_iter=10000,
-                                       target_epsilon=1e-2)
+                                       target_epsilon=1e-3)
 
     println("Time taken: $timex seconds")
 
