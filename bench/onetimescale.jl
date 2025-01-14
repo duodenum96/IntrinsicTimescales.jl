@@ -1,6 +1,8 @@
 using BayesianINT
 using BenchmarkTools
 using Plots
+using LinearAlgebra
+BLAS.set_num_threads(16)
 
 """
 fMRI timescales are on the order of 3-10 seconds (ACW-0) (https://www.sciencedirect.com/science/article/pii/S1053811920306273?via%3Dihub#fig1)
@@ -37,6 +39,8 @@ acw0_naive = zeros(length(fmri_taus), msims)
 tau_naive = zeros(length(fmri_taus), msims)
 fooof_naive = zeros(length(fmri_taus), msims)
 
+n_accepted = 100
+all_thetas = zeros(length(fmri_taus), msims, n_accepted)
 tau_bINT = zeros(length(fmri_taus), msims)
 N_MAP = 10000
 
@@ -52,8 +56,45 @@ for (i, i_tau) in enumerate(fmri_taus)
         global fooof_naive[i, j] = 1 / fooof_fit(power, freq; find_oscillation_peak=false) # tau = 1 / knee
 
         model = OneTimescaleModel(ou, "informed", acf, 1.0, fmri_dt, fmri_T, fmri_ntrials, 1.0, floor(Int, 2*acw0_naive[i, j] / 1000))
-        results = pmc_abc(model, epsilon_0=model.epsilon, max_iter=10000, min_accepted=100, steps=10, target_epsilon=0.01)
-        global tau_bINT[i, j] = find_MAP(results[end].theta_accepted, N_MAP)[1]
+        results = pmc_abc(model, epsilon_0=model.epsilon, max_iter=10000, min_accepted=n_accepted, steps=20, target_epsilon=0.001)
+        theta_accepted = results[end].theta_accepted
+        global tau_bINT[i, j] = find_MAP(theta_accepted, N_MAP)[1]
+        global all_thetas[i, j, :] = theta_accepted
+        println("j = $j")
+        flush(stdout)
     end
+    println("i = $i")
+    flush(stdout)
 end
+
+tau_bINT_mean = mean(tau_bINT ./ 1000.0, dims=2)
+tau_bINT_std = std(tau_bINT ./ 1000.0, dims=2)
+println(tau_bINT_mean)
+println(tau_bINT_std)
+
+acw50_naive_mean = mean(acw50_naive ./ 1000.0, dims=2)
+acw50_naive_std = std(acw50_naive ./ 1000.0, dims=2)
+println(acw50_naive_mean)
+println(acw50_naive_std)
+
+acw0_naive_mean = mean(acw0_naive ./ 1000.0, dims=2)
+acw0_naive_std = std(acw0_naive ./ 1000.0, dims=2)
+println(acw0_naive_mean)
+println(acw0_naive_std)
+
+fooof_naive_mean = mean(fooof_naive ./ 1000.0, dims=2)
+fooof_naive_std = std(fooof_naive ./ 1000.0, dims=2)
+println(fooof_naive_mean)
+println(fooof_naive_std)
+
+tau_naive_mean = mean(tau_naive ./ 1000.0, dims=2)
+tau_naive_std = std(tau_naive ./ 1000.0, dims=2)
+println(tau_naive_mean)
+println(tau_naive_std)
+
+scatter(fmri_taus ./ 1000.0, tau_bINT_mean[:], yerr=tau_bINT_std, label="BayesianINT", legend=:bottomright)
+scatter!(fmri_taus ./ 1000.0, acw50_naive_mean, yerr=acw50_naive_std, label="ACW-50")
+scatter!(fmri_taus ./ 1000.0, acw0_naive_mean, yerr=acw0_naive_std, label="ACW-0")
+scatter!(fmri_taus ./ 1000.0, fooof_naive_mean, yerr=fooof_naive_std, label="FOOOF")
+scatter!(fmri_taus ./ 1000.0, tau_naive_mean, yerr=tau_naive_std, label="statsmodels")
 

@@ -37,9 +37,9 @@ Prior: "informed" or a vector of distributions
 data_sum_stats: [psd, freqs]
 """
 struct OneTimescaleAndOscModel <: AbstractTimescaleModel
-    data::Matrix{Real}
+    data::Matrix{<:Real}
     prior::Vector{Any}
-    data_sum_stats::Tuple{Vector{Real}, Vector{Real}}
+    data_sum_stats::Tuple{Vector{<:Real}, Vector{<:Real}}
     epsilon::Real
     dt::Real
     T::Real

@@ -36,7 +36,7 @@ function fit_expdecay(lags, acf)
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay!,
                                                           resid_prototype=zeros(1)), u0,
                                         p=[lags, acf])
-    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.001, verbose=true) # TODO: Find a reasonable tolerance. 
+    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.001, verbose=false) # TODO: Find a reasonable tolerance. 
     return sol.u[1]
 end
 

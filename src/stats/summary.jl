@@ -186,7 +186,7 @@ function prepare_lombscargle(times::Vector{Float64}, data::AbstractMatrix{Float6
     return times_masked, signal_masked, frequency_grid
 end
 
-function comp_psd_lombscargle(times::AbstractVector{<:Real}, data::AbstractMatrix{<:Real},
+function comp_psd_lombscargle(times::AbstractVector{Float64}, data::AbstractMatrix{Float64},
                               nanmask::AbstractMatrix{Bool}, dt::Float64)
     times_masked, signal_masked, frequency_grid = prepare_lombscargle(times, data, nanmask, dt)
     n_trials = length(signal_masked)

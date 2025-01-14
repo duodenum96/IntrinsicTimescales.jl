@@ -17,7 +17,7 @@ missing_mask with NaNs.
 struct OneTimescaleWithMissingModel <: AbstractTimescaleModel
     data::Matrix{<:Real}
     prior::Vector{Any}
-    data_sum_stats::Vector{Real}
+    data_sum_stats::Vector{<:Real}
     epsilon::Real
     dt::Real
     T::Real

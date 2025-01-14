@@ -309,29 +309,31 @@ Calculates weighted covariance matrix.
 # Returns
 - Weighted covariance matrix of x or weighted variance if x is 1d
 """
-function weighted_covar(x::Union{Vector{Float64}, Matrix{Float64}}, w::Vector{Float64})
-    sumw = sum(w)
-    @assert isapprox(sumw, 1.0)
-
-    if ndims(x) == 1
-        @assert length(x) == length(w)
-    else
-        @assert size(x, 1) == length(w)
+function weighted_covar(x::Matrix{Float64}, w::Vector{Float64})
+    # Normalize weights to ensure they sum to 1
+    w_norm = w ./ sum(w)
+    sumw = sum(w_norm)
+    
+    # Check if weights are valid after normalization
+    if !isapprox(sumw, 1.0, rtol=1e-10)
+        @warn "Weights did not sum to 1 after normalization"
+        return zeros(size(x, 2), size(x, 2))  # Return fallback covariance
     end
-
-    sum2 = sum(w .^ 2)
+    
+    sum2 = sum(w_norm .^ 2)
 
     if ndims(x) == 1
-        xbar = sum(w .* x)
-        var = sum(w .* (x .- xbar) .^ 2)
+        @assert length(x) == length(w_norm)
+        xbar = sum(w_norm .* x)
+        var = sum(w_norm .* (x .- xbar) .^ 2)
         return var * sumw / (sumw * sumw - sum2)
     else
-        xbar = [sum(w .* x[:, i]) for i in axes(x, 2)]
+        xbar = [sum(w_norm .* x[:, i]) for i in axes(x, 2)]
         covar = zeros(size(x, 2), size(x, 2))
         for k in axes(x, 2)
             for j in axes(x, 2)
                 for i in axes(x, 1)
-                    @inbounds covar[j, k] += (x[i, j] - xbar[j]) * (x[i, k] - xbar[k]) * w[i]
+                    @inbounds covar[j, k] += (x[i, j] - xbar[j]) * (x[i, k] - xbar[k]) * w_norm[i]
                 end
             end
         end
