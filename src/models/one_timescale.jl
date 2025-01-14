@@ -12,7 +12,7 @@ export OneTimescaleModel
 function informed_prior(data_sum_stats::Vector{<:Real}, dt::Real, n_lags::Real)
     lags = collect((0.0:(n_lags-1)) * dt)
     tau = fit_expdecay(lags, data_sum_stats)
-    return [Normal(tau, 1000)] # Convert to ms
+    return [Normal(tau, 3000)] # Convert to ms
 end
 
 """

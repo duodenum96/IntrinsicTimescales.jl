@@ -46,7 +46,7 @@ BLAS.set_num_threads(20)
                       steps=60,
                       minAccRate=0.01,
                       max_iter=10000,
-                      target_epsilon=1e-2)
+                      target_epsilon=1e-3)
 
     println("Time taken: $timex seconds")
     # Get final posterior samples
