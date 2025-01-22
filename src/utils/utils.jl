@@ -31,7 +31,7 @@ function residual_expdecay!(du, u, p)
     return nothing
 end
 
-function fit_expdecay(lags, acf)
+function fit_expdecay(lags::Vector{T}, acf::Vector{T}) where {T <: Real}
     u0 = [tau_from_acw50(acw50(lags, acf))]
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay!,
                                                           resid_prototype=zeros(1)), u0,
@@ -40,22 +40,56 @@ function fit_expdecay(lags, acf)
     return sol.u[1]
 end
 
+function fit_expdecay(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+    f = x -> fit_expdecay(lags, vec(x))
+    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+end
+
 acw50_analytical(tau) = -tau * log(0.5)
 tau_from_acw50(acw50) = -acw50 / log(0.5)
 
 """
-lags: 1D vector of lags
-acf: 1D vector or 2D matrix where each row is an ACF
-"""
-acw50(lags::Vector{T}, acf::Vector{T}) where {T <: Real} = lags[findfirst(acf .<= 0.5)]
+    acw50(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
 
-function acw50(lags::Vector{T}, acf::AbstractMatrix{T}) where {T <: Real}
-    return mean([acw50(lags, acf[:, i]) for i in axes(acf, 2)])
+Compute the ACW50 (autocorrelation width at 50%) along specified dimension.
+
+# Arguments
+- `lags`: Vector of lag values
+- `acf`: Array of autocorrelation values
+- `dims`: Dimension along which to compute ACW50 (defaults to last dimension)
+
+# Returns
+Array with ACW50 values, reduced along specified dimension
+"""
+function acw50(lags::Vector{T}, acf::Vector{T}) where {T <: Real} 
+    lags[findfirst(acf .<= 0.5)]
 end
 
-acw0(lags::Vector{T}, acf::Vector{T}) where {T <: Real} = lags[findfirst(acf .<= 0.0)]
-function acw0(lags::Vector{T}, acf::AbstractMatrix{T}) where {T <: Real}
-    return mean([acw0(lags, acf[:, i]) for i in axes(acf, 2)])
+function acw50(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+    f = x -> acw50(lags, vec(x))
+    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+end
+
+"""
+    acw0(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+
+Compute the ACW0 (autocorrelation width at 0) along specified dimension.
+
+# Arguments
+- `lags`: Vector of lag values
+- `acf`: Array of autocorrelation values
+- `dims`: Dimension along which to compute ACW0 (defaults to last dimension)
+
+# Returns
+Array with ACW0 values, reduced along specified dimension
+"""
+function acw0(lags::Vector{T}, acf::Vector{T}) where {T <: Real}
+    lags[findfirst(acf .<= 0.0)]
+end
+
+function acw0(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+    f = x -> acw0(lags, vec(x))
+    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
 
 function lorentzian(f, u)
@@ -92,61 +126,101 @@ function lorentzian_initial_guess(psd::Vector{Float64}, freqs::Vector{Float64};
 end
 
 """
-Find the knee frequency by fitting a Lorentzian function to the PSD
-Returns the frequency where power drops to half of its peak value
-"""
-function find_knee_frequency(psd::Vector{Float64}, freqs::Vector{Float64};
-                             min_freq::Float64=freqs[1],
-                             max_freq::Float64=freqs[end])
+    find_knee_frequency(psd::AbstractArray{T}, freqs::Vector{T}; dims::Int=ndims(psd)) where {T <: Real}
 
+Find the knee frequency by fitting a Lorentzian function to the PSD along specified dimension.
+
+# Arguments
+- `psd`: Array of PSD values
+- `freqs`: Vector of frequencies
+- `dims`: Dimension along which to compute knee frequency (defaults to last dimension)
+- `min_freq`: Minimum frequency to consider
+- `max_freq`: Maximum frequency to consider
+
+# Returns
+Array with knee frequency values, reduced along specified dimension
+"""
+function find_knee_frequency(psd::Vector{T}, freqs::Vector{T};
+                           min_freq::T=freqs[1],
+                           max_freq::T=freqs[end]) where {T <: Real}
     # Initial parameter guess
     u0 = lorentzian_initial_guess(psd, freqs, min_freq=min_freq, max_freq=max_freq)
-
+    
     # Set up and solve the nonlinear least squares problem
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_lorentzian!,
-                                                          resid_prototype=zeros(2)), u0,
-                                        p=[freqs, psd])
-
-    # TODO: Find a reasonable tolerance. Even in very good fits, residual error is 4.5. 
+                                                         resid_prototype=zeros(2)), u0,
+                                       p=[freqs, psd])
+    
     sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), abstol=5, verbose=false)
     return (sol.u[1], sol.u[2])
 end
 
+function find_knee_frequency(psd::AbstractArray{T}, freqs::Vector{T}; 
+                           dims::Int=ndims(psd),
+                           min_freq::T=freqs[1],
+                           max_freq::T=freqs[end]) where {T <: Real}
+    f = x -> find_knee_frequency(vec(x), freqs, min_freq=min_freq, max_freq=max_freq)
+    dropdims(mapslices(f, psd, dims=dims), dims=dims)
+end
+
 """
-FOOOF style fitting (Donoghue et al. 2020 Nat. Neuroscience)
+    fooof_fit(psd::AbstractArray{T}, freqs::Vector{T}; dims::Int=ndims(psd)) where {T <: Real}
+
+FOOOF style fitting along specified dimension.
 1) Fit a Lorentzian to the PSD
 2) Subtract Lorentzian
 3) Find oscillation peaks
-We only implement the first three steps since we aren't interested in bandwidth, prominence etc. In FOOOF, 
-the following steps are also performed:
+In FOOOF, the following steps are also performed:
 4) Fit Gaussian to peaks
 5) Iterate until convergence
+
+We only implement the first three steps since our interest is mainly in the knee frequency.
+
+# Arguments
+- `psd`: Array of PSD values
+- `freqs`: Vector of frequencies
+- `dims`: Dimension along which to compute fit (defaults to last dimension)
+- `min_freq`: Minimum frequency to consider
+- `max_freq`: Maximum frequency to consider
+- `oscillation_peak`: Whether to compute oscillation peak
+
+# Returns
+Array with fitted parameters, reduced along specified dimension
 """
-function fooof_fit(psd::Vector{Float64}, freqs::Vector{Float64};
-                   min_freq::Float64=freqs[1],
-                   max_freq::Float64=freqs[end],
-                   oscillation_peak::Bool=true)
+function fooof_fit(psd::Vector{T}, freqs::Vector{T};
+                  min_freq::T=freqs[1],
+                  max_freq::T=freqs[end],
+                  oscillation_peak::Bool=true) where {T <: Real}
     freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
     fit_psd = psd[freq_mask]
     fit_freqs = freqs[freq_mask]
 
     # 1) Fit a Lorentzian to the PSD
-    amp, knee = find_knee_frequency(fit_psd, fit_freqs; min_freq=min_freq,
-                                    max_freq=max_freq)
+    amp, knee = find_knee_frequency(fit_psd, fit_freqs; 
+                                  min_freq=min_freq, max_freq=max_freq)
 
-    
-
-    # 3) Find oscillation peak if requested (not needed for fMRI)
-    if oscillation_peak
-        # 2) Subtract Lorentzian
-        lorentzian_psd = lorentzian(fit_freqs, [amp, knee])
-        residual_psd = fit_psd .- lorentzian_psd
-        osc_peak = find_oscillation_peak(residual_psd, fit_freqs; min_freq=min_freq,
-                                         max_freq=max_freq)
-        return knee, osc_peak
-    else
+    # Return early if oscillation peak not requested
+    if !oscillation_peak
         return knee
     end
+
+    # 2) Subtract Lorentzian and find peak
+    lorentzian_psd = lorentzian(fit_freqs, [amp, knee])
+    residual_psd = fit_psd .- lorentzian_psd
+    osc_peak = find_oscillation_peak(residual_psd, fit_freqs; 
+                                   min_freq=min_freq, max_freq=max_freq)
+    return knee, osc_peak
+end
+
+function fooof_fit(psd::AbstractArray{T}, freqs::Vector{T}; 
+                  dims::Int=ndims(psd),
+                  min_freq::T=freqs[1],
+                  max_freq::T=freqs[end],
+                  oscillation_peak::Bool=true) where {T <: Real}
+    f = x -> fooof_fit(vec(x), freqs, 
+                      min_freq=min_freq, max_freq=max_freq,
+                      oscillation_peak=oscillation_peak)
+    dropdims(mapslices(f, psd, dims=dims), dims=dims)
 end
 
 """
