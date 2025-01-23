@@ -16,13 +16,44 @@ include("bat_autocor.jl")
 export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing,
        comp_ac_time_adfriendly, comp_psd_adfriendly, comp_psd_lombscargle, 
        prepare_lombscargle, _comp_psd_lombscargle
-"""
-Compute autocorrelation using FFT
-"""
-function comp_ac_fft(data::AbstractMatrix{T}; n_lags::Integer=size(data, 2)) where {T <: Real}
-    ac = bat_autocorr(data)
 
-    return mean(ac; dims=1)[1:n_lags][:]
+function comp_ac_fft(data::Vector{T}; n_lags::Integer=length(data)) where {T <: Real}
+    # Center the data
+    x = data .- mean(data)
+    n = length(x)
+    
+    # Pad to next power of 2 for FFT efficiency
+    n_pad = nextpow(2, 2n - 1)  # For autocorrelation, need 2n-1 points
+    x_pad = zeros(T, n_pad)
+    x_pad[1:n] = x
+    
+    # Compute autocorrelation via FFT
+    Frf = fft(x_pad)
+    acov = real(ifft(abs2.(Frf)))[1:n] ./ n
+    
+    # Normalize by variance (first lag)
+    ac = acov ./ acov[1]
+    
+    return ac[1:n_lags]
+end
+
+    
+"""
+    comp_ac_fft(data::AbstractArray{T}; dims::Int=ndims(data), n_lags::Integer=size(data, dims)) where {T <: Real}
+
+Compute autocorrelation using FFT along specified dimension.
+
+# Arguments
+- `data`: Array of time series data
+- `dims`: Dimension along which to compute autocorrelation (defaults to last dimension)
+- `n_lags`: Number of lags to compute (defaults to size of data along specified dimension)
+
+# Returns
+Array with autocorrelation values, the specified dimension becomes the dimension of lags while the other dimensions denote ACF values
+"""
+function comp_ac_fft(data::AbstractArray{T}; dims::Int=ndims(data), n_lags::Integer=size(data, dims)) where {T <: Real}
+    f = x -> comp_ac_fft(vec(x), n_lags=n_lags)
+    return mapslices(f, data, dims=dims)
 end
 
 """
@@ -44,101 +75,92 @@ See the documentation of DSP.jl for more details.
 NOTE: If you are using Welch method, don't trust the defaults! Make sure you have reasonable 
 overlap and window size.
 """
-function comp_psd(x::Vector{T},
-                  fs::Float64;
-                  method::String="periodogram",
-                  window=dsp.hamming,
-                  n=div(length(x), 8),
-                  noverlap=div(n, 2)) where {T <: Real}
+function comp_psd(x::AbstractArray{T}, fs::Real;
+                 dims::Int=ndims(x),
+                 method::String="periodogram",
+                 window=dsp.hamming,
+                 n=div(size(x, dims), 8),
+                 noverlap=div(n, 2)) where {T <: Real}
+    # Create a wrapper function that only returns power
+    f = x -> begin
+        power, _ = comp_psd(vec(x), fs, method=method, window=window, n=n, noverlap=noverlap)
+        return power
+    end
+    
+    # Apply the function along the specified dimension
+    power = mapslices(f, x, dims=dims)
+    
+    # Get a single time series for frequency calculation
+    # Create indices to get first element along all dimensions except dims
+    idx = [i == dims ? (1:size(x, dims)) : 1 for i in 1:ndims(x)]
+    first_slice = x[idx...]
+    
+    # Compute frequencies once since they're the same for all slices
+    _, freqs = comp_psd(vec(first_slice), fs, 
+                       method=method, window=window, n=n, noverlap=noverlap)
+    
+    return power, freqs
+end
+
+function comp_psd(x::Vector{T}, fs::Real;
+                 method::String="periodogram",
+                 window=dsp.hamming,
+                 n=div(length(x), 8),
+                 noverlap=div(n, 2)) where {T <: Real}
     if method == "periodogram"
-        psd = dsp.periodogram(x[:]; fs=fs, window=window)
+        psd = dsp.periodogram(x; fs=fs, window=window)
         power = psd.power[2:end]
+        freqs = psd.freq[2:end]
     elseif method == "welch"
         @warn "Using Welch method. Don't trust the defaults!"
-        psd = dsp.welch_pgram(x, fs; window=window, n=n, noverlap=noverlap)
+        psd = dsp.welch_pgram(x, n, noverlap; fs=fs, window=window)
+        power = psd.power
+        freqs = psd.freq
     else
         error("Invalid method: $method")
     end
-    return power, psd.freq[2:end]
+    return power, freqs
 end
 
-function comp_psd(x::AbstractMatrix{T},
-                  fs::Float64;
-                  method::String="periodogram",
-                  window=dsp.hamming,
-                  n=div(size(x, 2), 8),
-                  noverlap=div(n, 2)) where {T <: Real}
-    n_trials = size(x, 1)
-    if method == "periodogram"
-        nfft = dsp.nextfastfft(size(x, 2))
-        power = zeros(T, Int(nfft / 2))
-        for i in 1:n_trials
-            psd = dsp.periodogram(x[i, :]; fs=fs, window=window)
-            power += psd.power[2:end]
-        end
-        power /= n_trials
-    elseif method == "welch"
-        @warn "Using Welch method. Don't trust the defaults!"
-        psd = dsp.welch_pgram(x, fs; window=window, n=n, noverlap=noverlap)
-    else
-        error("Invalid method: $method")
-    end
-    return power, psd.freq[2:end]
+function comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x))
+    f = x -> comp_psd_adfriendly(vec(x), fs)[1]
+    power = mapslices(f, x, dims=dims)
+    
+    # Get a single time series for frequency calculation
+    idx = [i == dims ? (1:size(x, dims)) : 1 for i in 1:ndims(x)]
+    first_slice = x[idx...]
+    
+    # Compute frequencies once
+    _, freqs = comp_psd_adfriendly(vec(first_slice), fs)
+    
+    return power, freqs
 end
 
-function comp_psd_adfriendly(x::AbstractVector{<:Real}, fs::Float64)
-    n = length(eachindex(x))
+function comp_psd_adfriendly(x::Vector{<:Real}, fs::Real; demean::Bool=true)
+    n = length(x)
     n2 = 2 * _ac_next_pow_two(n)
     x2 = zeros(eltype(x), n2)
     idxs2 = firstindex(x2):(firstindex(x2)+n-1)
-    x2_demeaned = x .- mean(x)
+    
+    if demean
+        x2_demeaned = x .- mean(x)
+    else
+        x2_demeaned = x
+    end
 
     # Compute window (Hamming)
     window = 0.54 .- 0.46 .* cos.(2π .* (0:n-1) ./ (n - 1))
-
+    
     # Scale factor for power normalization
     scale = 1.0 / (fs * sum(window .^ 2))
-
+    
     x2_fft = fft(x2_demeaned .* window)
     psd = real.(view(x2_fft .* conj.(x2_fft), idxs2)) .* scale
-
-    freqs = fftfreq(n2, fs)[1:n]  # Get frequencies up to original signal length
-    freqs2 = freqs[freqs.≥0]     # Keep only positive frequencies
-
+    
+    freqs = fftfreq(n2, fs)[1:n]
+    freqs2 = freqs[freqs.≥0]
+    
     return psd[2:end], freqs2[2:end]
-end
-
-function comp_psd_adfriendly(x::AbstractMatrix{<:Real}, fs::Float64)
-    n_trials = size(x, 1)
-    n = size(x, 2)
-    n2 = 2 * _ac_next_pow_two(n)
-
-    # Initialize output arrays
-    x2 = zeros(eltype(x), n_trials, n2)
-    idxs2 = firstindex(x2, 2):(firstindex(x2, 2)+n-1)
-
-    x2_view = x .- mean(x, dims=2)
-
-    # Compute window (Hamming)
-    window = 0.54 .- 0.46 .* cos.(2π .* (0:n-1) ./ (n - 1))
-
-    # Scale factor for power normalization
-    scale = 1.0 / (fs * sum(window .^ 2))
-
-    # Apply window to each trial
-    x2_view_windowed = x2_view .* window'
-
-    # Compute FFT and PSD for each trial
-    x2_fft = fft(x2_view_windowed, 2)  # FFT along time dimension
-    psd = real.(view(x2_fft .* conj.(x2_fft), :, idxs2)) .* scale
-
-    # Average across trials
-    psd_mean = mean(psd, dims=1)[:]
-
-    freqs = fftfreq(n2, fs)[1:n]  # Get frequencies up to original signal length
-    freqs2 = freqs[freqs.≥0]     # Keep only positive frequencies
-
-    return psd_mean[2:end], freqs2[2:end]
 end
 
 """
@@ -186,23 +208,24 @@ function prepare_lombscargle(times::Vector{Float64}, data::AbstractMatrix{Float6
     return times_masked, signal_masked, frequency_grid
 end
 
-function comp_psd_lombscargle(times::AbstractVector{Float64}, data::AbstractMatrix{Float64},
-                              nanmask::AbstractMatrix{Bool}, dt::Float64)
-    times_masked, signal_masked, frequency_grid = prepare_lombscargle(times, data, nanmask, dt)
-    n_trials = length(signal_masked)
-    psd = Vector{Vector{Float64}}(undef, n_trials)
-    for i in 1:n_trials
-        psd[i] = _comp_psd_lombscargle(times_masked[i], signal_masked[i], frequency_grid)
-    end
-    psd_mean = mean(hcat(psd...), dims=2)[:]
-    return psd_mean, collect(frequency_grid)
-end
-
 """
-Lomb-Scargle periodogram for single trial
+    comp_psd_lombscargle(times::AbstractVector{<:Real}, data::AbstractArray{<:Real},
+                        nanmask::AbstractArray{Bool}, dt::Real; dims::Int=ndims(data))
+
+Compute Lomb-Scargle periodogram for data with missing values along specified dimension.
+
+# Arguments
+- `times`: Vector of time points
+- `data`: Array of time series data
+- `nanmask`: Boolean array indicating missing values (true where NaN)
+- `dt`: Time step
+- `dims`: Dimension along which to compute PSD (defaults to last dimension)
+
+# Returns
+Tuple of (power, frequencies)
 """
 function comp_psd_lombscargle(times::AbstractVector{<:Real}, data::AbstractVector{<:Real},
-                              nanmask::AbstractVector{Bool}, dt::Float64)
+                            nanmask::AbstractVector{Bool}, dt::Real)
     times_masked = times[.!nanmask]
     signal_masked = data[.!nanmask]
     frequency_grid = ls.autofrequency(times_masked, maximum_frequency=1/(2dt))
@@ -210,57 +233,167 @@ function comp_psd_lombscargle(times::AbstractVector{<:Real}, data::AbstractVecto
     return psd, frequency_grid
 end
 
-"""
-Compute cross-correlation in time domain
-"""
-function comp_cc(data1::AbstractMatrix{T},
-                 data2::AbstractMatrix{T},
-                 max_lag::Integer,
-                 num_bin::Integer) where {T <: Real}
-    num_trials = size(data1, 1)
-    cc_sum = zeros(max_lag + 1)
+function comp_psd_lombscargle(times::AbstractVector{<:Real}, data::AbstractArray{<:Real},
+                            nanmask::AbstractArray{Bool}, dt::Real; dims::Int=ndims(data))
+    # Get output size for pre-allocation
+    frequency_grid = ls.autofrequency(times, maximum_frequency=1/(2dt))
+    nfreq = length(frequency_grid)
+    output_size = collect(size(data))
+    output_size[dims] = nfreq
+    power = Array{Float64}(undef, output_size...)
+    
+    # Create indices for iterating over all dimensions except dims
+    other_dims = setdiff(1:ndims(data), dims)
+    ranges = [1:size(data,d) for d in other_dims]
+    
+    # Iterate over all other dimensions
+    for idx in Iterators.product(ranges...)
+        # Create index for the full array
+        full_idx = [i == dims ? (1:size(data,dims)) : idx[findfirst(==(i), other_dims)] 
+                   for i in 1:ndims(data)]
+        
+        # Extract the time series and its mask
+        series = data[full_idx...]
+        mask = nanmask[full_idx...]
+        
+        # Compute PSD for this slice
+        psd = _comp_psd_lombscargle(times[.!mask], vec(series)[.!mask], frequency_grid)
+        
+        # Store the result
+        full_idx[dims] = 1:nfreq
+        power[full_idx...] = psd
+    end
+    
+    return power, frequency_grid
+end
 
-    for trial in 1:num_trials
-        for lag in 0:max_lag
-            idx = 1:(num_bin-lag)
-            cc_sum[lag+1] += mean(@view(data1[trial, idx]) .* @view(data2[trial, idx.+lag]))
+"""
+    comp_cc(data1::AbstractArray{T}, data2::AbstractArray{T}, max_lag::Integer;
+           dims::Int=ndims(data1)) where {T <: Real}
+
+Compute cross-correlation between two arrays along specified dimension.
+
+# Arguments
+- `data1`: First array of time series data
+- `data2`: Second array of time series data
+- `max_lag`: Maximum lag to compute
+- `dims`: Dimension along which to compute cross-correlation (defaults to last dimension)
+
+# Returns
+Array with cross-correlation values, reduced along specified dimension
+"""
+function comp_cc(data1::Vector{T}, data2::Vector{T}, max_lag::Integer) where {T <: Real}
+    num_bin = length(data1)
+    cc = zeros(T, max_lag + 1)
+    
+    for lag in 0:max_lag
+        idx = 1:(num_bin-lag)
+        cc[lag+1] = mean(@view(data1[idx]) .* @view(data2[idx.+lag]))
+    end
+    
+    return cc
+end
+
+function comp_cc(data1::AbstractArray{T}, data2::AbstractArray{T}, max_lag::Integer;
+                dims::Int=ndims(data1)) where {T <: Real}
+    f = x -> comp_cc(vec(x), vec(selectdim(data2, dims, 1:size(x, dims))), max_lag)
+    dropdims(mapslices(f, data1, dims=dims), dims=dims)
+end
+
+"""
+    comp_ac_time(data::AbstractArray{T}, max_lag::Integer; dims::Int=ndims(data)) where {T <: Real}
+
+Compute autocorrelation in time domain along specified dimension.
+
+# Arguments
+- `data`: Array of time series data
+- `max_lag`: Maximum lag to compute
+- `dims`: Dimension along which to compute autocorrelation (defaults to last dimension)
+
+# Returns
+Array with autocorrelation values, the specified dimension becomes the dimension of lags while the other dimensions denote ACF values
+"""
+function comp_ac_time(data::Vector{T}, max_lag::Integer) where {T <: Real}
+    lags = 0:(max_lag-1)
+    sb.autocor(data, lags)
+end
+
+function comp_ac_time(data::AbstractArray{T}, max_lag::Integer;
+                     dims::Int=ndims(data)) where {T <: Real}
+    f = x -> comp_ac_time(vec(x), max_lag)
+    return mapslices(f, data, dims=dims)
+end
+
+"""
+    comp_ac_time_missing(data::AbstractArray{T}, max_lag::Integer;
+                        dims::Int=ndims(data)) where {T <: Real}
+
+Compute autocorrelation for data with missing values along specified dimension.
+
+# Arguments
+- `data`: Array of time series data (can contain NaN)
+- `max_lag`: Maximum lag to compute
+- `dims`: Dimension along which to compute autocorrelation (defaults to last dimension)
+- `min_pairs`: Minimum number of valid pairs required to compute correlation (default: 3)
+
+# Returns
+Array with autocorrelation values, specified dimension becomes the dimension for lags. Returns NaN for 
+lags with insufficient valid pairs.
+"""
+function comp_ac_time_missing(data::Vector{T}, max_lag::Integer; min_pairs::Integer=3) where {T <: Real}
+    lags = 0:(max_lag-1)
+    ac = zeros(T, max_lag)
+    n = length(data)
+    
+    # Handle missing values
+    notmask_bool = .!isnan.(data)
+    
+    # Must copy for thread safety
+    x = copy(data)
+    
+    # Center the data
+    xm = mean(view(x, notmask_bool))
+    x .-= xm
+    
+    # Pre-allocate vectors for valid pairs
+    x_valid = Vector{T}(undef, n)
+    y_valid = Vector{T}(undef, n)
+    
+    # Compute denominator (sum of squares)
+    ss = sum(abs2, view(x, notmask_bool))
+    
+    for lag in lags
+        # Count and collect valid pairs
+        valid_count = 0
+        @inbounds for i in 1:(n-lag)
+            if notmask_bool[i] && notmask_bool[i+lag]
+                valid_count += 1
+                x_valid[valid_count] = x[i]
+                y_valid[valid_count] = x[i+lag]
+            end
+        end
+        
+        # Compute autocovariance if enough valid pairs
+        if valid_count ≥ min_pairs
+            x_slice = view(x_valid, 1:valid_count)
+            y_slice = view(y_valid, 1:valid_count)
+            # Use same normalization as acovf
+            ac[lag+1] = sum(x_slice .* y_slice) / n
+        else
+            ac[lag+1] = NaN
         end
     end
-
-    cc_mean = cc_sum ./ num_trials
-
-    return cc_mean
+    
+    # Normalize by variance (sum of squares / n) to get correlation
+    ac ./= (ss / n)
+    
+    return ac
 end
 
-function comp_ac_time(data::AbstractMatrix{T},
-                      max_lag::Integer) where {T <: Real}
-    lags = 0:(max_lag-1)
-    n_trials = size(data, 1)
-    cc = zeros(T, n_trials, max_lag)
-    for trial in 1:n_trials
-        cc[trial, :] = sb.autocor(data[trial, :], lags)
-    end
-    cc_mean = mean(cc; dims=1)[:]
-    return cc_mean
-end
-
-function comp_ac_time_adfriendly(data::AbstractMatrix{T},
-                                 max_lag::Integer) where {T <: Real}
-    lags = 0:(max_lag-1)
-    n_trials = size(data, 1)
-    cc = [acf_statsmodels(data[trial, :], nlags=max_lag - 1) for trial in 1:n_trials]
-
-    cc_mean = mean(cc)
-    return cc_mean
-end
-
-function comp_ac_time_missing(data::AbstractMatrix{T},
-                              max_lag::Integer) where {T <: Real}
-    n_trials = size(data, 1)
-    cc = [acf_statsmodels(data[trial, :], nlags=max_lag - 1) for trial in 1:n_trials] # non-mutating
-    cc = reduce(hcat, cc)' # Convert to matrix with trials as rows
-    cc_mean = mean(cc; dims=1)[:]
-    return cc_mean
+function comp_ac_time_missing(data::AbstractArray{T}, max_lag::Integer;
+                            dims::Int=ndims(data), min_pairs::Integer=3) where {T <: Real}
+    f = x -> comp_ac_time_missing(vec(x), max_lag, min_pairs=min_pairs)
+    return mapslices(f, data, dims=dims)
 end
 
 # The two functions below are Julia translations of the functions from statsmodels.tsa.stattools
