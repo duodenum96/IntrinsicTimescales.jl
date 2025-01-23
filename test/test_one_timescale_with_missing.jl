@@ -2,25 +2,41 @@ using Test
 using Statistics
 using Distributions
 using BayesianINT
-using BayesianINT.OneTimescale
+using BayesianINT.OrnsteinUhlenbeck
+using BayesianINT.OneTimescaleWithMissing
 using BayesianINT.Models
 
-@testset "OneTimescale Model Tests" begin
-    # Setup test data and model
-    test_prior = [Uniform(0.1, 10.0)]  # tau prior
+@testset "OneTimescaleWithMissing Model Tests" begin
+    # Setup test data and model parameters
     dt = 0.01
     T = 100.0
     num_trials = 10
     n_lags = 3000
     ntime = Int(T / dt)
-    test_data = randn(num_trials, ntime)  # 10 trials, 10000 timepoints
-    data_var = std(test_data)
-    data_sum_stats = mean(comp_ac_fft(test_data; n_lags=n_lags), dims=1)[:]
     
-    model = OneTimescaleModel(
+    # Generate test data with known parameters
+    true_tau = 1.0
+    test_data = generate_ou_process(true_tau, 1.0, dt, T, num_trials)
+    
+    # Add missing values (10% of data)
+    missing_mask = rand(size(test_data)...) .< 0.1
+    test_data[missing_mask] .= NaN
+    
+    # Compute data statistics
+    data_var = mean([std(filter(!isnan, test_data[i, :])) for i in 1:num_trials])
+    
+    # Compute autocorrelation with missing data
+    data_sum_stats = comp_ac_time_missing(test_data, n_lags)
+
+    data_sum_stats_mean = mean(data_sum_stats, dims=1)[:]
+    
+    # Define test priors
+    test_prior = [Uniform(0.1, 10.0)]  # tau prior
+
+    model = OneTimescaleWithMissingModel(
         test_data,           # data
         test_prior,         # prior
-        data_sum_stats,     # data_sum_stats
+        data_sum_stats_mean,     # data_sum_stats
         0.1,                # epsilon
         dt,                 # dt
         T,                  # T
@@ -30,26 +46,13 @@ using BayesianINT.Models
     )
 
     @testset "Model Construction" begin
-        @test model isa OneTimescaleModel
+        @test model isa OneTimescaleWithMissingModel
         @test model isa AbstractTimescaleModel
         @test size(model.data) == (num_trials, ntime)
         @test length(model.prior) == 1  # single tau parameter
         @test model.prior[1] isa Uniform
-    end
-
-    @testset "Informed Prior Construction" begin
-        informed_model = OneTimescaleModel(
-            test_data,
-            "informed",
-            data_sum_stats,
-            0.1,
-            dt,
-            T,
-            num_trials,
-            data_var,
-            n_lags
-        )
-        @test informed_model.prior[1] isa Normal
+        @test size(model.missing_mask) == size(test_data)
+        @test model.missing_mask == missing_mask
     end
 
     @testset "generate_data" begin
@@ -57,12 +60,13 @@ using BayesianINT.Models
         simulated_data = Models.generate_data(model, theta)
         
         @test size(simulated_data) == (model.numTrials, Int(model.T/model.dt))
-        @test !any(isnan, simulated_data)
-        @test !any(isinf, simulated_data)
+        @test all(isnan.(simulated_data[model.missing_mask]))
+        @test !all(isnan.(simulated_data[.!model.missing_mask]))
         
-        # Test statistical properties
-        @test abs(std(simulated_data) - sqrt(model.data_var)) < 0.1
-        @test abs(mean(simulated_data)) < 0.1  # Should be close to zero
+        # Test statistical properties of non-missing data
+        valid_data = filter(!isnan, simulated_data)
+        @test abs(std(valid_data) - sqrt(model.data_var)) < 0.2
+        @test abs(mean(valid_data)) < 0.2  # Should be close to zero
     end
 
     @testset "summary_stats" begin
@@ -70,11 +74,13 @@ using BayesianINT.Models
         simulated_data = Models.generate_data(model, theta)
         
         stats = Models.summary_stats(model, simulated_data)
-        
-        @test length(stats) == model.n_lags
-        @test !any(isnan, stats)
-        @test stats[1] ≈ 1.0 atol=0.1  # First lag should be close to 1
-        @test all(abs.(stats) .<= 1.0)  # All autocorrelations should be ≤ 1
+        stats_mean = mean(stats, dims=1)[:]
+
+        @test length(stats_mean) == model.n_lags
+        @test !any(isnan, stats_mean)
+        @test stats_mean[1] ≈ 1.0 atol=0.1  # First lag should be close to 1
+        @test all((abs.(stats_mean) .<= 1.0) .| (abs.(stats_mean) .≈ 1.0))  # All autocorrelations should be ≤ 1
+        @test issorted(stats_mean[1:200], rev=true) 
     end
 
     @testset "distance_function" begin
@@ -112,4 +118,4 @@ using BayesianINT.Models
         lag_idx = 100  # Compare at lag 100
         @test ac2[lag_idx] > ac1[lag_idx]
     end
-end
+end 
