@@ -17,13 +17,13 @@ using KernelDensity
 
 export basic_abc, pmc_abc, effective_sample_size, weighted_covar, find_MAP
 
-function draw_theta_pmc(model, theta_prev, weights, tau_squared)
+function draw_theta_pmc(model, theta_prev, weights, tau_squared; jitter::Float64=1e-5)
     @inbounds theta_star = theta_prev[sb.sample(collect(1:length(theta_prev)), sb.pweights(weights)),
                             :]
 
     # Add small diagonal term to ensure positive definiteness
-    jitter = 1e-5 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
-    stabilized_cov = tau_squared + jitter
+    jitter_matrix = jitter * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
+    stabilized_cov = tau_squared + jitter_matrix
 
     theta = rand(dist.MvNormal(theta_star, stabilized_cov))
 
@@ -44,14 +44,15 @@ function basic_abc(model::Models.AbstractTimescaleModel;
                    pmc_mode::Bool=false,
                    weights=Array{Float64},
                    theta_prev=Array{Float64},
-                   tau_squared=Array{Float64})
+                   tau_squared=Array{Float64},
+                   show_progress::Bool=true)
     n_theta = length(model.prior)
     samples = zeros(max_iter, n_theta)
     isaccepted = zeros(max_iter)
     distances = zeros(max_iter)
     accepted_count = 0
 
-    prog = ProgressUnknown(desc="Accepted samples:", showspeed=true) # Progress meter for accepted samples
+    prog = show_progress ? ProgressUnknown(desc="Accepted samples:", showspeed=true) : nothing
     iter = 0
     @inbounds for trial_count in 1:max_iter
         # Draw from prior or proposal
@@ -66,11 +67,12 @@ function basic_abc(model::Models.AbstractTimescaleModel;
         iter += 1
         if d <= epsilon
             accepted_count += 1
-            next!(prog)
+            show_progress && next!(prog)
         end
+
         if accepted_count == min_accepted
             accepted_count += 1
-            finish!(prog)
+            show_progress && finish!(prog)
             break
         end
     end # for
@@ -121,39 +123,77 @@ Vector of NamedTuples containing results for each PMC step, including:
 - Effective sample size
 """
 function pmc_abc(model::Models.AbstractTimescaleModel;
+                 # Basic ABC parameters
                  epsilon_0::Real=1.0,
                  max_iter::Integer=10000,
                  min_accepted::Integer=100,
                  steps::Integer=10,
                  sample_only::Bool=false,
+                 
+                 # Acceptance rate parameters
                  minAccRate::Float64=0.01,
                  target_acc_rate::Float64=0.01,
-                 target_epsilon::Float64=5e-3)
+                 target_epsilon::Float64=5e-3,
+                 
+                 # Display parameters
+                 show_progress::Bool=true,
+                 verbose::Bool=true,
+                 
+                 # Numerical stability parameters
+                 jitter::Float64=1e-6,
+                 cov_scale::Float64=2.0,
+                 
+                 # Epsilon selection parameters
+                 distance_max::Float64=10.0,
+                 quantile_lower::Float64=25.0,
+                 quantile_upper::Float64=75.0,
+                 quantile_init::Float64=50.0,
+                 acc_rate_buffer::Float64=0.1,
+                 
+                 # Adaptive alpha parameters
+                 alpha_max::Float64=0.9,
+                 alpha_min::Float64=0.1,
+                 acc_rate_far::Float64=2.0,
+                 acc_rate_close::Float64=0.2,
+                 alpha_far_mult::Float64=1.5,
+                 alpha_close_mult::Float64=0.5)
 
     # Initialize output record structure 
     output_record = Vector{NamedTuple}(undef, steps)
     epsilon = epsilon_0
 
     for i_step in 1:steps
-        println("Starting step $(i_step)")
-        println("epsilon = $(epsilon)")
+        verbose && println("Starting step $(i_step)")
+        verbose && println("epsilon = $(epsilon)")
 
         if i_step == 1  # First ABC calculation
             result = basic_abc(model,
                                epsilon=epsilon,
                                max_iter=max_iter,
                                min_accepted=min_accepted,
-                               pmc_mode=false)
+                               pmc_mode=false,
+                               show_progress=show_progress)
 
             # Initial epsilon selection
             epsilon = select_epsilon(result.distances[:],
                                      epsilon,
-                                     target_acc_rate=target_acc_rate)
+                                     target_acc_rate=target_acc_rate,
+                                     distance_max=distance_max,
+                                     quantile_lower=quantile_lower,
+                                     quantile_upper=quantile_upper,
+                                     quantile_init=quantile_init,
+                                     acc_rate_buffer=acc_rate_buffer,
+                                     alpha_max=alpha_max,
+                                     alpha_min=alpha_min,
+                                     acc_rate_far=acc_rate_far,
+                                     acc_rate_close=acc_rate_close,
+                                     alpha_far_mult=alpha_far_mult,
+                                     alpha_close_mult=alpha_close_mult)
 
             theta = result.theta_accepted
-            tau_squared = 2 * cov(theta; dims=1)
+            tau_squared = cov_scale * cov(theta; dims=1)
             # Add stabilization
-            tau_squared += 1e-6 * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
+            tau_squared += jitter * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
             weights = fill(1.0 / size(theta, 1), size(theta, 1))
             # nonnan_distances = result.distances[result.distances.<10]
             # epsilon = sb.percentile(result.distances, 25)
@@ -202,7 +242,30 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                                      target_acc_rate=target_acc_rate,
                                      current_acc_rate=current_acc_rate,
                                      iteration=i_step,
-                                     total_iterations=steps)
+                                     total_iterations=steps,
+                                     distance_max=distance_max,
+                                     quantile_lower=quantile_lower,
+                                     quantile_upper=quantile_upper,
+                                     quantile_init=quantile_init,
+                                     acc_rate_buffer=acc_rate_buffer,
+                                     alpha_max=alpha_max,
+                                     alpha_min=alpha_min,
+                                     acc_rate_far=acc_rate_far,
+                                     acc_rate_close=acc_rate_close,
+                                     alpha_far_mult=alpha_far_mult,
+                                     alpha_close_mult=alpha_close_mult)
+
+            # Pass through adaptive alpha parameters when computing alpha
+            alpha = compute_adaptive_alpha(i_step,
+                                        current_acc_rate,
+                                        target_acc_rate,
+                                        alpha_max=alpha_max,
+                                        alpha_min=alpha_min,
+                                        total_iterations=steps,
+                                        acc_rate_far=acc_rate_far,
+                                        acc_rate_close=acc_rate_close,
+                                        alpha_far_mult=alpha_far_mult,
+                                        alpha_close_mult=alpha_close_mult)
 
             output_record[i_step] = (theta_accepted=theta,
                                      D_accepted=result.distances,
@@ -214,13 +277,15 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                                      eff_sample=effective_sample)
         end
 
-        n_accept = output_record[i_step].n_accepted
-        n_tot = output_record[i_step].n_total
-        accept_rate = n_accept / n_tot
-        println("Acceptance Rate = $(accept_rate)")
-        current_theta = mean(output_record[i_step].theta_accepted, dims=1)
-        println("Current theta = $(current_theta)")
-        println("--------------------")
+        if verbose
+            n_accept = output_record[i_step].n_accepted
+            n_tot = output_record[i_step].n_total
+            accept_rate = n_accept / n_tot
+            println("Acceptance Rate = $(accept_rate)")
+            current_theta = mean(output_record[i_step].theta_accepted, dims=1)
+            println("Current theta = $(current_theta)")
+            println("--------------------")
+        end
 
         if accept_rate < minAccRate
             println("epsilon = $(epsilon)")
@@ -355,16 +420,42 @@ end
 
 """
 Adaptively selects epsilon based on acceptance rate and distance distribution
+
+# Arguments
+- `distances`: Vector of distances from ABC
+- `current_epsilon`: Current epsilon value
+- `target_acc_rate`: Target acceptance rate
+- `current_acc_rate`: Current acceptance rate
+- `iteration`: Current iteration number
+- `total_iterations`: Total number of iterations
+- `distance_max`: Maximum distance to consider valid (default: 10.0)
+- `quantile_lower`: Lower quantile for epsilon adjustment (default: 25)
+- `quantile_upper`: Upper quantile for epsilon adjustment (default: 75)
+- `quantile_init`: Initial quantile when no acceptance rate (default: 50)
+- `acc_rate_buffer`: Buffer around target acceptance rate (default: 0.1)
 """
 function select_epsilon(distances::Vector{Float64},
                         current_epsilon::Float64;
                         target_acc_rate::Float64=0.01,
                         current_acc_rate::Float64=0.0,
                         iteration::Integer=1,
-                        total_iterations::Integer=100)
+                        total_iterations::Integer=100,
+                        distance_max::Float64=10.0,
+                        quantile_lower::Float64=25.0,
+                        quantile_upper::Float64=75.0,
+                        quantile_init::Float64=50.0,
+                        acc_rate_buffer::Float64=0.1,
+                        # Add adaptive alpha parameters
+                        alpha_max::Float64=0.9,
+                        alpha_min::Float64=0.1,
+                        acc_rate_far::Float64=2.0,
+                        acc_rate_close::Float64=0.2,
+                        alpha_far_mult::Float64=1.5,
+                        alpha_close_mult::Float64=0.5)
+    
     # Filter out NaN and very large distances
     valid_distances = distances[.!isnan.(distances)]
-    valid_distances = valid_distances[valid_distances.<10.0]
+    valid_distances = valid_distances[valid_distances .< distance_max]
 
     if isempty(valid_distances)
         @warn "No valid distances for epsilon selection"
@@ -372,27 +463,35 @@ function select_epsilon(distances::Vector{Float64},
     end
 
     # Compute quantiles
-    q25 = sb.percentile(valid_distances, 25)
-    q50 = sb.percentile(valid_distances, 50)
-    q75 = sb.percentile(valid_distances, 75)
+    q_lower = sb.percentile(valid_distances, quantile_lower)
+    q_init = sb.percentile(valid_distances, quantile_init)
+    q_upper = sb.percentile(valid_distances, quantile_upper)
 
-    # Get adaptive alpha value
+    # Get adaptive alpha value with all parameters
     alpha = compute_adaptive_alpha(iteration,
-                                   current_acc_rate,
-                                   target_acc_rate,
-                                   total_iterations=total_iterations)
+                                 current_acc_rate,
+                                 target_acc_rate,
+                                 alpha_max=alpha_max,
+                                 alpha_min=alpha_min,
+                                 total_iterations=total_iterations,
+                                 acc_rate_far=acc_rate_far,
+                                 acc_rate_close=acc_rate_close,
+                                 alpha_far_mult=alpha_far_mult,
+                                 alpha_close_mult=alpha_close_mult)
 
     # Adaptive selection based on acceptance rate
-    if current_acc_rate > 0.0
-        if current_acc_rate > target_acc_rate * 1.1
-            new_epsilon = max(q25, current_epsilon * (1.0 - alpha))
-        elseif current_acc_rate < target_acc_rate * 0.9
-            new_epsilon = min(q75, current_epsilon * (1.0 + alpha))
-        else
-            new_epsilon = current_epsilon
-        end
+    if iteration == 1
+        new_epsilon = q_init
     else
-        new_epsilon = q50
+        if current_acc_rate > 0.0
+            if current_acc_rate > target_acc_rate * (1.0 + acc_rate_buffer)
+                new_epsilon = max(q_lower, current_epsilon * (1.0 - alpha))
+            elseif current_acc_rate < target_acc_rate * (1.0 - acc_rate_buffer)
+                new_epsilon = min(q_upper, current_epsilon * (1.0 + alpha))
+            else
+                new_epsilon = current_epsilon
+            end
+        end
     end
 
     return new_epsilon
@@ -400,13 +499,30 @@ end
 
 """
 Compute adaptive alpha value based on iteration and convergence metrics
+
+# Arguments
+- `iteration`: Current iteration number
+- `current_acc_rate`: Current acceptance rate
+- `target_acc_rate`: Target acceptance rate
+- `alpha_max`: Maximum alpha value (default: 0.9)
+- `alpha_min`: Minimum alpha value (default: 0.1)
+- `total_iterations`: Total number of iterations
+- `acc_rate_far`: Threshold for "far from target" adjustment (default: 2.0)
+- `acc_rate_close`: Threshold for "close to target" adjustment (default: 0.2)
+- `alpha_far_mult`: Multiplier for alpha when far from target (default: 1.5)
+- `alpha_close_mult`: Multiplier for alpha when close to target (default: 0.5)
 """
 function compute_adaptive_alpha(iteration::Integer,
                                 current_acc_rate::Float64,
                                 target_acc_rate::Float64;
                                 alpha_max::Float64=0.9,
                                 alpha_min::Float64=0.1,
-                                total_iterations::Integer=100)
+                                total_iterations::Integer=100,
+                                acc_rate_far::Float64=2.0,
+                                acc_rate_close::Float64=0.2,
+                                alpha_far_mult::Float64=1.5,
+                                alpha_close_mult::Float64=0.5)
+    
     # Base decay factor based on iteration progress
     progress = iteration / total_iterations
     base_alpha = alpha_max * (1 - progress) + alpha_min * progress
@@ -414,12 +530,12 @@ function compute_adaptive_alpha(iteration::Integer,
     # Adjust based on how far we are from target acceptance rate
     acc_rate_diff = abs(current_acc_rate - target_acc_rate) / target_acc_rate
 
-    if acc_rate_diff > 2.0
+    if acc_rate_diff > acc_rate_far
         # Far from target: more aggressive adaptation
-        alpha = min(alpha_max, base_alpha * 1.5)
-    elseif acc_rate_diff < 0.2
+        alpha = min(alpha_max, base_alpha * alpha_far_mult)
+    elseif acc_rate_diff < acc_rate_close
         # Close to target: more conservative adaptation
-        alpha = max(alpha_min, base_alpha * 0.5)
+        alpha = max(alpha_min, base_alpha * alpha_close_mult)
     else
         # Normal range: use base alpha
         alpha = base_alpha
@@ -440,7 +556,7 @@ Find the MAP estimates from posteriors with grid search.
 # Returns
 - `theta_map::Vector{Float64}`: MAP estimates of the parameters
 """
-function find_MAP(theta_accepted::Matrix{Float64}, N::Integer)
+function find_MAP(theta_accepted::Matrix{Float64}, N::Integer=1000)
     num_params = size(theta_accepted, 2)
 
     # Create grid of positions for each parameter

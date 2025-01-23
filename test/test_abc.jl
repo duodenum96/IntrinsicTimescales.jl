@@ -39,11 +39,11 @@ using Revise
     @testset "Helper Functions" begin
         @testset "Weighted Covariance" begin
             # Test 1D case
-            x = [1.0 2.0 3.0]
-            w = [0.2 0.3 0.5]
+            x = [1.0 2.0; 3.0 4.0; 5.0 6.0]
+            w = [0.2, 0.3, 0.5]
             covar = ABC.weighted_covar(x, w)
-            @test covar isa Float64
-            @test covar > 0
+            @test covar isa Matrix{Float64}
+            @test all(covar .> 0)
             
             # Test 2D case
             X = [1.0 2.0; 3.0 4.0; 5.0 6.0]
