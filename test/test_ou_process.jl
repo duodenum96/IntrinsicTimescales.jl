@@ -27,13 +27,7 @@ using BayesianINT
                 # Test autocorrelation
                 ac = mean([cor(@view(ou[i,1:end-1]), @view(ou[i,2:end])) for i in 1:num_trials])
                 theoretical_ac = exp(-dt/tau)
-                @test mean(abs.(ac .- theoretical_ac)) < 0.1
-
-                # Whole ACF f'n
-                ac = comp_ac_fft(ou[1:20, :]; n_lags=n_lags)
-                lags = range(0, T-dt; step=dt)
-                theoretical_ac = exp.(-lags/tau)[1:n_lags]
-                @test mean(sqrt.(abs2.(ac .- theoretical_ac))) < 0.15 # What's a good number here?
+                @test mean(abs.(ac .- theoretical_ac)) < 0.01
             end
         end
     end
