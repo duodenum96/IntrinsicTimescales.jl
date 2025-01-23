@@ -15,8 +15,8 @@ Strategy: In the generative model, we generate the data without NaNs, then repla
 missing_mask with NaNs.
 """
 struct OneTimescaleWithMissingModel <: AbstractTimescaleModel
-    data::Matrix{<:Real}
-    prior::Vector{Any}
+    data::AbstractArray{<:Real}
+    prior::Vector{<:Distribution}
     data_sum_stats::Vector{<:Real}
     epsilon::Real
     dt::Real
@@ -24,7 +24,7 @@ struct OneTimescaleWithMissingModel <: AbstractTimescaleModel
     numTrials::Integer
     data_var::Real
     n_lags::Integer
-    missing_mask::Matrix{Bool}
+    missing_mask::AbstractArray{<:Bool}
 end
 
 """

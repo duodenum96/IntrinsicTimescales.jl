@@ -24,24 +24,24 @@ function informed_prior(psd, freqs)
 end
 
 struct OneTimescaleAndOscWithMissingModel <: AbstractTimescaleModel
-    data::Matrix{<:Real}
+    data::AbstractArray{<:Real}
     times::AbstractVector{<:Real}
-    prior::Vector{Any}
-    data_sum_stats::Tuple{Vector{<:Real}, Vector{<:Real}}
+    prior::Vector{<:Distribution}
+    data_sum_stats::Tuple{AbstractVector{<:Real}, AbstractVector{<:Real}}
     epsilon::Real
     dt::Real
     T::Real
     numTrials::Integer
     data_mean::Real
     data_var::Real
-    missing_mask::Matrix{Bool}
+    missing_mask::AbstractArray{<:Bool}
 end
 
 function OneTimescaleAndOscWithMissingModel(data, times, prior, data_sum_stats, epsilon, dt,
                                             T, numTrials, data_mean, data_var)
     if prior == "informed"
         prior2 = informed_prior(data_sum_stats[1], data_sum_stats[2])
-    elseif prior isa Vector{Distribution}
+    elseif prior isa Vector{<:Distribution}
         prior2 = prior
     else
         error("Invalid prior type")
@@ -62,9 +62,9 @@ end
 """
 Compute combined distance using PSD shape and peak location
 """
-function combined_distance(model_psd::Vector{Float64},
-                           data_psd::Vector{Float64},
-                           freqs::Vector{Float64};
+function combined_distance(model_psd::AbstractVector{<:Real},
+                           data_psd::AbstractVector{<:Real},
+                           freqs::AbstractVector{<:Real};
                            peak_weight::Float64=0.45,
                            knee_weight::Float64=0.45,
                            psd_weight::Float64=0.1,
@@ -117,7 +117,8 @@ end
 function Models.generate_data_and_reduce(model::OneTimescaleAndOscWithMissingModel, theta)
     synth = Models.generate_data(model, theta)
     sum_stats = Models.summary_stats(model, synth)
-    d = Models.distance_function(model, sum_stats, model.data_sum_stats)
+    sum_stats_mean = mean(sum_stats[1], dims=1)[:], sum_stats[2]
+    d = Models.distance_function(model, sum_stats_mean, model.data_sum_stats)
     return d
 end
 

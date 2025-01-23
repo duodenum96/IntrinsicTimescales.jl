@@ -102,9 +102,9 @@ function residual_lorentzian!(du, u, p)
     return nothing
 end
 
-function lorentzian_initial_guess(psd::Vector{Float64}, freqs::Vector{Float64};
-                                  min_freq::Float64=freqs[1],
-                                  max_freq::Float64=freqs[end])
+function lorentzian_initial_guess(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real};
+                                  min_freq::Real=freqs[1],
+                                  max_freq::Real=freqs[end])
 
     # Initial parameter guess
     # u[1]: estimate amplitude from low frequency power
@@ -187,7 +187,7 @@ We only implement the first three steps since our interest is mainly in the knee
 # Returns
 Array with fitted parameters, reduced along specified dimension
 """
-function fooof_fit(psd::Vector{T}, freqs::Vector{T};
+function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
                   min_freq::T=freqs[1],
                   max_freq::T=freqs[end],
                   oscillation_peak::Bool=true) where {T <: Real}
@@ -226,10 +226,10 @@ end
 """
 Find the dominant oscillatory peak in the PSD using prominence
 """
-function find_oscillation_peak(psd::Vector{Float64}, freqs::Vector{Float64};
-                               min_freq::Float64=5.0 / 1000.0,
-                               max_freq::Float64=50.0 / 1000.0,
-                               min_prominence_ratio::Float64=0.1)  # minimum prominence as fraction of max PSD
+function find_oscillation_peak(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real};
+                               min_freq::Real=5.0 / 1000.0,
+                               max_freq::Real=50.0 / 1000.0,
+                               min_prominence_ratio::Real=0.1)  # minimum prominence as fraction of max PSD
     # Consider only frequencies in the specified range
     freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
     search_psd = psd[freq_mask]

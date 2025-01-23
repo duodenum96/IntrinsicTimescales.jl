@@ -110,7 +110,8 @@ end
 Modified summary_stats to return both PSD and frequencies
 """
 function Models.summary_stats(model::OneTimescaleAndOscModel, data)
-    return comp_psd(data, 1 / model.dt)
+    power, freq = comp_psd(data, 1 / model.dt)
+    return mean(power, dims=1)[:], freq
 end
 
 """

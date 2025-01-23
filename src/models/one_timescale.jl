@@ -51,7 +51,7 @@ function Models.generate_data(model::OneTimescaleModel, theta)
 end
 
 function Models.summary_stats(model::OneTimescaleModel, data)
-    return comp_ac_fft(data; n_lags=model.n_lags)
+    return mean(comp_ac_fft(data; n_lags=model.n_lags), dims=1)[:]
 end
 
 function Models.distance_function(model::OneTimescaleModel, sum_stats, data_sum_stats)
