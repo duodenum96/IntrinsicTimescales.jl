@@ -19,8 +19,6 @@ function informed_prior(data_sum_stats::Vector{<:Real}, lags_freqs; summary_meth
     end
 end
 
-
-
 """
 One-timescale OU process model
 """
@@ -116,7 +114,7 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
         psd, freqs = comp_psd(data, fs)
         mean_psd = mean(psd, dims=1)
         if isnothing(freqlims)
-            freqlims = (0.5, 100.0)
+            freqlims = (0.5 / 1000.0, 100.0 / 1000.0) # Convert to kHz (units in ms)
         end
         freq_idx = (freqs .< freqlims[2]) .&& (freqs .> freqlims[1])
         lags_freqs = freqs[freq_idx]
@@ -242,37 +240,36 @@ function Models.distance_function(model::OneTimescaleModel, sum_stats, data_sum_
 end
 
 function Models.solve(model::OneTimescaleModel, param_dict=nothing)
-    
     if model.fit_method == :abc
         if isnothing(param_dict)
             param_dict = get_param_dict_abc()
         end
 
         abc_record = pmc_abc(model;
-        # Basic ABC parameters
-        epsilon_0=param_dict[:epsilon_0],
-        max_iter=param_dict[:max_iter],
-        min_accepted=param_dict[:min_accepted],
-        steps=param_dict[:steps],
-        sample_only=param_dict[:sample_only],
-        minAccRate=param_dict[:minAccRate],
-        target_acc_rate=param_dict[:target_acc_rate],
-        target_epsilon=param_dict[:target_epsilon],
-        show_progress=param_dict[:show_progress],
-        verbose=param_dict[:verbose],
-        jitter=param_dict[:jitter],
-        cov_scale=param_dict[:cov_scale],
-        distance_max=param_dict[:distance_max],
-        quantile_lower=param_dict[:quantile_lower],
-        quantile_upper=param_dict[:quantile_upper],
-        quantile_init=param_dict[:quantile_init],
-        acc_rate_buffer=param_dict[:acc_rate_buffer],
-        alpha_max=param_dict[:alpha_max],
-        alpha_min=param_dict[:alpha_min],
-        acc_rate_far=param_dict[:acc_rate_far],
-        acc_rate_close=param_dict[:acc_rate_close],
-        alpha_far_mult=param_dict[:alpha_far_mult],
-        alpha_close_mult=param_dict[:alpha_close_mult])
+                             # Basic ABC parameters
+                             epsilon_0=param_dict[:epsilon_0],
+                             max_iter=param_dict[:max_iter],
+                             min_accepted=param_dict[:min_accepted],
+                             steps=param_dict[:steps],
+                             sample_only=param_dict[:sample_only],
+                             minAccRate=param_dict[:minAccRate],
+                             target_acc_rate=param_dict[:target_acc_rate],
+                             target_epsilon=param_dict[:target_epsilon],
+                             show_progress=param_dict[:show_progress],
+                             verbose=param_dict[:verbose],
+                             jitter=param_dict[:jitter],
+                             cov_scale=param_dict[:cov_scale],
+                             distance_max=param_dict[:distance_max],
+                             quantile_lower=param_dict[:quantile_lower],
+                             quantile_upper=param_dict[:quantile_upper],
+                             quantile_init=param_dict[:quantile_init],
+                             acc_rate_buffer=param_dict[:acc_rate_buffer],
+                             alpha_max=param_dict[:alpha_max],
+                             alpha_min=param_dict[:alpha_min],
+                             acc_rate_far=param_dict[:acc_rate_far],
+                             acc_rate_close=param_dict[:acc_rate_close],
+                             alpha_far_mult=param_dict[:alpha_far_mult],
+                             alpha_close_mult=param_dict[:alpha_close_mult])
     end
     posterior_samples = abc_record[end].theta_accepted
     posterior_MAP = find_MAP(posterior_samples, param_dict[:N])

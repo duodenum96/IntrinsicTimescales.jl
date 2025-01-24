@@ -141,7 +141,7 @@ function one_timescale_with_missing_model(data, time, fit_method;
         psd, freqs = comp_psd_lombscargle(times, data, missing_mask, dt)
         mean_psd = mean(psd, dims=1)
         if isnothing(freqlims)
-            freqlims = (0.5, 100.0)
+            freqlims = (0.5 / 1000.0, 100.0 / 1000.0) # Convert to kHz (units in ms)
         end
         freq_idx = (freqs .< freqlims[2]) .&& (freqs .> freqlims[1])
         lags_freqs = freqs[freq_idx]
