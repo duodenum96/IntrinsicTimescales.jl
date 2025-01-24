@@ -149,4 +149,112 @@ using BayesianINT.Models
         @test model.weights == [0.7, 0.3]
         @test !isnothing(model.data_tau)
     end
+
+    @testset "Model Inference using ABC" begin
+        # Setup synthetic data with known parameters
+        true_tau = 50.0
+        dt = 1.0
+        T = 1000.0
+        num_trials = 500
+        n_lags = 50
+        time = 0:dt:T-dt
+        
+        # Generate synthetic data
+        data = generate_ou_process(true_tau, 3.0, dt, T, num_trials)
+        
+        @testset "ABC Inference - ACF" begin
+            model = one_timescale_model(
+                data,
+                time,
+                :abc;
+                summary_method=:acf,
+                prior=[Uniform(1.0, 100.0)],
+                n_lags=n_lags,
+                distance_method=:linear
+            )
+            
+            # Custom parameters for faster testing
+            param_dict = get_param_dict_abc()
+            param_dict[:steps] = 10
+            param_dict[:max_iter] = 10000
+            param_dict[:target_epsilon] = 1e-2
+            
+            posterior_samples, posterior_MAP, abc_record = Models.solve(model, param_dict)
+            
+            # Test posterior properties
+            @test posterior_MAP[1] ≈ true_tau atol=10.0
+            @test size(posterior_samples, 2) == 1  # One parameter (tau)
+            @test !isempty(posterior_samples)
+            @test !any(isnan, posterior_samples)
+            
+            # Test ABC convergence
+            final_epsilon = abc_record[end].epsilon
+            @test final_epsilon < abc_record[1].epsilon
+            @test abc_record[end].n_accepted >= param_dict[:min_accepted]
+        end
+        
+        @testset "ABC Inference - PSD" begin
+            model = one_timescale_model(
+                data,
+                time,
+                :abc;
+                summary_method=:psd,
+                prior=[Uniform(1.0, 100.0)],
+                freqlims=(0.5 / 1000.0, 100.0 / 1000.0),
+                distance_method=:logarithmic
+            )
+            
+            param_dict = get_param_dict_abc()
+            param_dict[:epsilon_0] = 1.0
+            param_dict[:steps] = 100
+            param_dict[:max_iter] = 10000
+            param_dict[:target_epsilon] = 1e-2
+            param_dict[:N] = 10000
+            param_dict[:distance_max] = 500.0
+            
+            posterior_samples, posterior_MAP, abc_record = Models.solve(model, param_dict)
+            
+            # Test posterior properties
+            @test posterior_MAP[1] ≈ true_tau atol=10.0
+            @test size(posterior_samples, 2) == 1
+            @test !isempty(posterior_samples)
+            @test !any(isnan, posterior_samples)
+            
+            # Test ABC convergence
+            @test abc_record[end].epsilon < abc_record[1].epsilon
+        end
+        
+        # This is too slow, not recommended. Keeping here for completeness. 
+        # @testset "Combined Distance Inference" begin
+        #     model = one_timescale_model(
+        #         data,
+        #         time,
+        #         :abc;
+        #         summary_method=:acf,
+        #         prior=[Uniform(1.0, 100.0)],
+        #         n_lags=n_lags,
+        #         distance_method=:linear,
+        #         distance_combined=true,
+        #         weights=[0.7, 0.3]
+        #     )
+            
+        #     param_dict = get_param_dict_abc()
+        #     param_dict[:epsilon_0] = 1.0
+        #     param_dict[:steps] = 10
+        #     param_dict[:max_iter] = 10000
+        #     param_dict[:target_epsilon] = 1e-2
+        #     param_dict[:N] = 10000
+        #     param_dict[:distance_max] = 500.0
+            
+        #     posterior_samples, posterior_MAP, abc_record = Models.solve(model, param_dict)
+            
+        #     # Test posterior properties
+        #     @test size(posterior_samples, 2) == 1
+        #     @test !isempty(posterior_samples)
+        #     @test !any(isnan, posterior_samples)
+            
+        #     # Test MAP estimate
+        #     @test abs(posterior_MAP[1] - true_tau) < 5.0
+        # end
+    end
 end

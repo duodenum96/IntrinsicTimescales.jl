@@ -1,7 +1,6 @@
 module Models
 
 using Distributions
-using ProtoStructs
 
 export AbstractTimescaleModel, BaseModel
 

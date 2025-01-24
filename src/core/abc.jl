@@ -15,11 +15,12 @@ using ProgressMeter
 using LinearAlgebra
 using KernelDensity
 
-export basic_abc, pmc_abc, effective_sample_size, weighted_covar, find_MAP
+export basic_abc, pmc_abc, effective_sample_size, weighted_covar, find_MAP, get_param_dict_abc
 
 function draw_theta_pmc(model, theta_prev, weights, tau_squared; jitter::Float64=1e-5)
-    @inbounds theta_star = theta_prev[sb.sample(collect(1:length(theta_prev)), sb.pweights(weights)),
-                            :]
+    @inbounds theta_star = theta_prev[sb.sample(collect(1:length(theta_prev)),
+                                                sb.pweights(weights)),
+                                      :]
 
     # Add small diagonal term to ensure positive definiteness
     jitter_matrix = jitter * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
@@ -52,7 +53,8 @@ function basic_abc(model::Models.AbstractTimescaleModel;
     distances = zeros(max_iter)
     accepted_count = 0
 
-    prog = show_progress ? ProgressUnknown(desc="Accepted samples:", showspeed=true) : nothing
+    prog = show_progress ? ProgressUnknown(desc="Accepted samples:", showspeed=true) :
+           nothing
     iter = 0
     @inbounds for trial_count in 1:max_iter
         # Draw from prior or proposal
@@ -129,27 +131,27 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                  min_accepted::Integer=100,
                  steps::Integer=10,
                  sample_only::Bool=false,
-                 
+
                  # Acceptance rate parameters
                  minAccRate::Float64=0.01,
                  target_acc_rate::Float64=0.01,
                  target_epsilon::Float64=5e-3,
-                 
+
                  # Display parameters
                  show_progress::Bool=true,
                  verbose::Bool=true,
-                 
+
                  # Numerical stability parameters
                  jitter::Float64=1e-6,
                  cov_scale::Float64=2.0,
-                 
+
                  # Epsilon selection parameters
                  distance_max::Float64=10.0,
                  quantile_lower::Float64=25.0,
                  quantile_upper::Float64=75.0,
                  quantile_init::Float64=50.0,
                  acc_rate_buffer::Float64=0.1,
-                 
+
                  # Adaptive alpha parameters
                  alpha_max::Float64=0.9,
                  alpha_min::Float64=0.1,
@@ -257,15 +259,15 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 
             # Pass through adaptive alpha parameters when computing alpha
             alpha = compute_adaptive_alpha(i_step,
-                                        current_acc_rate,
-                                        target_acc_rate,
-                                        alpha_max=alpha_max,
-                                        alpha_min=alpha_min,
-                                        total_iterations=steps,
-                                        acc_rate_far=acc_rate_far,
-                                        acc_rate_close=acc_rate_close,
-                                        alpha_far_mult=alpha_far_mult,
-                                        alpha_close_mult=alpha_close_mult)
+                                           current_acc_rate,
+                                           target_acc_rate,
+                                           alpha_max=alpha_max,
+                                           alpha_min=alpha_min,
+                                           total_iterations=steps,
+                                           acc_rate_far=acc_rate_far,
+                                           acc_rate_close=acc_rate_close,
+                                           alpha_far_mult=alpha_far_mult,
+                                           alpha_close_mult=alpha_close_mult)
 
             output_record[i_step] = (theta_accepted=theta,
                                      D_accepted=result.distances,
@@ -378,13 +380,13 @@ function weighted_covar(x::Matrix{Float64}, w::Vector{Float64})
     # Normalize weights to ensure they sum to 1
     w_norm = w ./ sum(w)
     sumw = sum(w_norm)
-    
+
     # Check if weights are valid after normalization
     if !isapprox(sumw, 1.0, rtol=1e-10)
         @warn "Weights did not sum to 1 after normalization"
         return zeros(size(x, 2), size(x, 2))  # Return fallback covariance
     end
-    
+
     sum2 = sum(w_norm .^ 2)
 
     if ndims(x) == 1
@@ -398,7 +400,8 @@ function weighted_covar(x::Matrix{Float64}, w::Vector{Float64})
         for k in axes(x, 2)
             for j in axes(x, 2)
                 for i in axes(x, 1)
-                    @inbounds covar[j, k] += (x[i, j] - xbar[j]) * (x[i, k] - xbar[k]) * w_norm[i]
+                    @inbounds covar[j, k] += (x[i, j] - xbar[j]) * (x[i, k] - xbar[k]) *
+                                             w_norm[i]
                 end
             end
         end
@@ -452,10 +455,10 @@ function select_epsilon(distances::Vector{Float64},
                         acc_rate_close::Float64=0.2,
                         alpha_far_mult::Float64=1.5,
                         alpha_close_mult::Float64=0.5)
-    
+
     # Filter out NaN and very large distances
     valid_distances = distances[.!isnan.(distances)]
-    valid_distances = valid_distances[valid_distances .< distance_max]
+    valid_distances = valid_distances[valid_distances.<distance_max]
 
     if isempty(valid_distances)
         @warn "No valid distances for epsilon selection"
@@ -469,15 +472,15 @@ function select_epsilon(distances::Vector{Float64},
 
     # Get adaptive alpha value with all parameters
     alpha = compute_adaptive_alpha(iteration,
-                                 current_acc_rate,
-                                 target_acc_rate,
-                                 alpha_max=alpha_max,
-                                 alpha_min=alpha_min,
-                                 total_iterations=total_iterations,
-                                 acc_rate_far=acc_rate_far,
-                                 acc_rate_close=acc_rate_close,
-                                 alpha_far_mult=alpha_far_mult,
-                                 alpha_close_mult=alpha_close_mult)
+                                   current_acc_rate,
+                                   target_acc_rate,
+                                   alpha_max=alpha_max,
+                                   alpha_min=alpha_min,
+                                   total_iterations=total_iterations,
+                                   acc_rate_far=acc_rate_far,
+                                   acc_rate_close=acc_rate_close,
+                                   alpha_far_mult=alpha_far_mult,
+                                   alpha_close_mult=alpha_close_mult)
 
     # Adaptive selection based on acceptance rate
     if iteration == 1
@@ -522,7 +525,7 @@ function compute_adaptive_alpha(iteration::Integer,
                                 acc_rate_close::Float64=0.2,
                                 alpha_far_mult::Float64=1.5,
                                 alpha_close_mult::Float64=0.5)
-    
+
     # Base decay factor based on iteration progress
     progress = iteration / total_iterations
     base_alpha = alpha_max * (1 - progress) + alpha_min * progress
@@ -556,27 +559,66 @@ Find the MAP estimates from posteriors with grid search.
 # Returns
 - `theta_map::Vector{Float64}`: MAP estimates of the parameters
 """
-function find_MAP(theta_accepted::Matrix{Float64}, N::Integer=1000)
+function find_MAP(theta_accepted::Matrix{Float64}, N::Integer=10000)
     num_params = size(theta_accepted, 2)
 
     # Create grid of positions for each parameter
     positions = zeros(Float64, N, num_params)
     for i in 1:num_params
-        param = @view theta_accepted[:,i]
-        @inbounds positions[:,i] = rand(dist.Uniform(minimum(param), maximum(param)), N)
+        param = @view theta_accepted[:, i]
+        @inbounds positions[:, i] = rand(dist.Uniform(minimum(param), maximum(param)), N)
     end
 
     # Estimate density using KDE
     kernel = [kde(theta_accepted[:, i]) for i in 1:num_params]
 
     # Evaluate density at grid positions
-    probs = [pdf(kernel[i], positions[:,i]) for i in 1:num_params]
+    probs = [pdf(kernel[i], positions[:, i]) for i in 1:num_params]
 
     # Find position with maximum probability
     max_idx = [findmax(probs[i])[2] for i in 1:num_params]
     theta_map = [positions[max_idx[i], i] for i in 1:num_params]
 
     return theta_map
+end
+
+function get_param_dict_abc()
+    return Dict(:epsilon_0 => 1.0,
+                :max_iter => 10000,
+                :min_accepted => 100,
+                :steps => 10,
+                :sample_only => false,
+
+                # Acceptance rate parameters
+                :minAccRate => 0.01,
+                :target_acc_rate => 0.01,
+                :target_epsilon => 5e-3,
+
+                # Display parameters
+                :show_progress => true,
+                :verbose => true,
+
+                # Numerical stability parameters
+                :jitter => 1e-6,
+                :cov_scale => 2.0,
+
+                # Epsilon selection parameters
+                :distance_max => 10.0,
+                :quantile_lower => 25.0,
+                :quantile_upper => 75.0,
+                :quantile_init => 50.0,
+                :acc_rate_buffer => 0.1,
+
+                # Adaptive alpha parameters
+                :alpha_max => 0.9,
+                :alpha_min => 0.1,
+                :acc_rate_far => 2.0,
+                :acc_rate_close => 0.2,
+                :alpha_far_mult => 1.5,
+                :alpha_close_mult => 0.5,
+
+                # MAP N
+                :N => 10000)
 end
 
 end # module

@@ -48,6 +48,7 @@ end
 acw50_analytical(tau) = -tau * log(0.5)
 tau_from_acw50(acw50) = -acw50 / log(0.5)
 tau_from_knee(knee) = 1 ./ (2 .* pi .* knee)
+knee_from_tau(tau) = 1 ./ (2 .* pi .* tau)
 
 """
     acw50(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}

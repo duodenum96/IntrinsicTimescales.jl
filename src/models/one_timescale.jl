@@ -2,7 +2,6 @@
 
 module OneTimescale
 
-using ProtoStructs
 using Distributions
 using ..Models
 using ..OrnsteinUhlenbeck
@@ -13,10 +12,10 @@ export one_timescale_model, OneTimescaleModel
 function informed_prior(data_sum_stats::Vector{<:Real}, lags_freqs; summary_method=:acf)
     if summary_method == :acf
         tau = fit_expdecay(lags_freqs, data_sum_stats)
-        return [Normal(tau, 3000)] # Convert to ms
+        return [Normal(tau, 20.0)] # Convert to ms
     elseif summary_method == :psd
         tau = tau_from_knee(find_knee_frequency(data_sum_stats, lags_freqs)[2]) # Get knee frequency from Lorentzian fit
-        return [Normal(tau, 3000)] # Convert to ms
+        return [Normal(tau, 20.0)] # Convert to ms
     end
 end
 
@@ -217,7 +216,7 @@ function Models.summary_stats(model::OneTimescaleModel, data)
     if model.summary_method == :acf
         return mean(comp_ac_fft(data; n_lags=model.n_lags), dims=1)[:][1:model.n_lags]
     elseif model.summary_method == :psd
-        return mean(comp_psd(data; fs=1 / model.dt)[1], dims=1)[:][model.freq_idx]
+        return mean(comp_psd(data, 1 / model.dt)[1], dims=1)[:][model.freq_idx]
     else
         throw(ArgumentError("Summary method must be :acf or :psd"))
     end
@@ -238,7 +237,7 @@ function combined_distance(model::OneTimescaleModel, simulation_summary, data_su
     else
         throw(ArgumentError("Distance method must be :linear or :logarithmic"))
     end
-    distance_2 = abs2(data_tau - simulation_tau)
+    distance_2 = linear_distance(data_tau, simulation_tau)
     return weights[1] * distance_1 + weights[2] * distance_2
 end
 
@@ -258,6 +257,44 @@ function Models.distance_function(model::OneTimescaleModel, sum_stats, data_sum_
     else
         throw(ArgumentError("Distance method must be :linear or :logarithmic"))
     end
+end
+
+function Models.solve(model::OneTimescaleModel, param_dict=nothing)
+    
+    if model.fit_method == :abc
+        if isnothing(param_dict)
+            param_dict = get_param_dict_abc()
+        end
+
+        abc_record = pmc_abc(model::Models.AbstractTimescaleModel;
+        # Basic ABC parameters
+        epsilon_0=param_dict[:epsilon_0],
+        max_iter=param_dict[:max_iter],
+        min_accepted=param_dict[:min_accepted],
+        steps=param_dict[:steps],
+        sample_only=param_dict[:sample_only],
+        minAccRate=param_dict[:minAccRate],
+        target_acc_rate=param_dict[:target_acc_rate],
+        target_epsilon=param_dict[:target_epsilon],
+        show_progress=param_dict[:show_progress],
+        verbose=param_dict[:verbose],
+        jitter=param_dict[:jitter],
+        cov_scale=param_dict[:cov_scale],
+        distance_max=param_dict[:distance_max],
+        quantile_lower=param_dict[:quantile_lower],
+        quantile_upper=param_dict[:quantile_upper],
+        quantile_init=param_dict[:quantile_init],
+        acc_rate_buffer=param_dict[:acc_rate_buffer],
+        alpha_max=param_dict[:alpha_max],
+        alpha_min=param_dict[:alpha_min],
+        acc_rate_far=param_dict[:acc_rate_far],
+        acc_rate_close=param_dict[:acc_rate_close],
+        alpha_far_mult=param_dict[:alpha_far_mult],
+        alpha_close_mult=param_dict[:alpha_close_mult])
+    end
+    posterior_samples = abc_record[end].theta_accepted
+    posterior_MAP = find_MAP(posterior_samples, param_dict[:N])
+    return posterior_samples, posterior_MAP, abc_record
 end
 
 end # module OneTimescale 
