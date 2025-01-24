@@ -313,14 +313,14 @@ Compute autocorrelation in time domain along specified dimension.
 # Returns
 Array with autocorrelation values, the specified dimension becomes the dimension of lags while the other dimensions denote ACF values
 """
-function comp_ac_time(data::Vector{T}, max_lag::Integer) where {T <: Real}
-    lags = 0:(max_lag-1)
+function comp_ac_time(data::Vector{T}; n_lags::Integer=length(data)) where {T <: Real}
+    lags = 0:(n_lags-1)
     sb.autocor(data, lags)
 end
 
-function comp_ac_time(data::AbstractArray{T}, max_lag::Integer;
+function comp_ac_time(data::AbstractArray{T}; n_lags::Integer=size(data, dims),
                      dims::Int=ndims(data)) where {T <: Real}
-    f = x -> comp_ac_time(vec(x), max_lag)
+    f = x -> comp_ac_time(vec(x), n_lags=n_lags)
     return mapslices(f, data, dims=dims)
 end
 
@@ -340,9 +340,9 @@ Compute autocorrelation for data with missing values along specified dimension.
 Array with autocorrelation values, specified dimension becomes the dimension for lags. Returns NaN for 
 lags with insufficient valid pairs.
 """
-function comp_ac_time_missing(data::Vector{T}, max_lag::Integer; min_pairs::Integer=3) where {T <: Real}
-    lags = 0:(max_lag-1)
-    ac = zeros(T, max_lag)
+function comp_ac_time_missing(data::Vector{T}; n_lags::Integer=length(data), min_pairs::Integer=3) where {T <: Real}
+    lags = 0:(n_lags-1)
+    ac = zeros(T, n_lags)
     n = length(data)
     
     # Handle missing values
@@ -364,12 +364,13 @@ function comp_ac_time_missing(data::Vector{T}, max_lag::Integer; min_pairs::Inte
     
     for lag in lags
         # Count and collect valid pairs
+        # TODO: Like acovf implementation below, set NaNs to 0 to avoid the if loop. 
         valid_count = 0
         @inbounds for i in 1:(n-lag)
-            if notmask_bool[i] && notmask_bool[i+lag]
+            if view(notmask_bool, i) && view(notmask_bool, i+lag)
                 valid_count += 1
-                x_valid[valid_count] = x[i]
-                y_valid[valid_count] = x[i+lag]
+                x_valid[valid_count] = view(x, i)
+                y_valid[valid_count] = view(x, i+lag)
             end
         end
         
@@ -390,9 +391,9 @@ function comp_ac_time_missing(data::Vector{T}, max_lag::Integer; min_pairs::Inte
     return ac
 end
 
-function comp_ac_time_missing(data::AbstractArray{T}, max_lag::Integer;
+function comp_ac_time_missing(data::AbstractArray{T}; n_lags::Integer=size(data, dims),
                             dims::Int=ndims(data), min_pairs::Integer=3) where {T <: Real}
-    f = x -> comp_ac_time_missing(vec(x), max_lag, min_pairs=min_pairs)
+    f = x -> comp_ac_time_missing(vec(x), n_lags=n_lags, min_pairs=min_pairs)
     return mapslices(f, data, dims=dims)
 end
 
