@@ -1,6 +1,7 @@
 module Models
 
 using Distributions
+using ProtoStructs
 
 export AbstractTimescaleModel, BaseModel
 
@@ -9,11 +10,22 @@ abstract type AbstractTimescaleModel end
 """
 Base model interface for ABC computations
 """
-struct BaseModel{T, D, P} <: AbstractTimescaleModel
-    data::D
-    prior::P
-    data_sum_stats::T
-    epsilon::Float64
+struct BaseModel <: AbstractTimescaleModel
+    data
+    time
+    data_sum_stats
+    fitmethod::Symbol # can be "abc", "optimization", "acw"
+    summary_method::Symbol # :psd or :acf
+    lags_freqs::AbstractVector{<:Real} # :lags if summary method is acf, freqs otherwise
+    prior::Union{Vector{<:Distribution}, Distribution, String} # Vector of prior distributions or string for "informed_prior"
+    optalg::Symbol # Optimization algorithm for Optimization.jl
+    acwtypes::Union{Vector{<:Symbol}, Symbol} # Types of ACW: ACW-50, ACW-0, ACW-e, tau, knee frequency
+    distance_method::Symbol # :linear or :logarithmic
+    dt::Real
+    T::Real
+    numTrials::Real
+    data_mean::Real
+    data_sd::Real
 end
 
 # Required methods that need to be implemented for each model
@@ -51,7 +63,7 @@ function distance_function end
 
 function rescale_theta end
 
-function bayesian_inference end
+function solve end
 
 # Combined generation and reduction step
 function generate_data_and_reduce(model::AbstractTimescaleModel, theta)

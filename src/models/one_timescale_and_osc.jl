@@ -132,19 +132,19 @@ function Models.generate_data_and_reduce(model::OneTimescaleAndOscModel, theta)
     return d
 end
 
-function Models.bayesian_inference(model::OneTimescaleAndOscModel; epsilon_0=0.5,
-                                   min_samples=100,
-                                   steps=60,
-                                   minAccRate=0.001,
-                                   max_iter=500)
-    results = pmc_abc(model;
-                      epsilon_0=epsilon_0,
-                      min_samples=min_samples,
-                      steps=steps,
-                      minAccRate=minAccRate,
-                      max_iter=max_iter)
+# function Models.bayesian_inference(model::OneTimescaleAndOscModel; epsilon_0=0.5,
+#                                    min_samples=100,
+#                                    steps=60,
+#                                    minAccRate=0.001,
+#                                    max_iter=500)
+#     results = pmc_abc(model;
+#                       epsilon_0=epsilon_0,
+#                       min_samples=min_samples,
+#                       steps=steps,
+#                       minAccRate=minAccRate,
+#                       max_iter=max_iter)
 
-    return results
-end
+#     return results
+# end
 
 end # module OneTimescaleAndOsc

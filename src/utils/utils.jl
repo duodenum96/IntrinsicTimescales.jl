@@ -6,7 +6,7 @@ using Statistics
 using NonlinearSolve
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
-       acw50, acw50_analytical, acw0, tau_from_acw50
+       acw50, acw50_analytical, acw0, acweuler, tau_from_acw50, tau_from_knee
 
 """
 Exponential decay fit
@@ -31,7 +31,7 @@ function residual_expdecay!(du, u, p)
     return nothing
 end
 
-function fit_expdecay(lags::Vector{T}, acf::Vector{T}) where {T <: Real}
+function fit_expdecay(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real}
     u0 = [tau_from_acw50(acw50(lags, acf))]
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay!,
                                                           resid_prototype=zeros(1)), u0,
@@ -40,13 +40,14 @@ function fit_expdecay(lags::Vector{T}, acf::Vector{T}) where {T <: Real}
     return sol.u[1]
 end
 
-function fit_expdecay(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+function fit_expdecay(lags::AbstractVector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
     f = x -> fit_expdecay(lags, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
 
 acw50_analytical(tau) = -tau * log(0.5)
 tau_from_acw50(acw50) = -acw50 / log(0.5)
+tau_from_knee(knee) = 1 ./ (2 .* pi .* knee)
 
 """
     acw50(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
@@ -61,11 +62,11 @@ Compute the ACW50 (autocorrelation width at 50%) along specified dimension.
 # Returns
 Array with ACW50 values, reduced along specified dimension
 """
-function acw50(lags::Vector{T}, acf::Vector{T}) where {T <: Real} 
+function acw50(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real} 
     lags[findfirst(acf .<= 0.5)]
 end
 
-function acw50(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+function acw50(lags::AbstractVector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
     f = x -> acw50(lags, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
@@ -83,12 +84,21 @@ Compute the ACW0 (autocorrelation width at 0) along specified dimension.
 # Returns
 Array with ACW0 values, reduced along specified dimension
 """
-function acw0(lags::Vector{T}, acf::Vector{T}) where {T <: Real}
+function acw0(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real}
     lags[findfirst(acf .<= 0.0)]
 end
 
-function acw0(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+function acw0(lags::AbstractVector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
     f = x -> acw0(lags, vec(x))
+    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+end
+
+function acweuler(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real}
+    lags[findfirst(acf .<= 1/ℯ)]
+end
+
+function acweuler(lags::AbstractVector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+    f = x -> acweuler(lags, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
 
@@ -159,7 +169,7 @@ function find_knee_frequency(psd::AbstractArray{T}, freqs::Vector{T};
                            dims::Int=ndims(psd),
                            min_freq::T=freqs[1],
                            max_freq::T=freqs[end]) where {T <: Real}
-    f = x -> find_knee_frequency(vec(x), freqs, min_freq=min_freq, max_freq=max_freq)
+    f = x -> find_knee_frequency(vec(x), freqs, min_freq=min_freq, max_freq=max_freq)[2]
     dropdims(mapslices(f, psd, dims=dims), dims=dims)
 end
 
