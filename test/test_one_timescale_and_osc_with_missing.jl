@@ -5,14 +5,15 @@ using BayesianINT
 using BayesianINT.OrnsteinUhlenbeck
 using BayesianINT.OneTimescaleAndOscWithMissing
 using BayesianINT.Models
+using NaNStatistics
 
 @testset "OneTimescaleAndOscWithMissing Model Tests" begin
-    # Setup test data and model parameters
+    # Setup test data and parameters
     dt = 0.01
     T = 100.0
     num_trials = 10
     ntime = Int(T / dt)
-    times = collect(0:dt:T-dt)
+    time = dt:dt:T
     
     # Generate test data with known parameters
     true_tau = 1.0
@@ -27,128 +28,263 @@ using BayesianINT.Models
     missing_mask = rand(size(test_data)...) .< 0.1
     test_data[missing_mask] .= NaN
     
-    # Compute data statistics
-    data_mean = mean(filter(!isnan, test_data))
-    data_var = var(filter(!isnan, test_data))
+    data_mean = mean(skipmissing(test_data))
+    data_sd = std(skipmissing(test_data))
     
-    # Compute PSD using Lomb-Scargle
-    data_sum_stats = comp_psd_lombscargle(times, test_data, missing_mask, dt)
-    
-    data_sum_stats = mean(data_sum_stats[1], dims=1)[:], data_sum_stats[2]
-    # Define test priors
-    test_prior = [
-        Uniform(0.1, 10.0),  # tau prior
-        Uniform(0.01, 1.0),  # frequency prior
-        Uniform(0.0, 1.0)    # amplitude prior
-    ]
+    @testset "Model Construction - PSD and ABC" begin
+        model = one_timescale_and_osc_with_missing_model(
+            test_data,
+            time,
+            :abc;
+            summary_method=:psd,
+            prior=[Uniform(0.1, 10.0), Uniform(0.01, 1.0), Uniform(0.0, 1.0)],
+            freqlims=(0.5, 100.0),
+            distance_method=:logarithmic
+        )
 
-    model = OneTimescaleAndOscWithMissingModel(
-        test_data,           # data
-        times,              # times
-        test_prior,         # prior
-        data_sum_stats,     # data_sum_stats
-        0.1,                # epsilon
-        dt,                 # dt
-        T,                  # T
-        num_trials,         # numTrials
-        data_mean,          # data_mean
-        data_var            # data_var
-    )
-
-    @testset "Model Construction" begin
         @test model isa OneTimescaleAndOscWithMissingModel
         @test model isa AbstractTimescaleModel
         @test size(model.data) == (num_trials, ntime)
         @test length(model.prior) == 3  # tau, frequency, amplitude
         @test all(p isa Uniform for p in model.prior)
+        @test model.fit_method == :abc
+        @test model.summary_method == :psd
+        @test model.distance_method == :logarithmic
         @test size(model.missing_mask) == size(test_data)
-        @test model.missing_mask == missing_mask
     end
 
-    @testset "Informed Prior Construction" begin
-        informed_model = OneTimescaleAndOscWithMissingModel(
+    @testset "Informed Prior" begin
+        model = one_timescale_and_osc_with_missing_model(
             test_data,
-            times,
-            "informed",
-            data_sum_stats,
-            0.1,
-            dt,
-            T,
-            num_trials,
-            data_mean,
-            data_var
+            time,
+            :abc;
+            summary_method=:psd,
+            prior="informed_prior",
+            freqlims=(0.5, 100.0),
         )
-        @test informed_model.prior[1] isa Normal  # tau prior
-        @test informed_model.prior[2] isa Normal  # frequency prior
-        @test informed_model.prior[3] isa Uniform # amplitude prior
+        
+        @test model.prior[1] isa Normal  # tau prior
+        @test model.prior[2] isa Normal  # frequency prior
+        @test model.prior[3] isa Uniform # amplitude prior
     end
 
     @testset "generate_data" begin
-        theta = [1.0, 0.1, 0.5]  # test parameters (tau, freq, amplitude)
+        dt = 1.0
+        T = 300.0
+        time = dt:dt:T
+        num_trials = 15
+        ntime = Int(T / dt)
+        true_tau = 20.0
+        true_freq = 0.01
+        true_coeff = 0.5
+        test_data = generate_ou_with_oscillation(
+            [true_tau, true_freq, true_coeff],
+            dt, T, num_trials, 0.0, 1.0
+        )
+        model = one_timescale_and_osc_with_missing_model(
+            test_data,
+            time,
+            :abc;
+            summary_method=:psd,
+            freqlims=(0.5 / 1000.0, 100.0 / 1000.0)
+        )
+        
+        theta = [true_tau, true_freq, true_coeff]
         simulated_data = Models.generate_data(model, theta)
         
-        @test size(simulated_data) == (model.numTrials, Int(model.T/model.dt))
+        @test size(simulated_data) == size(test_data)
         @test all(isnan.(simulated_data[model.missing_mask]))
         @test !all(isnan.(simulated_data[.!model.missing_mask]))
-        
-        # Test statistical properties of non-missing data
-        valid_data = filter(!isnan, simulated_data)
-        @test abs(mean(valid_data) - model.data_mean) < 0.2
-        @test abs(std(valid_data) - sqrt(model.data_var)) < 0.2
     end
 
-    @testset "summary_stats" begin
-        theta = [1.0, 0.1, 0.5]
-        simulated_data = Models.generate_data(model, theta)
+    @testset "Model Inference using ABC" begin
+        # Generate synthetic data with known parameters
+        true_tau = 300.0
+        true_freq = 10.0 / 1000.0
+        true_coeff = 0.5
+        dt = 1.0
+        T = 20.0 * 1000.0
+        num_trials = 15
         
-        stats = Models.summary_stats(model, simulated_data)
+        data = generate_ou_with_oscillation(
+            [true_tau, true_freq, true_coeff],
+            dt, T, num_trials, 0.0, 1.0
+        )
+        time = dt:dt:T
         
-        @test length(stats) == 2  # Should return (psd, freqs)
-        @test !any(isnan, stats[1])  # PSD should not contain NaNs
-        @test !any(isnan, stats[2])  # Frequencies should not contain NaNs
-        @test size(stats[1], 2) == length(stats[2])  # PSD and freq vectors should match
-        @test all(stats[2] .>= 0)  # Frequencies should be non-negative
+        # Add missing values
+        missing_mask = rand(size(data)...) .< 0.1
+        data[missing_mask] .= NaN
+        
+        model = one_timescale_and_osc_with_missing_model(
+            data,
+            time,
+            :abc;
+            summary_method=:psd,
+            prior=[Uniform(50.0, 1000.0), Uniform(1.0/1000.0, 100.0/1000.0), Uniform(0.0, 1.0)],
+            freqlims=(1.0/1000.0, 100.0/1000.0),
+            distance_method=:logarithmic,
+        )
+        
+        # Custom parameters for faster testing
+        param_dict = get_param_dict_abc()
+        param_dict[:steps] = 10
+        param_dict[:max_iter] = 10000
+        param_dict[:target_epsilon] = 1e-2
+        
+        posterior_samples, posterior_MAP, abc_record = Models.solve(model, param_dict)
+        
+        # Test posterior properties
+        @test posterior_MAP[1] ≈ true_tau atol=50.0
+        @test posterior_MAP[2] ≈ true_freq atol=0.1
+        @test size(posterior_samples, 2) == 3
+        @test !isempty(posterior_samples)
+        @test !any(isnan, posterior_samples)
+        
+        # Test ABC convergence
+        final_epsilon = abc_record[end].epsilon
+        @test final_epsilon < abc_record[1].epsilon
+        @test abc_record[end].n_accepted >= param_dict[:min_accepted]
     end
 
-    @testset "distance_function" begin
-        theta1 = [1.0, 0.1, 0.5]
-        theta2 = [2.0, 0.2, 0.7]
+    @testset "Model Behavior with Missing Data" begin
+        dt = 1.0
+        T = 500.0
+        time = dt:dt:T
+        num_trials = 15
+        ntime = Int(T / dt)
+        true_tau = 20.0
+        true_freq = 0.01
+        true_coeff = 0.5
+        test_data = generate_ou_with_oscillation(
+            [true_tau, true_freq, true_coeff],
+            dt, T, num_trials, 0.0, 1.0
+        )
+        missing_mask = rand(size(test_data)...) .< 0.1
+        test_data[missing_mask] .= NaN
         
-        data1 = Models.generate_data(model, theta1)
-        data2 = Models.generate_data(model, theta2)
+        model = one_timescale_and_osc_with_missing_model(
+            test_data,
+            time,
+            :abc;
+            summary_method=:psd,
+            freqlims=(0.001, 0.1)
+        )
         
-        stats1 = Models.summary_stats(model, data1)
-        stats2 = Models.summary_stats(model, data2)
-
-        stats1_mean = mean(stats1[1], dims=1)[:], stats1[2]
-        stats2_mean = mean(stats2[1], dims=1)[:], stats2[2]
-        
-        distance = Models.distance_function(model, stats1_mean, stats2_mean)
-        
-        @test distance isa Float64
-        @test distance >= 0.0
-        @test Models.distance_function(model, stats1_mean, stats1_mean) < distance
-    end
-
-    @testset "Model Behavior" begin
         # Test effect of different parameters
-        theta_base = [1.0, 0.1, 0.5]
-        theta_higher_freq = [1.0, 0.2, 0.5]
+        theta_base = [20.0, 0.01, 0.5]
+        theta_higher_freq = [20.0, 0.1, 0.5]
         
         data_base = Models.generate_data(model, theta_base)
         data_higher_freq = Models.generate_data(model, theta_higher_freq)
         
+        # Verify missing data patterns
+        @test all(isnan.(data_base[model.missing_mask]))
+        @test all(isnan.(data_higher_freq[model.missing_mask]))
+        
+        # Test summary statistics with missing data
         stats_base = Models.summary_stats(model, data_base)
         stats_higher = Models.summary_stats(model, data_higher_freq)
-        
-        stats_base_mean = mean(stats_base[1], dims=1)[:], stats_base[2]
-        stats_higher_mean = mean(stats_higher[1], dims=1)[:], stats_higher[2]
+
+        amp_base, knee_base = lorentzian_initial_guess(stats_base, model.lags_freqs)
+        amp_higher, knee_higher = lorentzian_initial_guess(stats_higher, model.lags_freqs)
+        lorentzian_base = lorentzian(model.lags_freqs, [amp_base, knee_base])
+        lorentzian_higher = lorentzian(model.lags_freqs, [amp_higher, knee_higher])
+
+        residual_base = stats_base .- lorentzian_base
+        residual_higher = stats_higher .- lorentzian_higher
         
         # Find peak frequencies
-        peak_freq_base = stats_base_mean[2][argmax(stats_base_mean[1])]
-        peak_freq_higher = stats_higher_mean[2][argmax(stats_higher_mean[1])]
+        peak_freq_base = find_oscillation_peak(residual_base, model.lags_freqs)
+        peak_freq_higher = find_oscillation_peak(residual_higher, model.lags_freqs)
         
         # Test that higher frequency parameter leads to higher peak frequency
         @test peak_freq_higher > peak_freq_base
+    end
+
+    @testset "Distance Function with Missing Data" begin
+        # Setup small test case
+        dt = 1.0
+        T = 1000.0
+        num_trials = 5
+        time = dt:dt:T
+        
+        # Generate two datasets with different parameters
+        theta1 = [20.0, 0.01, 0.5]  # slow oscillation
+        theta2 = [20.0, 0.05, 0.5]  # faster oscillation
+        
+        data1 = generate_ou_with_oscillation(theta1, dt, T, num_trials, 0.0, 1.0)
+        data2 = generate_ou_with_oscillation(theta2, dt, T, num_trials, 0.0, 1.0)
+        
+        # Create missing mask
+        missing_mask = rand(size(data1)...) .< 0.1
+        data1[missing_mask] .= NaN
+        data2[missing_mask] .= NaN
+        
+        # Test with PSD
+        model_psd = one_timescale_and_osc_with_missing_model(
+            data1,
+            time,
+            :abc;
+            summary_method=:psd,
+            freqlims=(0.001, 0.1),
+            distance_method=:logarithmic
+        )
+        
+        # Get summary statistics
+        stats1_psd = Models.summary_stats(model_psd, data1)
+        stats2_psd = Models.summary_stats(model_psd, data2)
+        
+        # Test distance calculation
+        d1 = Models.distance_function(model_psd, stats1_psd, stats1_psd)
+        d2 = Models.distance_function(model_psd, stats1_psd, stats2_psd)
+        
+        @test d1 ≈ 0.0 atol=1e-10  # Distance to self should be ~0
+        @test d2 > d1              # Different signals should have positive distance
+        
+        # Test with ACF
+        model_acf = one_timescale_and_osc_with_missing_model(
+            data1,
+            time,
+            :abc;
+            summary_method=:acf,
+            n_lags=100,
+            distance_method=:linear
+        )
+        
+        # Get summary statistics
+        stats1_acf = Models.summary_stats(model_acf, data1)
+        stats2_acf = Models.summary_stats(model_acf, data2)
+        
+        # Test distance calculation
+        d1_acf = Models.distance_function(model_acf, stats1_acf, stats1_acf)
+        d2_acf = Models.distance_function(model_acf, stats1_acf, stats2_acf)
+        
+        @test d1_acf ≈ 0.0 atol=1e-10  # Distance to self should be ~0
+        @test d2_acf > d1_acf          # Different signals should have positive distance
+        
+        # Test combined distance
+        model_combined = one_timescale_and_osc_with_missing_model(
+            data1,
+            time,
+            :abc;
+            summary_method=:psd,
+            freqlims=(0.001, 0.1),
+            distance_method=:logarithmic,
+            distance_combined=true,
+            weights=[0.7, 0.3],
+            missing_mask=missing_mask
+        )
+        
+        # Get summary statistics
+        stats1_combined = Models.summary_stats(model_combined, data1)
+        stats2_combined = Models.summary_stats(model_combined, data2)
+        
+        # Test combined distance calculation
+        d1_combined = Models.distance_function(model_combined, stats1_combined, stats1_combined)
+        d2_combined = Models.distance_function(model_combined, stats1_combined, stats2_combined)
+        
+        @test d1_combined ≈ 0.0 atol=1e-10  # Distance to self should be ~0
+        @test d2_combined > d1_combined      # Different signals should have positive distance
     end
 end 

@@ -226,7 +226,7 @@ end
 
 function Models.summary_stats(model::OneTimescaleWithMissingModel, data)
     if model.summary_method == :acf
-        return mean(comp_ac_time_missing(data, n_lags=model.n_lags), dims=1)[:][1:model.n_lags]
+        return mean(comp_ac_time_missing(data, n_lags=model.n_lags), dims=1)[:]
     elseif model.summary_method == :psd
         return mean(comp_psd_lombscargle(model.times, data, model.missing_mask, model.dt)[1],
                     dims=1)[:][model.freq_idx]

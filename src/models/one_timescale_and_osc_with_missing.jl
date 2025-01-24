@@ -3,58 +3,238 @@
 module OneTimescaleAndOscWithMissing
 
 using Distributions
+using Statistics
 using ..Models
 using ..OrnsteinUhlenbeck
+using BayesianINT.Utils
 using BayesianINT
+using NaNStatistics
 
-export OneTimescaleAndOscWithMissingModel
+export one_timescale_and_osc_with_missing_model, OneTimescaleAndOscWithMissingModel
 
-function informed_prior(psd, freqs)
-    u0 = lorentzian_initial_guess(psd, freqs)
-    amp, knee = u0
-    lorentzian_psd = lorentzian(freqs, [amp, knee])
-    residual_psd = psd .- lorentzian_psd
+function informed_prior(data_sum_stats::Vector{<:Real}, lags_freqs; summary_method=:psd)
+    if summary_method == :psd
+        u0 = lorentzian_initial_guess(data_sum_stats, lags_freqs)
+        amp, knee = u0
+        lorentzian_psd = lorentzian(lags_freqs, [amp, knee])
+        residual_psd = data_sum_stats .- lorentzian_psd
 
-    osc_peak = find_oscillation_peak(residual_psd, freqs; min_freq=freqs[1],
-                                     max_freq=freqs[end])
+        osc_peak = find_oscillation_peak(residual_psd, lags_freqs;
+                                         min_freq=lags_freqs[1],
+                                         max_freq=lags_freqs[end])
 
-    priors = [Normal(1 / knee, 1), Normal(osc_peak, 0.1), Uniform(0.0, 1.0)]
+        return [Normal(1 / knee, 1.0), Normal(osc_peak, 0.1), Uniform(0.0, 1.0)]
+    elseif summary_method == :acf
+        tau = fit_expdecay(lags_freqs, data_sum_stats)
+        u0 = lorentzian_initial_guess(data_sum_stats, lags_freqs)
+        amp, knee = u0
+        lorentzian_psd = lorentzian(lags_freqs, [amp, knee])
+        residual_psd = data_sum_stats .- lorentzian_psd
 
-    return priors
+        # Find oscillation peaks
+        osc_peak = find_oscillation_peak(residual_psd, lags_freqs;
+                                         min_freq=lags_freqs[1],
+                                         max_freq=lags_freqs[end])
+        return [Normal(tau, 20.0), Normal(0.01, 0.05), Uniform(0.0, 1.0)]
+    end
 end
 
 struct OneTimescaleAndOscWithMissingModel <: AbstractTimescaleModel
     data::AbstractArray{<:Real}
-    times::AbstractVector{<:Real}
-    prior::Vector{<:Distribution}
-    data_sum_stats::Tuple{AbstractVector{<:Real}, AbstractVector{<:Real}}
-    epsilon::Real
+    time::AbstractVector{<:Real}
+    fit_method::Symbol
+    summary_method::Symbol
+    lags_freqs::Union{Real, AbstractVector}
+    prior::Union{Vector{<:Distribution}, Distribution, String}
+    optalg::Union{Symbol, Nothing}
+    acwtypes::Union{Vector{<:Symbol}, Symbol, Nothing}
+    distance_method::Symbol
+    data_sum_stats::AbstractArray{<:Real}
     dt::Real
     T::Real
-    numTrials::Integer
+    numTrials::Real
     data_mean::Real
-    data_var::Real
-    missing_mask::AbstractArray{<:Bool}
+    data_sd::Real
+    freqlims::Union{Tuple{Real, Real}, Nothing}
+    n_lags::Union{Int, Nothing}
+    freq_idx::Union{Vector{Bool}, Nothing}
+    dims::Int
+    distance_combined::Bool
+    weights::Vector{Real}
+    data_tau::Union{Real, Nothing}
+    data_osc::Union{Real, Nothing}
+    missing_mask::AbstractArray{Bool}
 end
 
-function OneTimescaleAndOscWithMissingModel(data, times, prior, data_sum_stats, epsilon, dt,
-                                            T, numTrials, data_mean, data_var)
-    if prior == "informed"
-        prior2 = informed_prior(data_sum_stats[1], data_sum_stats[2])
-    elseif prior isa Vector{<:Distribution}
-        prior2 = prior
-    else
-        error("Invalid prior type")
-    end
+function one_timescale_and_osc_with_missing_model(data, time, fit_method;
+                                            summary_method=:psd,
+                                            data_sum_stats=nothing,
+                                            lags_freqs=nothing,
+                                            prior=nothing,
+                                            n_lags=nothing,
+                                            optalg=nothing,
+                                            acwtypes=nothing,
+                                            distance_method=nothing,
+                                            dt=time[2] - time[1],
+                                            T=time[end],
+                                            numTrials=size(data, 1),
+                                            data_mean=nanmean(data),
+                                            data_sd=nanstd(data),
+                                            freqlims=nothing,
+                                            freq_idx=nothing,
+                                            dims=ndims(data),
+                                            distance_combined=false,
+                                            weights=[0.5, 0.5],
+                                            data_tau=nothing, data_osc=nothing)
     missing_mask = isnan.(data)
-    return OneTimescaleAndOscWithMissingModel(data, times, prior2, data_sum_stats, epsilon,
-                                              dt, T, numTrials, data_mean, data_var,
-                                              missing_mask)
+    if summary_method == :acf && fit_method == :abc
+        acf = comp_ac_time_missing(data)
+        acf_mean = mean(acf, dims=1)[:]
+        if isnothing(n_lags)
+            n_lags = floor(Int, acw0(lags_samples, acf_mean) * 1.5)
+        end
+        lags_samples = 0:(n_lags-1)
+        lags_freqs = collect(lags_samples * dt)[1:n_lags]
+        data_sum_stats = acf_mean[1:n_lags]
+
+        if isnothing(prior) || prior == "informed_prior"
+            prior = informed_prior(data_sum_stats, lags_freqs;
+                                   summary_method=summary_method)
+        end
+
+        if isnothing(distance_method)
+            distance_method = :linear
+        end
+
+        if distance_combined
+            data_tau = fit_expdecay(lags_freqs, data_sum_stats)
+        end
+
+        return OneTimescaleAndOscWithMissingModel(data,
+                                            time,
+                                            fit_method,
+                                            summary_method,
+                                            lags_freqs,
+                                            prior,
+                                            optalg,
+                                            acwtypes,
+                                            distance_method,
+                                            data_sum_stats,
+                                            dt,
+                                            T,
+                                            numTrials,
+                                            data_mean,
+                                            data_sd,
+                                            freqlims,
+                                            n_lags,
+                                            freq_idx,
+                                            dims,
+                                            distance_combined,
+                                            weights,
+                                            data_tau,
+                                            data_osc,
+                                            missing_mask)
+        # case 2: acf and optimization
+    elseif summary_method == :acf && fit_method == :optimization
+        error("Optimization not implemented yet.")
+        # case 3: psd and abc
+    elseif summary_method == :psd && fit_method == :abc
+        psd, freqs = comp_psd_lombscargle(time, data, missing_mask, dt)
+        mean_psd = mean(psd, dims=1)
+        if isnothing(freqlims)
+            freqlims = (0.5 / 1000.0, 100.0 / 1000.0) # Convert to kHz (units in ms)
+        end
+        freq_idx = (freqs .< freqlims[2]) .&& (freqs .> freqlims[1])
+        lags_freqs = freqs[freq_idx]
+        data_sum_stats = mean_psd[freq_idx]
+        if isnothing(prior) || prior == "informed_prior"
+            prior = informed_prior(data_sum_stats, lags_freqs;
+                                   summary_method=summary_method)
+        end
+        if isnothing(distance_method)
+            distance_method = :logarithmic
+        end
+        if distance_combined
+            amp, knee = find_knee_frequency(data_sum_stats, lags_freqs)
+            data_tau = tau_from_knee(knee)
+            residual_psd = data_sum_stats .- lorentzian(lags_freqs, [amp, knee])
+            data_osc = find_oscillation_peak(residual_psd, lags_freqs;
+                                             min_freq=freqlims[1],
+                                             max_freq=freqlims[2])
+        end
+        return OneTimescaleAndOscWithMissingModel(data,
+                                            time,
+                                            fit_method,
+                                            summary_method,
+                                            lags_freqs,
+                                            prior,
+                                            optalg,
+                                            acwtypes,
+                                            distance_method,
+                                            data_sum_stats,
+                                            dt,
+                                            T,
+                                            numTrials,
+                                            data_mean,
+                                            data_sd,
+                                            freqlims,
+                                            n_lags,
+                                            freq_idx,
+                                            dims,
+                                            distance_combined,
+                                            weights,
+                                            data_tau,
+                                            data_osc,
+                                            missing_mask)
+    elseif summary_method == :psd && fit_method == :optimization
+        error("Optimization not implemented yet.")
+    elseif fit_method == :acw
+        possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
+        acf_acwtypes = [:acw0, :acw50, :acweuler, :tau]
+        n_acw = length(acwtypes)
+        if n_acw == 0
+            error("No ACW types specified. Possible ACW types: $(possible_acwtypes)")
+        end
+        result = Vector{Vector{<:Real}}(undef, n_acw)
+        acwtypes = check_acwtypes(acwtypes, possible_acwtypes)
+        if any(in.(acf_acwtypes, [acwtypes]))
+            acf = comp_ac_time_missing(data)
+            lags_samples = 0.0:(size(data, dims)-1)
+            lags = lags_samples * dt
+            if any(in.(:acw0, [acwtypes]))
+                acw0_idx = findfirst(acwtypes .== :acw0)
+                acw0_result = acw0(lags, acf; dims=dims)
+                result[acw0_idx] = acw0_result
+            end
+            if any(in.(:acw50, [acwtypes]))
+                acw50_idx = findfirst(acwtypes .== :acw50)
+                acw50_result = acw50(lags, acf; dims=dims)
+                result[acw50_idx] = acw50_result
+            end
+            if any(in.(:acweuler, [acwtypes]))
+                acweuler_idx = findfirst(acwtypes .== :acweuler)
+                acweuler_result = acweuler(lags, acf; dims=dims)
+                result[acweuler_idx] = acweuler_result
+            end
+            if any(in.(:tau, [acwtypes]))
+                tau_idx = findfirst(acwtypes .== :tau)
+                tau_result = fit_expdecay(collect(lags), acf; dims=dims)
+                result[tau_idx] = tau_result
+            end
+        end
+        if any(in.(:knee, [acwtypes]))
+            knee_idx = findfirst(acwtypes .== :knee)
+            psd, freqs = comp_psd_lombscargle(times, data, missing_mask, dt)
+            knee_result = tau_from_knee(find_knee_frequency(psd, freqs; dims=dims))
+            result[knee_idx] = knee_result
+        end
+        return result
+    end
 end
 
 function Models.generate_data(model::OneTimescaleAndOscWithMissingModel, theta)
     data = generate_ou_with_oscillation(theta, model.dt, model.T, model.numTrials,
-                                        model.data_mean, model.data_var)
+                                        model.data_mean, model.data_sd)
     data[model.missing_mask] .= NaN
     return data
 end
@@ -62,64 +242,104 @@ end
 """
 Compute combined distance using PSD shape and peak location
 """
-function combined_distance(model_psd::AbstractVector{<:Real},
-                           data_psd::AbstractVector{<:Real},
-                           freqs::AbstractVector{<:Real};
-                           peak_weight::Float64=0.45,
-                           knee_weight::Float64=0.45,
-                           psd_weight::Float64=0.1,
-                           min_freq::Float64=2.0 / 1000.0,
-                           max_freq::Float64=50.0 / 1000.0)
-    # 1. Regular PSD distance
-    psd_dist = logarithmic_distance(model_psd, data_psd)
-
-    # 2. Peak frequency distance
-    model_knee, model_peak = Utils.fooof_fit(model_psd, freqs,
-                                             min_freq=min_freq,
-                                             max_freq=max_freq)
-    data_knee, data_peak = Utils.fooof_fit(data_psd, freqs,
-                                           min_freq=min_freq,
-                                           max_freq=max_freq)
-
-    # Handle case where no peak or knee is found
-    if isnan(model_peak) || isnan(data_peak) || isnan(model_knee) || isnan(data_knee)
-        return 1e5
+function combined_distance(model::OneTimescaleAndOscWithMissingModel, simulation_summary, data_summary,
+                           weights, distance_method,
+                           data_tau, simulation_tau, data_osc, simulation_osc)
+    if model.summary_method == :acf
+        if distance_method == :linear
+            distance_1 = linear_distance(simulation_summary, data_summary)
+        elseif distance_method == :logarithmic
+            distance_1 = logarithmic_distance(simulation_summary, data_summary)
+        end
+        distance_2 = linear_distance(data_tau, simulation_tau)
+        return weights[1] * distance_1 + weights[2] * distance_2
+    elseif model.summary_method == :psd
+        if distance_method == :linear
+            distance_1 = linear_distance(simulation_summary, data_summary)
+        elseif distance_method == :logarithmic
+            distance_1 = logarithmic_distance(simulation_summary, data_summary)
+        end
+        distance_2 = linear_distance(data_tau, simulation_tau)
+        distance_3 = linear_distance(data_osc, simulation_osc)
+        return weights[1] * distance_1 + weights[2] * distance_2 + weights[3] * distance_3
+    else
+        throw(ArgumentError("Summary method must be :acf or :psd"))
     end
-
-    # Normalize peak distance relative to frequency range
-    freq_range = max_freq - min_freq
-    peak_dist = abs(model_peak - data_peak) / freq_range
-    knee_dist = abs(model_knee - data_knee) / freq_range
-    # Combine distances with weighting
-    total_dist = psd_weight * psd_dist + peak_weight * peak_dist + knee_weight * knee_dist
-
-    return total_dist
 end
 
-"""
-Modified summary_stats to return both PSD and frequencies
-"""
 function Models.summary_stats(model::OneTimescaleAndOscWithMissingModel, data)
-    return comp_psd_lombscargle(model.times, data, model.missing_mask, model.dt)
+    if model.summary_method == :acf
+        return mean(comp_ac_time_missing(data; n_lags=model.n_lags), dims=1)[:]
+    elseif model.summary_method == :psd
+        return mean(comp_psd_lombscargle(model.time, data, model.missing_mask, model.dt)[1],
+                    dims=1)[:][model.freq_idx]
+    else
+        throw(ArgumentError("Summary method must be :acf or :psd"))
+    end
 end
 
 function Models.distance_function(model::OneTimescaleAndOscWithMissingModel, sum_stats, data_sum_stats)
-    # Some power values can be negative, replace with some tiny number
-    if any(sum_stats[1] .< 0)
-        sum_stats[1][sum_stats[1] .< 0] .= 1e-10
+    if model.distance_combined
+        if model.summary_method == :acf
+            simulation_tau = fit_expdecay(model.lags_freqs, sum_stats)
+            return combined_distance(model, sum_stats, data_sum_stats, model.weights,
+                                     model.distance_method, model.data_tau, simulation_tau,
+                                     nothing, nothing)
+        elseif model.summary_method == :psd
+            amp, knee = find_knee_frequency(sum_stats, model.lags_freqs)
+            simulation_tau = tau_from_knee(knee)
+            residual_psd = sum_stats .- lorentzian(model.lags_freqs, [amp, knee])
+            simulation_osc = find_oscillation_peak(residual_psd, model.lags_freqs;
+                                                   min_freq=model.freqlims[1],
+                                                   max_freq=model.freqlims[2])
+            return combined_distance(model, sum_stats, data_sum_stats, model.weights,
+                                     model.distance_method, model.data_tau, simulation_tau,
+                                     model.data_osc, simulation_osc)
+        end
+    elseif model.distance_method == :linear
+        return linear_distance(sum_stats, data_sum_stats)
+    elseif model.distance_method == :logarithmic
+        return logarithmic_distance(sum_stats, data_sum_stats)
+    else
+        throw(ArgumentError("Distance method must be :linear or :logarithmic"))
     end
-    if any(data_sum_stats[1] .< 0)
-        data_sum_stats[1][data_sum_stats[1] .< 0] .= 1e-10
-    end
-    return combined_distance(sum_stats[1], data_sum_stats[1], sum_stats[2])
 end
 
-function Models.generate_data_and_reduce(model::OneTimescaleAndOscWithMissingModel, theta)
-    synth = Models.generate_data(model, theta)
-    sum_stats = Models.summary_stats(model, synth)
-    sum_stats_mean = mean(sum_stats[1], dims=1)[:], sum_stats[2]
-    d = Models.distance_function(model, sum_stats_mean, model.data_sum_stats)
-    return d
+function Models.solve(model::OneTimescaleAndOscWithMissingModel, param_dict=nothing)
+    if model.fit_method == :abc
+        if isnothing(param_dict)
+            param_dict = get_param_dict_abc()
+        end
+
+        abc_record = pmc_abc(model;
+                             # Basic ABC parameters
+                             epsilon_0=param_dict[:epsilon_0],
+                             max_iter=param_dict[:max_iter],
+                             min_accepted=param_dict[:min_accepted],
+                             steps=param_dict[:steps],
+                             sample_only=param_dict[:sample_only],
+                             minAccRate=param_dict[:minAccRate],
+                             target_acc_rate=param_dict[:target_acc_rate],
+                             target_epsilon=param_dict[:target_epsilon],
+                             show_progress=param_dict[:show_progress],
+                             verbose=param_dict[:verbose],
+                             jitter=param_dict[:jitter],
+                             cov_scale=param_dict[:cov_scale],
+                             distance_max=param_dict[:distance_max],
+                             quantile_lower=param_dict[:quantile_lower],
+                             quantile_upper=param_dict[:quantile_upper],
+                             quantile_init=param_dict[:quantile_init],
+                             acc_rate_buffer=param_dict[:acc_rate_buffer],
+                             alpha_max=param_dict[:alpha_max],
+                             alpha_min=param_dict[:alpha_min],
+                             acc_rate_far=param_dict[:acc_rate_far],
+                             acc_rate_close=param_dict[:acc_rate_close],
+                             alpha_far_mult=param_dict[:alpha_far_mult],
+                             alpha_close_mult=param_dict[:alpha_close_mult])
+    end
+    posterior_samples = abc_record[end].theta_accepted
+    posterior_MAP = find_MAP(posterior_samples, param_dict[:N])
+    return posterior_samples, posterior_MAP, abc_record
 end
 
 end

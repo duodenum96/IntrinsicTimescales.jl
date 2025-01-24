@@ -1,8 +1,6 @@
 # src/models/one_timescale_and_osc.jl
 # Model with one timescale and one oscillation
 
-# src/models/one_timescale.jl
-
 module OneTimescaleAndOsc
 
 using Distributions
@@ -77,23 +75,23 @@ end
 """
 5 ways to construct a OneTimescaleAndOscModel:
 1 - summary_method == :acf, fitmethod == :abc
-one_timescale_model(data, time, :abc; summary_method=:acf, prior=nothing, n_lags=nothing, 
+one_timescale_and_osc_model(data, time, :abc; summary_method=:acf, prior=nothing, n_lags=nothing, 
                     distance_method=nothing, distance_combined=false, weights=nothing)
 
 2 - summary_method == :acf, fitmethod == :optimization
-one_timescale_model(data, time, :optimization; summary_method=:acf, n_lags=nothing, 
+one_timescale_and_osc_model(data, time, :optimization; summary_method=:acf, n_lags=nothing, 
                     optalg=nothing, distance_method=nothing, distance_combined=false, weights=nothing)
 
 3 - summary_method == :psd, fitmethod == :abc
-one_timescale_model(data, time, :abc, summary_method == :psd, prior=nothing, 
+one_timescale_and_osc_model(data, time, :abc, summary_method == :psd, prior=nothing, 
                     distance_method=nothing, freqlims=nothing, distance_combined=false, weights=nothing)
 
 4 - summary_method == :psd, fitmethod == :optimization
-one_timescale_model(data, time, :optimization, summary_method=:psd, optalg=nothing, 
+one_timescale_and_osc_model(data, time, :optimization, summary_method=:psd, optalg=nothing, 
                     distance_method=nothing, distance_combined=false, weights=nothing)
 
 5 - summary_method == nothing, fitmethod == :acw
-one_timescale_model(data, time, :acw; summary_method=nothing, n_lags=nothing, 
+one_timescale_and_osc_model(data, time, :acw; summary_method=nothing, n_lags=nothing, 
                     acwtypes=[:acw0, acw50, acwe, tau, knee], dims=ndims(data))
 """
 function one_timescale_and_osc_model(data, time, fit_method;
