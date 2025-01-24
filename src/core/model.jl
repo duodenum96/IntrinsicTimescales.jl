@@ -2,7 +2,7 @@ module Models
 
 using Distributions
 
-export AbstractTimescaleModel, BaseModel
+export AbstractTimescaleModel, BaseModel, check_inputs, check_acwtypes
 
 abstract type AbstractTimescaleModel end
 
@@ -92,6 +92,26 @@ end
 function distance_function(model::BaseModel, sum_stats1, sum_stats2)
     # Simple Euclidean distance for testing
     return sqrt(sum((sum_stats1 .- sum_stats2) .^ 2))
+end
+
+function check_inputs(fitmethod, summary_method)
+    if !(fitmethod in [:abc, :optimization, :acw])
+        throw(ArgumentError("fitmethod must be :abc, :optimization, or :acw"))
+    end
+
+    if !(summary_method in [:acf, :psd])
+        throw(ArgumentError("summary_method must be :acf or :psd"))
+    end
+end
+
+function check_acwtypes(acwtypes, possible_acwtypes)
+    if acwtypes isa Symbol
+        acwtypes = [acwtypes]
+    end
+    if !any(reduce(hcat, [acwtypes[i] .== possible_acwtypes for i in eachindex(acwtypes)]))
+        error("Possible acwtypes: $(possible_acwtypes)")
+    end
+    return acwtypes
 end
 
 end # module

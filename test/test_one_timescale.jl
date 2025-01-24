@@ -157,7 +157,7 @@ using BayesianINT.Models
         T = 1000.0
         num_trials = 500
         n_lags = 50
-        time = 0:dt:T-dt
+        time = dt:dt:T
         
         # Generate synthetic data
         data = generate_ou_process(true_tau, 3.0, dt, T, num_trials)

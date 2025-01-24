@@ -19,25 +19,7 @@ function informed_prior(data_sum_stats::Vector{<:Real}, lags_freqs; summary_meth
     end
 end
 
-function check_inputs(fitmethod, summary_method)
-    if !(fitmethod in [:abc, :optimization, :acw])
-        throw(ArgumentError("fitmethod must be :abc, :optimization, or :acw"))
-    end
 
-    if !(summary_method in [:acf, :psd])
-        throw(ArgumentError("summary_method must be :acf or :psd"))
-    end
-end
-
-function check_acwtypes(acwtypes, possible_acwtypes)
-    if acwtypes isa Symbol
-        acwtypes = [acwtypes]
-    end
-    if !any(reduce(hcat, [acwtypes[i] .== possible_acwtypes for i in eachindex(acwtypes)]))
-        error("Possible acwtypes: $(possible_acwtypes)")
-    end
-    return acwtypes
-end
 
 """
 One-timescale OU process model
@@ -208,7 +190,7 @@ end
 
 # Implementation of required methods (theta is the tau)
 function Models.generate_data(model::OneTimescaleModel, theta)
-    return generate_ou_process(theta, model.data_sd, model.dt, model.T, model.numTrials;
+    return generate_ou_process(theta[1], model.data_sd, model.dt, model.T, model.numTrials;
                                backend="sciml")
 end
 
@@ -266,7 +248,7 @@ function Models.solve(model::OneTimescaleModel, param_dict=nothing)
             param_dict = get_param_dict_abc()
         end
 
-        abc_record = pmc_abc(model::Models.AbstractTimescaleModel;
+        abc_record = pmc_abc(model;
         # Basic ABC parameters
         epsilon_0=param_dict[:epsilon_0],
         max_iter=param_dict[:max_iter],

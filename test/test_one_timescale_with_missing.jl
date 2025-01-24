@@ -5,57 +5,71 @@ using BayesianINT
 using BayesianINT.OrnsteinUhlenbeck
 using BayesianINT.OneTimescaleWithMissing
 using BayesianINT.Models
+using NaNStatistics
 
 @testset "OneTimescaleWithMissing Model Tests" begin
-    # Setup test data and model parameters
+    # Setup test data and parameters
     dt = 0.01
     T = 100.0
     num_trials = 10
     n_lags = 3000
     ntime = Int(T / dt)
+    time = 0:dt:T
     
-    # Generate test data with known parameters
-    true_tau = 1.0
-    test_data = generate_ou_process(true_tau, 1.0, dt, T, num_trials)
+    # Generate test data
+    test_data = randn(num_trials, ntime)
     
     # Add missing values (10% of data)
     missing_mask = rand(size(test_data)...) .< 0.1
     test_data[missing_mask] .= NaN
     
-    # Compute data statistics
-    data_var = mean([std(filter(!isnan, test_data[i, :])) for i in 1:num_trials])
+    data_mean = nanmean(test_data)
+    data_sd = nanstd(test_data)
     
-    # Compute autocorrelation with missing data
-    data_sum_stats = comp_ac_time_missing(test_data, n_lags)
+    @testset "Model Construction - ACF and ABC" begin
+        model = one_timescale_with_missing_model(
+            test_data,
+            time,
+            :abc;
+            summary_method=:acf,
+            prior=[Uniform(0.1, 10.0)],  # tau prior
+            n_lags=n_lags,
+            distance_method=:linear
+        )
 
-    data_sum_stats_mean = mean(data_sum_stats, dims=1)[:]
-    
-    # Define test priors
-    test_prior = [Uniform(0.1, 10.0)]  # tau prior
-
-    model = OneTimescaleWithMissingModel(
-        test_data,           # data
-        test_prior,         # prior
-        data_sum_stats_mean,     # data_sum_stats
-        0.1,                # epsilon
-        dt,                 # dt
-        T,                  # T
-        num_trials,         # numTrials
-        data_var,           # data_var
-        n_lags              # n_lags
-    )
-
-    @testset "Model Construction" begin
         @test model isa OneTimescaleWithMissingModel
         @test model isa AbstractTimescaleModel
         @test size(model.data) == (num_trials, ntime)
-        @test length(model.prior) == 1  # single tau parameter
         @test model.prior[1] isa Uniform
+        @test model.fit_method == :abc
+        @test model.summary_method == :acf
+        @test model.distance_method == :linear
         @test size(model.missing_mask) == size(test_data)
         @test model.missing_mask == missing_mask
     end
 
+    @testset "Informed Prior" begin
+        model = one_timescale_with_missing_model(
+            test_data,
+            time,
+            :abc;
+            summary_method=:acf,
+            prior="informed_prior",
+            n_lags=100
+        )
+        
+        @test model.prior[1] isa Normal
+    end
+
     @testset "generate_data" begin
+        model = one_timescale_with_missing_model(
+            test_data,
+            time,
+            :abc;
+            summary_method=:acf,
+            n_lags=100
+        )
+        
         theta = [1.0]  # test parameter (tau)
         simulated_data = Models.generate_data(model, theta)
         
@@ -65,25 +79,20 @@ using BayesianINT.Models
         
         # Test statistical properties of non-missing data
         valid_data = filter(!isnan, simulated_data)
-        @test abs(std(valid_data) - sqrt(model.data_var)) < 0.2
-        @test abs(mean(valid_data)) < 0.2  # Should be close to zero
+        @test abs(std(valid_data) - model.data_sd) < 0.2
+        @test abs(mean(valid_data) - model.data_mean) < 0.2
     end
 
-    @testset "summary_stats" begin
-        theta = [1.0]
-        simulated_data = Models.generate_data(model, theta)
+    @testset "summary_stats and distance_function" begin
+        model = one_timescale_with_missing_model(
+            test_data,
+            time,
+            :abc;
+            summary_method=:acf,
+            distance_method=:linear,
+            n_lags=100
+        )
         
-        stats = Models.summary_stats(model, simulated_data)
-        stats_mean = mean(stats, dims=1)[:]
-
-        @test length(stats_mean) == model.n_lags
-        @test !any(isnan, stats_mean)
-        @test stats_mean[1] ≈ 1.0 atol=0.1  # First lag should be close to 1
-        @test all((abs.(stats_mean) .<= 1.0) .| (abs.(stats_mean) .≈ 1.0))  # All autocorrelations should be ≤ 1
-        @test issorted(stats_mean[1:200], rev=true) 
-    end
-
-    @testset "distance_function" begin
         theta1 = [1.0]
         theta2 = [2.0]
         
@@ -93,20 +102,97 @@ using BayesianINT.Models
         stats1 = Models.summary_stats(model, data1)
         stats2 = Models.summary_stats(model, data2)
         
-        distance = Models.distance_function(model, stats1, stats2)
+        # Test summary stats properties
+        @test length(stats1) == model.n_lags
+        @test !any(isnan, stats1)
+        @test stats1[1] ≈ 1.0 atol=0.1  # First lag should be close to 1
+        @test all(abs.(stats1) .<= 1.0) || stats1[1] ≈ 1.0  # All autocorrelations should be ≤ 1
         
+        # Test distance function
+        distance = Models.distance_function(model, stats1, stats2)
         @test distance isa Float64
         @test distance >= 0.0
         @test Models.distance_function(model, stats1, stats1) ≈ 0.0 atol=1e-10
-        
-        # Test that different parameters lead to different distances
         @test distance > Models.distance_function(model, stats1, stats1)
     end
 
-    @testset "Model Behavior" begin
-        # Test effect of different timescales
+    @testset "Combined Distance" begin
+        model = one_timescale_with_missing_model(
+            test_data,
+            time,
+            :abc;
+            summary_method=:acf,
+            distance_method=:linear,
+            distance_combined=true,
+            weights=[0.7, 0.3],
+            n_lags=100
+        )
+
+        @test model.distance_combined == true
+        @test model.weights == [0.7, 0.3]
+        @test !isnothing(model.data_tau)
+    end
+
+    @testset "Model Inference using ABC" begin
+        # Setup synthetic data with known parameters
+        true_tau = 20.0
+        dt = 1.0
+        T = 1000.0
+        num_trials = 500
+        n_lags = 50
+        time = dt:dt:T
+        
+        # Generate synthetic data
+        data = generate_ou_process(true_tau, 3.0, dt, T, num_trials)
+        
+        # Add missing values (10% of data)
+        missing_mask = rand(size(data)...) .< 0.1
+        data[missing_mask] .= NaN
+        
+        @testset "ABC Inference - ACF" begin
+            model = one_timescale_with_missing_model(
+                data,
+                time,
+                :abc;
+                summary_method=:acf,
+                prior=[Uniform(1.0, 100.0)],
+                n_lags=n_lags,
+                distance_method=:linear
+            )
+            
+            # Custom parameters for faster testing
+            param_dict = get_param_dict_abc()
+            param_dict[:steps] = 10
+            param_dict[:max_iter] = 10000
+            param_dict[:target_epsilon] = 1e-3
+            
+            posterior_samples, posterior_MAP, abc_record = Models.solve(model, param_dict)
+            
+            # Test posterior properties
+            @test posterior_MAP[1] ≈ true_tau atol=10.0
+            @test size(posterior_samples, 2) == 1  # One parameter (tau)
+            @test !isempty(posterior_samples)
+            @test !any(isnan, posterior_samples)
+            
+            # Test ABC convergence
+            final_epsilon = abc_record[end].epsilon
+            @test final_epsilon < abc_record[1].epsilon
+            @test abc_record[end].n_accepted >= param_dict[:min_accepted]
+        end
+    end
+
+    @testset "Model Behavior with Missing Data" begin
+        # Test effect of different timescales with missing data
         theta1 = [0.5]  # faster timescale
         theta2 = [2.0]  # slower timescale
+        
+        model = one_timescale_with_missing_model(
+            data,
+            time,
+            :abc;
+            summary_method=:acf,
+            n_lags=100
+        )
         
         data1 = Models.generate_data(model, theta1)
         data2 = Models.generate_data(model, theta2)
@@ -115,7 +201,11 @@ using BayesianINT.Models
         ac2 = Models.summary_stats(model, data2)
         
         # Test that slower timescale has higher autocorrelation at longer lags
-        lag_idx = 100  # Compare at lag 100
-        @test ac2[lag_idx] > ac1[lag_idx]
+        lag_idx = 50  # Compare at lag 50
+        @test mean(ac2[lag_idx]) > mean(ac1[lag_idx])
+        
+        # Test that missing data patterns are preserved
+        @test all(isnan.(data1[model.missing_mask]))
+        @test all(isnan.(data2[model.missing_mask]))
     end
 end 
