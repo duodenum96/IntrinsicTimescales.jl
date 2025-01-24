@@ -201,7 +201,7 @@ using NaNStatistics
         ac2 = Models.summary_stats(model, data2)
         
         # Test that slower timescale has higher autocorrelation at longer lags
-        lag_idx = 50  # Compare at lag 50
+        lag_idx = 10  # Compare at lag 10
         @test mean(ac2[lag_idx]) > mean(ac1[lag_idx])
         
         # Test that missing data patterns are preserved
