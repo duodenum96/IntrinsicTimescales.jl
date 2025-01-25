@@ -4,6 +4,8 @@ using Distributions
 using BayesianINT
 using BayesianINT.OneTimescale
 using BayesianINT.Models
+using Optimization
+using OptimizationOptimJL
 
 @testset "OneTimescale Model Tests" begin
     # Setup test data and parameters
@@ -256,5 +258,105 @@ using BayesianINT.Models
         #     # Test MAP estimate
         #     @test abs(posterior_MAP[1] - true_tau) < 5.0
         # end
+    end
+
+    @testset "Model Inference using Optimization" begin
+        # Setup synthetic data with known parameters
+        true_tau = 50.0
+        dt = 1.0
+        T = 1000.0
+        num_trials = 500
+        n_lags = 50
+        time = dt:dt:T
+        D = 1.0
+        
+        # Generate synthetic data
+        data = generate_ou_process(true_tau, D, dt, T, num_trials)
+        
+        @testset "Optimization Inference - ACF" begin
+            model = one_timescale_model(
+                data,
+                collect(time),
+                :optimization;
+                summary_method=:acf,
+                n_lags=n_lags,
+                optalg=NelderMead()
+            )
+            
+            solution = Models.solve(model)
+            
+            # Test optimization results
+            @test solution.minimum > 0  # Loss should be positive
+            @test !isnan(solution.minimum)
+            @test solution.u[1] ≈ true_tau rtol=0.2  # Should be within 20% of true value
+            @test solution.retcode == ReturnCode.Success
+        end
+        
+        @testset "Optimization Inference - PSD" begin
+            model = one_timescale_model(
+                data,
+                time,
+                :optimization;
+                summary_method=:psd,
+                freqlims=(0.5 / 1000.0, 100.0 / 1000.0),
+                optalg=LBFGS()
+            )
+            
+            solution = Models.solve(model)
+            
+            # Test optimization results
+            @test solution.minimum > 0
+            @test !isnan(solution.minimum)
+            @test solution.u[1] ≈ true_tau rtol=0.2
+            @test solution.retcode == ReturnCode.Success
+        end
+        
+        @testset "Different Optimizers" begin
+            optimizers = [
+                LBFGS(),
+                Optim.BFGS(),
+                Optim.NelderMead()
+            ]
+            
+            for opt in optimizers
+                model = one_timescale_model(
+                    data,
+                    time,
+                    :optimization;
+                    summary_method=:acf,
+                    n_lags=n_lags,
+                    optalg=opt
+                )
+                
+                solution = Models.solve(model)
+                
+                # Test basic properties for each optimizer
+                @test !isnan(solution.minimum)
+                @test solution.retcode == ReturnCode.Success
+                @test solution.u[1] > 0  # tau should be positive
+            end
+        end
+        
+        @testset "Optimization with Different Initial Conditions" begin
+            initial_conditions = [10.0, 30.0, 70.0, 90.0]
+            
+            for u0_val in initial_conditions
+                model = one_timescale_model(
+                    data,
+                    time,
+                    :optimization;
+                    summary_method=:acf,
+                    n_lags=n_lags,
+                    optalg=LBFGS(),
+                    u0=[u0_val]
+                )
+                
+                solution = Models.solve(model)
+                
+                # Test convergence from different starting points
+                @test solution.u[1] ≈ true_tau rtol=0.2
+                @test solution.retcode == ReturnCode.Success
+            end
+        end
     end
 end

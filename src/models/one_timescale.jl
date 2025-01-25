@@ -6,6 +6,8 @@ using Distributions
 using ..Models
 using ..OrnsteinUhlenbeck
 using BayesianINT
+using Optimization
+using OptimizationOptimJL
 
 export one_timescale_model, OneTimescaleModel
 
@@ -28,8 +30,8 @@ struct OneTimescaleModel <: AbstractTimescaleModel
     fit_method::Symbol # can be "abc", "optimization", "acw"
     summary_method::Symbol # :psd or :acf
     lags_freqs::Union{Real, AbstractVector} # lags if summary method is acf, freqs otherwise, If the user enters an empty vector, will use defaults. 
-    prior::Union{Vector{<:Distribution}, Distribution, String} # Vector of prior distributions, single distribution, or string for "informed_prior"
-    optalg::Union{Symbol, Nothing} # Optimization algorithm for Optimization.jl
+    prior::Union{Vector{<:Distribution}, Distribution, String, Nothing} # Vector of prior distributions, single distribution, or string for "informed_prior"
+    optalg # Optimization algorithm for Optimization.jl
     acwtypes::Union{Vector{<:Symbol}, Symbol, Nothing} # Types of ACW: ACW-50, ACW-0, ACW-euler, tau, knee frequency
     distance_method::Symbol # :linear or :logarithmic
     data_sum_stats::AbstractArray{<:Real}
@@ -45,6 +47,7 @@ struct OneTimescaleModel <: AbstractTimescaleModel
     distance_combined::Bool
     weights::Vector{Real}
     data_tau::Union{Real, Nothing}
+    u0::Union{Vector{Real}, Nothing} # Initial guess for optimization
 end
 
 """
@@ -55,7 +58,7 @@ one_timescale_model(data, time, :abc; summary_method=:acf, prior=nothing, n_lags
 
 2 - summary_method == :acf, fitmethod == :optimization
 one_timescale_model(data, time, :optimization; summary_method=:acf, n_lags=nothing, 
-                    optalg=nothing, distance_method=nothing, distance_combined=false, weights=nothing)
+                    optalg=nothing, distance_method=nothing, distance_combined=false, weights=nothing, u0=nothing)
 
 3 - summary_method == :psd, fitmethod == :abc
 one_timescale_model(data, time, :abc, summary_method == :psd, prior=nothing, 
@@ -63,7 +66,7 @@ one_timescale_model(data, time, :abc, summary_method == :psd, prior=nothing,
 
 4 - summary_method == :psd, fitmethod == :optimization
 one_timescale_model(data, time, :optimization, summary_method=:psd, optalg=nothing, 
-                    distance_method=nothing, distance_combined=false, weights=nothing)
+                    distance_method=nothing, distance_combined=false, weights=nothing, u0=nothing)
 
 5 - summary_method == nothing, fitmethod == :acw
 one_timescale_model(data, time, :acw; summary_method=nothing, n_lags=nothing, 
@@ -77,10 +80,10 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
                              data_mean=mean(data),
                              data_sd=std(data), freqlims=nothing, freq_idx=nothing,
                              dims=ndims(data), distance_combined=false,
-                             weights=[0.5, 0.5], data_tau=nothing)
+                             weights=[0.5, 0.5], data_tau=nothing, u0=nothing)
 
-    # case 1: acf and abc
-    if summary_method == :acf && fit_method == :abc
+    # case 1: acf and abc or optim
+    if summary_method == :acf && (fit_method == :abc || fit_method == :optimization)
         acf = comp_ac_fft(data)
         acf_mean = mean(acf, dims=1)[:]
         lags_samples = 0.0:(size(data, dims)-1)
@@ -89,27 +92,26 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
         end
         lags_freqs = collect(lags_samples * dt)[1:n_lags]
         data_sum_stats = acf_mean[1:n_lags]
-        if isnothing(prior) || prior == "informed_prior"
+        if (isnothing(prior) || prior == "informed_prior") && fit_method == :abc
             prior = informed_prior(data_sum_stats, lags_freqs;
-                                   summary_method=summary_method)
+                                   summary_method=summary_method) # TODO: We are calculating a bunch of stuff twice here :(
         end
         if isnothing(distance_method)
             distance_method = :linear
         end
 
-        if distance_combined
+        if distance_combined || fit_method == :optimization
             data_tau = fit_expdecay(lags_freqs, data_sum_stats)
+            u0 = [data_tau]
         end
+
 
         return OneTimescaleModel(data, time, fit_method, summary_method, lags_freqs, prior,
                                  optalg, acwtypes, distance_method, data_sum_stats, dt, T,
                                  numTrials, data_mean, data_sd, freqlims, n_lags, freq_idx,
-                                 dims, distance_combined, weights, data_tau)
-        # case 2: acf and optim
-    elseif summary_method == :acf && fit_method == :optimization
-        error("Not implemented yet. ")
-        # case 3: psd and abc
-    elseif summary_method == :psd && fit_method == :abc
+                                 dims, distance_combined, weights, data_tau, u0)
+        # case 2: psd and abc or optim
+    elseif summary_method == :psd && (fit_method == :abc || fit_method == :optimization)
         fs = 1 / dt
         psd, freqs = comp_psd(data, fs)
         mean_psd = mean(psd, dims=1)
@@ -119,7 +121,7 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
         freq_idx = (freqs .< freqlims[2]) .&& (freqs .> freqlims[1])
         lags_freqs = freqs[freq_idx]
         data_sum_stats = mean_psd[freq_idx]
-        if isnothing(prior)
+        if (isnothing(prior) || prior == "informed_prior") && fit_method == :abc
             prior = informed_prior(data_sum_stats, lags_freqs;
                                    summary_method=summary_method)
         end
@@ -127,19 +129,20 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
             distance_method = :logarithmic
         end
 
-        if distance_combined
+        if distance_combined || fit_method == :optimization
             data_tau = tau_from_knee(find_knee_frequency(data_sum_stats, lags_freqs)[2])
+            u0 = [data_tau]
         end
+
+        if isnothing(optalg)
+            optalg = Optim.LBFGS()
+        end 
 
         return OneTimescaleModel(data, time, fit_method, summary_method, lags_freqs, prior,
                                  optalg, acwtypes, distance_method, data_sum_stats, dt, T,
                                  numTrials, data_mean, data_sd, freqlims, n_lags, freq_idx,
-                                 dims, distance_combined, weights, data_tau)
-
-        # case 4: psd and optim
-    elseif summary_method == :psd && fit_method == :optimization
-        error("Not implemented yet.")
-        # case 5: acw
+                                 dims, distance_combined, weights, data_tau, u0)
+        # case 3: acw
     elseif fit_method == :acw
         possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
         acf_acwtypes = [:acw0, :acw50, :acweuler, :tau]
@@ -194,7 +197,7 @@ end
 
 function Models.summary_stats(model::OneTimescaleModel, data)
     if model.summary_method == :acf
-        return mean(comp_ac_fft(data; n_lags=model.n_lags), dims=1)[:][1:model.n_lags]
+        return mean(comp_ac_fft(data; n_lags=model.n_lags), dims=1)[:]
     elseif model.summary_method == :psd
         return mean(comp_psd(data, 1 / model.dt)[1], dims=1)[:][model.freq_idx]
     else
@@ -270,10 +273,27 @@ function Models.solve(model::OneTimescaleModel, param_dict=nothing)
                              acc_rate_close=param_dict[:acc_rate_close],
                              alpha_far_mult=param_dict[:alpha_far_mult],
                              alpha_close_mult=param_dict[:alpha_close_mult])
-    end
     posterior_samples = abc_record[end].theta_accepted
     posterior_MAP = find_MAP(posterior_samples, param_dict[:N])
     return posterior_samples, posterior_MAP, abc_record
+
+    elseif model.fit_method == :optimization
+        u0 = Float64[copy(model.u0)...] # The optimizer should now the type.
+        optalg = model.optalg
+        function loss_function(u, p)
+            # Generate data and compute distance
+            sim_data = Models.generate_data(model, u)
+            sim_stats = Models.summary_stats(model, sim_data)
+            distance = Models.distance_function(model, sim_stats, model.data_sum_stats)
+            println(distance)
+            return distance
+        end
+        p = ComponentVector(a = 1.0)
+        optf = OptimizationFunction(loss_function, DifferentiationInterface.AutoEnzyme())
+        prob = OptimizationProblem(optf, u0, p)
+        sol = solve(prob, BFGS())
+        return sol
+    end
 end
 
 end # module OneTimescale 

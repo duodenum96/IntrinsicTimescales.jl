@@ -17,7 +17,7 @@ export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing,
        comp_ac_time_adfriendly, comp_psd_adfriendly, comp_psd_lombscargle,
        prepare_lombscargle, _comp_psd_lombscargle
 
-function comp_ac_fft(data::Vector{T}; n_lags::Integer=length(data)) where {T <: Real}
+function comp_ac_fft(data::Vector{T}; n_lags::Real=length(data)) where {T <: Real}
     # Center the data
     x = data .- mean(data)
     n = length(x)
@@ -50,8 +50,8 @@ Compute autocorrelation using FFT along specified dimension.
 # Returns
 Array with autocorrelation values, the specified dimension becomes the dimension of lags while the other dimensions denote ACF values
 """
-function comp_ac_fft(data::AbstractArray{T}; dims::Int=ndims(data),
-                     n_lags::Integer=size(data, dims)) where {T <: Real}
+function comp_ac_fft(data::AbstractArray{T}; dims::Real=ndims(data),
+                     n_lags::Real=size(data, dims)) where {T <: Real}
     f = x -> comp_ac_fft(vec(x), n_lags=n_lags)
     return mapslices(f, data, dims=dims)
 end

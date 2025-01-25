@@ -9,6 +9,7 @@ using ..Models
 using NonlinearSolve
 import DifferentialEquations as deq
 using StaticArrays
+import SciMLBase
 
 export generate_ou_process, generate_ou_with_oscillation, informed_prior_one_timescale, generate_ou_process_sciml
 """
@@ -32,14 +33,14 @@ function generate_ou_process(tau::Union{Real, Vector{<:Real}},
                             true_D::Real,
                             dt::Real,
                             duration::Real,
-                            num_trials::Integer;
+                            num_trials::Real;
                             backend::String="sciml",
                             standardize::Bool=true)
     if backend == "vanilla"
         return generate_ou_process_vanilla(tau, true_D, dt, duration, num_trials)
     elseif backend == "sciml"
         ou, sol = generate_ou_process_sciml(tau, true_D, dt, duration, num_trials, standardize)
-        if sol.retcode == deq.ReturnCode.Success
+        if SciMLBase.successful_retcode(sol.retcode)
             return ou
         else
             ou = NaN * ones(num_trials, Int(duration / dt))
