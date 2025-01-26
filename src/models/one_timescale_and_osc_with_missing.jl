@@ -312,7 +312,6 @@ function Models.solve(model::OneTimescaleAndOscWithMissingModel, param_dict=noth
         end
 
         abc_record = pmc_abc(model;
-                             # Basic ABC parameters
                              epsilon_0=param_dict[:epsilon_0],
                              max_iter=param_dict[:max_iter],
                              min_accepted=param_dict[:min_accepted],
@@ -335,7 +334,10 @@ function Models.solve(model::OneTimescaleAndOscWithMissingModel, param_dict=noth
                              acc_rate_far=param_dict[:acc_rate_far],
                              acc_rate_close=param_dict[:acc_rate_close],
                              alpha_far_mult=param_dict[:alpha_far_mult],
-                             alpha_close_mult=param_dict[:alpha_close_mult])
+                             alpha_close_mult=param_dict[:alpha_close_mult],
+                             convergence_window=param_dict[:convergence_window],
+                             theta_rtol=param_dict[:theta_rtol],
+                             theta_atol=param_dict[:theta_atol])
     end
     posterior_samples = abc_record[end].theta_accepted
     posterior_MAP = find_MAP(posterior_samples, param_dict[:N])

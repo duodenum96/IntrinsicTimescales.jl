@@ -158,11 +158,18 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                  acc_rate_far::Float64=2.0,
                  acc_rate_close::Float64=0.2,
                  alpha_far_mult::Float64=1.5,
-                 alpha_close_mult::Float64=0.5)
+                 alpha_close_mult::Float64=0.5,
+                 
+                 # Early stopping parameters
+                 convergence_window::Integer=3,
+                 theta_rtol::Float64=1e-3,
+                 theta_atol::Float64=1e-4,
+                 )
 
     # Initialize output record structure 
     output_record = Vector{NamedTuple}(undef, steps)
     epsilon = epsilon_0
+    theta_history = Vector{Matrix{Float64}}() # For early stopping
 
     for i_step in 1:steps
         verbose && println("Starting step $(i_step)")
@@ -279,12 +286,13 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                                      eff_sample=effective_sample)
         end
 
+        current_theta = mean(output_record[i_step].theta_accepted, dims=1)
+
         if verbose
             n_accept = output_record[i_step].n_accepted
             n_tot = output_record[i_step].n_total
             accept_rate = n_accept / n_tot
             println("Acceptance Rate = $(accept_rate)")
-            current_theta = mean(output_record[i_step].theta_accepted, dims=1)
             println("Current theta = $(current_theta)")
             println("--------------------")
         end
@@ -293,6 +301,33 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             println("epsilon = $(epsilon)")
             println("Acceptance Rate = $(accept_rate)")
             return output_record[1:i_step]
+        end
+
+        push!(theta_history, current_theta)
+        # Check for parameter convergence if we have enough history
+        if length(theta_history) >= convergence_window
+            converged = true
+            
+            # Check convergence for each parameter dimension
+            for dim in 1:ndim
+                recent_means = [mean(history[:, dim]) for history in theta_history[end-convergence_window+1:end]]
+                param_range = maximum(recent_means) - minimum(recent_means)
+                param_mean = mean(recent_means)
+                
+                # Check both relative and absolute convergence
+                rel_stable = param_range/abs(param_mean) < theta_rtol
+                abs_stable = param_range < theta_atol
+                
+                if !(rel_stable || abs_stable)
+                    converged = false
+                    break
+                end
+            end
+
+            if converged
+                println("Parameters converged after $(i_step) iterations")
+                return output_record[1:i_step]
+            end
         end
 
         if epsilon < target_epsilon
@@ -616,6 +651,12 @@ function get_param_dict_abc()
                 :acc_rate_close => 0.2,
                 :alpha_far_mult => 1.5,
                 :alpha_close_mult => 0.5,
+
+                                 
+                 # Early stopping parameters
+                :convergence_window => 3,
+                :theta_rtol => 1e-3,
+                :theta_atol => 1e-4,
 
                 # MAP N
                 :N => 10000)
