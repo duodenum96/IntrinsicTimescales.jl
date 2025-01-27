@@ -8,6 +8,9 @@ using ..OrnsteinUhlenbeck
 using BayesianINT
 using Optimization
 using OptimizationOptimJL
+using ComponentArrays
+using DifferentiationInterface
+import Enzyme
 
 export one_timescale_model, OneTimescaleModel
 
@@ -285,14 +288,15 @@ function Models.solve(model::OneTimescaleModel, param_dict=nothing)
         function loss_function(u, p)
             # Generate data and compute distance
             sim_data = Models.generate_data(model, u)
-            sim_stats = Models.summary_stats(model, sim_data)
-            distance = Models.distance_function(model, sim_stats, model.data_sum_stats)
-            println(distance)
-            return distance
+            # sim_stats = Models.summary_stats(model, sim_data)
+            # distance = Models.distance_function(model, sim_stats, model.data_sum_stats)
+            # println(distance)
+            # return distance
+            return mean(sim_data)
         end
-        p = ComponentVector(a = 1.0)
-        optf = OptimizationFunction(loss_function, DifferentiationInterface.AutoEnzyme())
-        prob = OptimizationProblem(optf, u0, p)
+        # p = ComponentVector(a = 1.0)
+        optf = OptimizationFunction(loss_function, AutoEnzyme())
+        prob = OptimizationProblem(optf, u0)
         sol = solve(prob, BFGS())
         return sol
     end

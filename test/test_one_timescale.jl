@@ -6,6 +6,8 @@ using BayesianINT.OneTimescale
 using BayesianINT.Models
 using Optimization
 using OptimizationOptimJL
+using DifferentiationInterface
+
 
 @testset "OneTimescale Model Tests" begin
     # Setup test data and parameters
@@ -210,7 +212,7 @@ using OptimizationOptimJL
             param_dict[:epsilon_0] = 1.0
             param_dict[:steps] = 100
             param_dict[:max_iter] = 10000
-            param_dict[:target_epsilon] = 1e-2
+            param_dict[:target_epsilon] = 1e-4
             param_dict[:N] = 10000
             param_dict[:distance_max] = 500.0
             

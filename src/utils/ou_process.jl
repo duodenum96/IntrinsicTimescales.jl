@@ -36,9 +36,9 @@ function generate_ou_process(tau::Union{Real, Vector{<:Real}},
                             num_trials::Real;
                             backend::String="sciml",
                             standardize::Bool=true)
-    if backend == "vanilla"
-        return generate_ou_process_vanilla(tau, true_D, dt, duration, num_trials)
-    elseif backend == "sciml"
+    # if backend == "vanilla"
+    #     return generate_ou_process_vanilla(tau, true_D, dt, duration, num_trials)
+    # elseif backend == "sciml"
         ou, sol = generate_ou_process_sciml(tau, true_D, dt, duration, num_trials, standardize)
         if SciMLBase.successful_retcode(sol.retcode)
             return ou
@@ -46,9 +46,9 @@ function generate_ou_process(tau::Union{Real, Vector{<:Real}},
             ou = NaN * ones(num_trials, Int(duration / dt))
             return ou
         end
-    else
-        error("Invalid backend: $backend. Must be 'vanilla' or 'sciml'.")
-    end
+    # else
+    #     error("Invalid backend: $backend. Must be 'vanilla' or 'sciml'.")
+    # end
 end
 
 # OU Process Differential Equations for DifferentialEquations.jl interface
@@ -67,7 +67,7 @@ function generate_ou_process_sciml(
     standardize::Bool=true
 ) where T <: Real
     
-    p = (tau, true_D)
+    p = [tau]
     u0 = randn(num_trials) # Quick hack instead of ensemble problem
     prob = deq.SDEProblem(f, g, u0, (0.0, duration), p)
     times = dt:dt:duration
@@ -97,7 +97,7 @@ function generate_ou_process_vanilla(
     ou[:, 1] = noise[:, 1]
     
     for i in 2:num_bin
-        ou[:, i] = @views ou[:, i-1] .- (ou[:, i-1] / tau) * dt .+
+        ou[:, i] = ou[:, i-1] .- (ou[:, i-1] / tau) * dt .+
             sqrt(dt) * noise[:, i-1]
     end
     ou_scaled = ((ou .- mean(ou, dims=2)) ./ std(ou, dims=2)) * true_D

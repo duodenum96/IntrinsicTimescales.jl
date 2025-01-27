@@ -4,7 +4,10 @@ Compute summary statistics for time series data
 """
 
 module SummaryStats
-using FFTW, Statistics
+# using FFTW, Statistics
+using FFTW
+using Statistics
+using FastTransformsForwardDiff
 import DSP as dsp
 import StatsBase as sb
 using Missings
@@ -24,8 +27,7 @@ function comp_ac_fft(data::Vector{T}; n_lags::Real=length(data)) where {T <: Rea
 
     # Pad to next power of 2 for FFT efficiency
     n_pad = nextpow(2, 2n - 1)  # For autocorrelation, need 2n-1 points
-    x_pad = zeros(T, n_pad)
-    x_pad[1:n] = x
+    x_pad = vcat(x, zeros(T, n_pad - n))
 
     # Compute autocorrelation via FFT
     Frf = fft(x_pad)

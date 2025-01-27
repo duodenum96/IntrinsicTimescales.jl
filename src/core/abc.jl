@@ -162,14 +162,15 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                  
                  # Early stopping parameters
                  convergence_window::Integer=3,
-                 theta_rtol::Float64=1e-3,
-                 theta_atol::Float64=1e-4,
+                 theta_rtol::Float64=1e-2,
+                 theta_atol::Float64=1e-3,
                  )
 
     # Initialize output record structure 
     output_record = Vector{NamedTuple}(undef, steps)
     epsilon = epsilon_0
-    theta_history = Vector{Matrix{Float64}}() # For early stopping
+    theta_history = Vector{Matrix{Float64}}() # For early stoppin
+    ndim = length(model.prior)
 
     for i_step in 1:steps
         verbose && println("Starting step $(i_step)")
@@ -655,8 +656,8 @@ function get_param_dict_abc()
                                  
                  # Early stopping parameters
                 :convergence_window => 3,
-                :theta_rtol => 1e-3,
-                :theta_atol => 1e-4,
+                :theta_rtol => 1e-2,
+                :theta_atol => 1e-3,
 
                 # MAP N
                 :N => 10000)
