@@ -223,7 +223,7 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
     return knee, osc_peak
 end
 
-function fooof_fit(psd::AbstractArray{T}, freqs::Vector{T}; 
+function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T}; 
                   dims::Int=ndims(psd),
                   min_freq::T=freqs[1],
                   max_freq::T=freqs[end],
