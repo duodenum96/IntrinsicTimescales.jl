@@ -85,20 +85,20 @@ Compute the ACW0 (autocorrelation width at 0) along specified dimension.
 # Returns
 Array with ACW0 values, reduced along specified dimension
 """
-function acw0(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real}
+function acw0(lags::AbstractVector{T}, acf::AbstractVector{S}) where {T <: Real, S <: Real}
     lags[findfirst(acf .<= 0.0)]
 end
 
-function acw0(lags::AbstractVector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+function acw0(lags::AbstractVector{T}, acf::AbstractArray{S}; dims::Int=ndims(acf)) where {T <: Real, S <: Real}
     f = x -> acw0(lags, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
 
-function acweuler(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real}
+function acweuler(lags::AbstractVector{T}, acf::AbstractVector{S}) where {T <: Real, S <: Real}
     lags[findfirst(acf .<= 1/ℯ)]
 end
 
-function acweuler(lags::AbstractVector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+function acweuler(lags::AbstractVector{T}, acf::AbstractArray{S}; dims::Int=ndims(acf)) where {T <: Real, S <: Real}
     f = x -> acweuler(lags, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
