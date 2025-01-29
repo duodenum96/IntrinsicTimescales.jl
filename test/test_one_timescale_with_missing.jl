@@ -208,4 +208,87 @@ using NaNStatistics
         @test all(isnan.(data1[model.missing_mask]))
         @test all(isnan.(data2[model.missing_mask]))
     end
+end
+
+@testset "OneTimescaleWithMissingModel ADVI Tests" begin
+    # Setup test data
+    true_tau = 300.0 / 1000.0  # 300ms converted to seconds
+    num_trials = 30
+    T = 10.0
+    dt = 1 / 500
+    times = dt:dt:T
+    nlags = 150
+
+    # Generate test data with missing values
+    data_ts = generate_ou_process(true_tau, 1.0, dt, T, num_trials)
+    missing_mask = rand(size(data_ts)...) .< 0.1  # 10% missing data
+    data_ts[missing_mask] .= NaN
+
+    @testset "Model Construction with ADVI" begin
+        model = one_timescale_with_missing_model(
+            data_ts, 
+            times, 
+            :advi;
+            summary_method=:acf,
+            prior=[Normal(0.3, 0.2)]
+        )
+
+        @test model.fit_method == :advi
+        @test model.summary_method == :acf
+        @test model.prior[1] isa Normal
+        @test all(model.missing_mask .== missing_mask)
+    end
+
+    @testset "ADVI Fitting with Missing Data" begin
+        model = one_timescale_with_missing_model(
+            data_ts, 
+            times, 
+            :advi;
+            summary_method=:acf,
+            prior=[Normal(0.3, 0.2)]
+        )
+
+        # Test with default parameters
+        samples, map_estimate, vi_result = Models.solve(model)
+        
+        @test size(samples, 2) == 4000  # Default n_samples
+        @test length(map_estimate) == 2  # One parameter (tau) and uncertainty
+        @test map_estimate[1] > 0  # Tau should be positivee
+        
+        # Test with custom parameters
+        param_dict = Dict(
+            :n_samples => 2000,
+            :n_iterations => 5,
+            :n_elbo_samples => 5,
+            :optimizer => AutoForwardDiff()
+        )
+        
+        samples2, map_estimate2, vi_result2 = Models.solve(model, param_dict)
+        
+        @test size(samples2, 1) == 2000  # Custom n_samples
+        @test length(map_estimate2) == 1
+        @test map_estimate2[1] > 0
+    end
+
+    # TODO: Figure out AutoDiff with LombScargle
+    # @testset "ADVI with PSD Summary Statistics" begin
+        
+    #     # Test with PSD
+    #     model_psd = one_timescale_with_missing_model(
+    #         data_ts, 
+    #         times, 
+    #         :advi;
+    #         summary_method=:psd,
+    #         prior=[Normal(0.3, 0.2)]
+    #     )
+        
+    #     results = Models.solve(model_psd)
+        
+    #     # Both methods should give reasonable results
+    #     @test abs(map_acf[1] - true_tau) < 0.2
+    #     @test abs(map_psd[1] - true_tau) < 0.2
+        
+    #     # Results should be similar between methods
+    #     @test abs(map_acf[1] - map_psd[1]) < 0.1
+    # end
 end 

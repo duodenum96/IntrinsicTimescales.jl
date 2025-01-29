@@ -62,7 +62,7 @@ function distance_function end
 
 function rescale_theta end
 
-function solve end
+function solve(model::AbstractTimescaleModel, param_dict=nothing) end
 
 # Combined generation and reduction step
 function generate_data_and_reduce(model::AbstractTimescaleModel, theta)

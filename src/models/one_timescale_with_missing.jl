@@ -15,6 +15,7 @@ using ..Models
 using ..OrnsteinUhlenbeck
 using NaNStatistics
 using BayesianINT
+using DifferentiationInterface
 
 export OneTimescaleWithMissingModel, one_timescale_with_missing_model
 
@@ -62,17 +63,9 @@ end
 one_timescale_with_missing_model(data, time, :abc; summary_method=:acf, prior=nothing, n_lags=nothing, 
                     distance_method=nothing, distance_combined=false, weights=nothing)
 
-2 - summary_method == :acf, fitmethod == :optimization
-one_timescale_with_missing_model(data, time, :optimization; summary_method=:acf, n_lags=nothing, 
-                    optalg=nothing, distance_method=nothing, distance_combined=false, weights=nothing)
-
 3 - summary_method == :psd, fitmethod == :abc
 one_timescale_with_missing_model(data, time, :abc, summary_method == :psd, prior=nothing, 
                     distance_method=nothing, freqlims=nothing, distance_combined=false, weights=nothing)
-
-4 - summary_method == :psd, fitmethod == :optimization
-one_timescale_with_missing_model(data, time, :optimization, summary_method=:psd, optalg=nothing, 
-                    distance_method=nothing, distance_combined=false, weights=nothing)
 
 5 - summary_method == nothing, fitmethod == :acw
 one_timescale_with_missing_model(data, time, :acw; summary_method=nothing, n_lags=nothing, 
@@ -99,14 +92,14 @@ function one_timescale_with_missing_model(data, time, fit_method;
                                           data_tau=nothing)
     missing_mask = isnan.(data)
 
-    # case 1: acf and abc
-    if summary_method == :acf && fit_method == :abc
+    # case 1: acf and abc or advi
+    if summary_method == :acf && (fit_method == :abc || fit_method == :advi)
         acf = comp_ac_time_missing(data)
         acf_mean = mean(acf, dims=1)[:]
+        lags_samples = 0.0:(size(data, dims)-1)
         if isnothing(n_lags)
             n_lags = floor(Int, acw0(lags_samples, acf_mean) * 1.5)
         end
-        lags_samples = 0:(n_lags-1)
         lags_freqs = collect(lags_samples * dt)[1:n_lags]
         data_sum_stats = acf_mean[1:n_lags]
 
@@ -131,12 +124,9 @@ function one_timescale_with_missing_model(data, time, fit_method;
                                             freq_idx,
                                             dims, distance_combined, weights, data_tau,
                                             missing_mask)
-        # case 2: acf and optimization
-    elseif summary_method == :acf && fit_method == :optimization
-        error("Not implemented yet. ")
-        # case 3: psd and abc
-    elseif summary_method == :psd && fit_method == :abc
-        psd, freqs = comp_psd_lombscargle(times, data, missing_mask, dt)
+    # case 2: psd and abc or advi
+    elseif summary_method == :psd && (fit_method == :abc || fit_method == :advi)
+        psd, freqs = comp_psd_lombscargle(time, data, missing_mask, dt)
         mean_psd = mean(psd, dims=1)
         if isnothing(freqlims)
             freqlims = (0.5 / 1000.0, 100.0 / 1000.0) # Convert to kHz (units in ms)
@@ -166,10 +156,7 @@ function one_timescale_with_missing_model(data, time, fit_method;
                                             freq_idx,
                                             dims, distance_combined, weights, data_tau,
                                             missing_mask)
-        # case 4: psd and optimization
-    elseif summary_method == :psd && fit_method == :optimization
-        error("Not implemented yet. ")
-        # case 5: acw
+    # case 3: acw
     elseif fit_method == :acw
         possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
         acf_acwtypes = [:acw0, :acw50, :acweuler, :tau]
@@ -206,7 +193,7 @@ function one_timescale_with_missing_model(data, time, fit_method;
         end
         if any(in.(:knee, [acwtypes]))
             knee_idx = findfirst(acwtypes .== :knee)
-            psd, freqs = comp_psd_lombscargle(times, data, missing_mask, dt)
+            psd, freqs = comp_psd_lombscargle(time, data, missing_mask, dt)
             knee_result = tau_from_knee(find_knee_frequency(psd, freqs; dims=dims))
             result[knee_idx] = knee_result
         end
@@ -216,8 +203,7 @@ end
 
 # Implementation of required methods
 function Models.generate_data(model::OneTimescaleWithMissingModel, theta)
-    data = generate_ou_process(theta, model.data_sd, model.dt, model.T, model.numTrials;
-                               backend="sciml")
+    data = generate_ou_process(theta[1], model.data_sd, model.dt, model.T, model.numTrials)
     data[model.missing_mask] .= NaN
     return data
 end
@@ -226,7 +212,7 @@ function Models.summary_stats(model::OneTimescaleWithMissingModel, data)
     if model.summary_method == :acf
         return mean(comp_ac_time_missing(data, n_lags=model.n_lags), dims=1)[:]
     elseif model.summary_method == :psd
-        return mean(comp_psd_lombscargle(model.times, data, model.missing_mask, model.dt)[1],
+        return mean(comp_psd_lombscargle(model.time, data, model.missing_mask, model.dt)[1],
                     dims=1)[:][model.freq_idx]
     else
         throw(ArgumentError("Summary method must be :acf or :psd"))
@@ -302,6 +288,24 @@ function Models.solve(model::OneTimescaleWithMissingModel, param_dict=nothing)
         posterior_samples = abc_record[end].theta_accepted
         posterior_MAP = find_MAP(posterior_samples, param_dict[:N])
         return posterior_samples, posterior_MAP, abc_record
+    elseif model.fit_method == :advi
+        if isnothing(param_dict)
+            param_dict = Dict(
+                :n_samples => 4000,
+                :n_iterations => 10,
+                :n_elbo_samples => 20,
+                :optimizer => AutoForwardDiff()
+            )
+        end
+        
+        result = fit_vi(model; 
+            n_samples=param_dict[:n_samples],
+            n_iterations=param_dict[:n_iterations],
+            n_elbo_samples=param_dict[:n_elbo_samples],
+            optimizer=param_dict[:optimizer]
+        )
+        
+        return result.samples, result.MAP, result
     end
 end
 
