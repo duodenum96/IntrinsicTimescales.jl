@@ -343,7 +343,7 @@ Compute autocorrelation for data with missing values along specified dimension.
 Array with autocorrelation values, specified dimension becomes the dimension for lags. Returns NaN for 
 lags with insufficient valid pairs.
 """
-function comp_ac_time_missing(data::Vector{T}; n_lags::Integer=length(data),
+function comp_ac_time_missing(data::AbstractVector{T}; n_lags::Integer=length(data),
                               min_pairs::Integer=3) where {T <: Real}
     lags = collect(0:(n_lags-1))
     ac = zeros(T, n_lags)

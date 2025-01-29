@@ -6,7 +6,7 @@ using Statistics
 using NonlinearSolve
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
-       acw50, acw50_analytical, acw0, acweuler, tau_from_acw50, tau_from_knee
+       acw50, acw50_analytical, acw0, acweuler, tau_from_acw50, tau_from_knee, knee_from_tau
 
 """
 Exponential decay fit

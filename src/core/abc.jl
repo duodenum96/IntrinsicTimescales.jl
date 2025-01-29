@@ -595,7 +595,7 @@ Find the MAP estimates from posteriors with grid search.
 # Returns
 - `theta_map::Vector{Float64}`: MAP estimates of the parameters
 """
-function find_MAP(theta_accepted::Matrix{Float64}, N::Integer=10000)
+function find_MAP(theta_accepted::AbstractArray{Float64}, N::Integer=10000)
     num_params = size(theta_accepted, 2)
 
     # Create grid of positions for each parameter
