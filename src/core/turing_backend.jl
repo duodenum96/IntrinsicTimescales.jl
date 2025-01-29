@@ -23,7 +23,7 @@ Creates a Turing model for the given model object and summary statistics.
 function create_turing_model(model, data_sum_stats; σ_prior=Exponential(1))
     Turing.@model function fit_summary_stats(model, data)
         # Get priors from model object
-        theta = Vector(undef, length(model.prior))
+        theta = Vector{Real}(undef, length(model.prior))
         for i in eachindex(model.prior)
             theta[i] ~ Truncated(model.prior[i], 0.0, Inf)
         end
