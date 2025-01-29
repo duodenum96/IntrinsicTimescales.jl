@@ -4,6 +4,7 @@ using Distributions
 using BayesianINT
 using BayesianINT.OneTimescaleAndOsc
 using BayesianINT.Models
+using DifferentiationInterface
 
 @testset "OneTimescaleAndOsc Model Tests" begin
     # Setup test data and parameters
@@ -215,5 +216,94 @@ using BayesianINT.Models
         
         # Test that higher frequency parameter leads to higher peak frequency
         @test peak_freq_higher > peak_freq_base
+    end
+end
+
+@testset "OneTimescaleAndOsc ADVI Tests" begin
+    # Setup test data
+    true_tau = 300.0 / 1000.0  # 300ms converted to seconds
+    true_freq = 40.0  # Hz
+    true_coeff = 0.5
+    true_params = [true_tau, true_freq, true_coeff]
+    
+    num_trials = 30
+    T = 10.0
+    dt = 1 / 500
+    times = dt:dt:T
+    
+    # Generate test data with oscillation
+    data_ts = generate_ou_with_oscillation(true_params, dt, T, num_trials, 0.0, 1.0)
+
+    @testset "Model Construction with ADVI" begin
+        model = one_timescale_and_osc_model(
+            data_ts, 
+            times, 
+            :advi;
+            summary_method=:psd,
+            prior=[Normal(0.3, 0.2), Normal(40.0, 5.0), Uniform(0.0, 1.0)]
+        )
+
+        @test model.fit_method == :advi
+        @test model.summary_method == :psd
+        @test length(model.prior) == 3
+    end
+
+    @testset "ADVI Fitting with PSD" begin
+        model = one_timescale_and_osc_model(
+            data_ts, 
+            times, 
+            :advi;
+            summary_method=:psd,
+            prior=[Normal(0.3, 0.2), Normal(40.0, 5.0), Uniform(0.0, 1.0)]
+        )
+
+        # Test with default parameters
+        adviresults = Models.solve(model)
+        samples = adviresults.samples
+        map_estimate = adviresults.MAP
+        chain = adviresults.chain
+        
+        @test size(samples, 2) == 4000  # Default n_samples
+        @test length(map_estimate) == 4  # Three parameters + sigma
+        @test map_estimate[1] > 0  # Tau should be positive
+        @test map_estimate[2] > 0  # Frequency should be positive
+        @test 0 <= map_estimate[3] <= 1  # Coefficient should be between 0 and 1
+        
+        # Test with custom parameters
+        param_dict = Dict(
+            :n_samples => 2000,
+            :n_iterations => 5,
+            :n_elbo_samples => 10,
+            :progress => false
+        )
+        
+        adviresults2 = Models.solve(model, param_dict)
+        samples2 = adviresults2.samples
+        map_estimate2 = adviresults2.MAP
+        chain2 = adviresults2.chain
+        
+        @test size(samples2, 1) == 2000  # Custom n_samples
+        @test length(map_estimate2) == 3
+    end
+
+    @testset "ADVI with ACF" begin
+        model_acf = one_timescale_and_osc_model(
+            data_ts, 
+            times, 
+            :advi;
+            summary_method=:acf,
+            prior=[Normal(0.3, 0.2), Normal(40.0, 5.0), Uniform(0.0, 1.0)]
+        )
+
+        adviresults_acf = Models.solve(model_acf)
+        samples_acf = adviresults_acf.samples
+        map_acf = adviresults_acf.MAP
+        chain_acf = adviresults_acf.chain
+
+        @test size(samples_acf, 2) == 4000  # Default n_samples
+        @test length(map_acf) == 4  # Three parameters + sigma
+        @test map_acf[1] > 0  # Tau should be positive
+        @test map_acf[2] > 0  # Frequency should be positive
+        @test 0 <= map_acf[3] <= 1  # Coefficient should be between 0 and 1
     end
 end

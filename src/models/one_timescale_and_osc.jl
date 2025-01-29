@@ -9,6 +9,7 @@ using ..Models
 using ..OrnsteinUhlenbeck
 using BayesianINT.Utils
 using BayesianINT
+using DifferentiationInterface
 
 export one_timescale_and_osc_model, OneTimescaleAndOscModel
 
@@ -105,8 +106,8 @@ function one_timescale_and_osc_model(data, time, fit_method;
                                      weights=[0.5, 0.5],
                                      data_tau=nothing, data_osc=nothing)
 
-    # case 1: acf and abc
-    if summary_method == :acf && fit_method == :abc
+    # case 1: acf and abc or advi
+    if summary_method == :acf && (fit_method == :abc || fit_method == :advi)
         acf = comp_ac_fft(data)
         acf_mean = mean(acf, dims=1)[:]
         lags_samples = 0.0:(size(data, dims)-1)
@@ -138,10 +139,10 @@ function one_timescale_and_osc_model(data, time, fit_method;
     elseif summary_method == :acf && fit_method == :optimization
         error("Optimization not implemented yet.")
 
-        # case 3: psd and abc
-    elseif summary_method == :psd && fit_method == :abc
+        # case 3: psd and abc or advi
+    elseif summary_method == :psd && (fit_method == :abc || fit_method == :advi)
         fs = 1 / dt
-        psd, freqs = comp_psd(data, fs)
+        psd, freqs = comp_psd_adfriendly(data, fs)
         mean_psd = mean(psd, dims=1)
 
         if isnothing(freqlims)
@@ -220,7 +221,7 @@ function one_timescale_and_osc_model(data, time, fit_method;
         if any(in.(:knee, [acwtypes]))
             knee_idx = findfirst(acwtypes .== :knee)
             fs = 1 / dt
-            psd, freqs = comp_psd(data, fs, dims=dims)
+            psd, freqs = comp_psd_adfriendly(data, fs, dims=dims)
             knee_result = tau_from_knee(find_knee_frequency(psd, freqs; dims=dims))
             result[knee_idx] = knee_result
         end
@@ -229,7 +230,7 @@ function one_timescale_and_osc_model(data, time, fit_method;
 end
 
 # Implementation of required methods
-function Models.generate_data(model::OneTimescaleAndOscModel, theta)
+function Models.generate_data(model::OneTimescaleAndOscModel, theta::AbstractVector{<:Real})
     return generate_ou_with_oscillation(theta, model.dt, model.T, model.numTrials,
                                         model.data_mean, model.data_sd)
 end
@@ -238,7 +239,7 @@ function Models.summary_stats(model::OneTimescaleAndOscModel, data)
     if model.summary_method == :acf
         return mean(comp_ac_fft(data; n_lags=model.n_lags), dims=1)[:][1:model.n_lags]
     elseif model.summary_method == :psd
-        return mean(comp_psd(data, 1 / model.dt)[1], dims=1)[:][model.freq_idx]
+        return mean(comp_psd_adfriendly(data, 1 / model.dt)[1], dims=1)[:][model.freq_idx]
     else
         throw(ArgumentError("Summary method must be :acf or :psd"))
     end
@@ -329,10 +330,30 @@ function Models.solve(model::OneTimescaleAndOscModel, param_dict=nothing)
                              convergence_window=param_dict[:convergence_window],
                              theta_rtol=param_dict[:theta_rtol],
                              theta_atol=param_dict[:theta_atol])
-    end
+
     posterior_samples = abc_record[end].theta_accepted
     posterior_MAP = find_MAP(posterior_samples, param_dict[:N])
     return posterior_samples, posterior_MAP, abc_record
+    elseif model.fit_method == :advi
+        if isnothing(param_dict)
+            param_dict = Dict(
+                :n_samples => 4000,
+                :n_iterations => 10,
+                :n_elbo_samples => 20,
+                :optimizer => AutoForwardDiff()
+            )
+        end
+        
+        result = fit_vi(model; 
+            n_samples=param_dict[:n_samples],
+            n_iterations=param_dict[:n_iterations],
+            n_elbo_samples=param_dict[:n_elbo_samples],
+            optimizer=param_dict[:optimizer]
+        )
+        
+        return result
+    end
+
 end
 
 end # module OneTimescaleAndOsc
