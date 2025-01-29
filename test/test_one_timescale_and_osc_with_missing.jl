@@ -287,4 +287,103 @@ using NaNStatistics
         @test d1_combined ≈ 0.0 atol=1e-10  # Distance to self should be ~0
         @test d2_combined > d1_combined      # Different signals should have positive distance
     end
+end
+
+@testset "OneTimescaleAndOscWithMissing ADVI Tests" begin
+    # Setup test data
+    true_tau = 300.0 / 1000.0  # 300ms converted to seconds
+    true_freq = 40.0  # Hz
+    true_coeff = 0.5
+    true_params = [true_tau, true_freq, true_coeff]
+    
+    num_trials = 30
+    T = 10.0
+    dt = 1 / 500
+    times = dt:dt:T
+    
+    # Generate test data with oscillation and missing values
+    data_ts = generate_ou_with_oscillation(true_params, dt, T, num_trials, 0.0, 1.0)
+    missing_mask = rand(size(data_ts)...) .< 0.1
+    data_ts[missing_mask] .= NaN
+
+    @testset "Model Construction with ADVI" begin
+        model = one_timescale_and_osc_with_missing_model(
+            data_ts, 
+            times, 
+            :advi;
+            summary_method=:psd,
+            prior=[Normal(0.3, 0.2), Normal(40.0, 5.0), Uniform(0.0, 1.0)]
+        )
+
+        @test model.fit_method == :advi
+        @test model.summary_method == :psd
+        @test length(model.prior) == 3
+        @test all(model.missing_mask .== missing_mask)
+    end
+
+    @testset "ADVI Fitting with ACF" begin
+        model = one_timescale_and_osc_with_missing_model(
+            data_ts, 
+            times, 
+            :advi;
+            summary_method=:acf,
+            prior=[Normal(0.3, 0.2), Normal(40.0, 5.0), Uniform(0.0, 1.0)]
+        )
+
+        # Test with default parameters
+        adviresults = Models.solve(model)
+        
+        samples = adviresults.samples
+        map_estimate = adviresults.MAP
+        chain = adviresults.chain
+        
+        @test size(samples, 2) == 4000  # Default n_samples
+        @test length(map_estimate) == 4  # Three parameters + sigma
+        @test map_estimate[1] > 0  # Tau should be positive
+        @test map_estimate[2] > 0  # Frequency should be positive
+        @test 0 <= map_estimate[3] <= 1  # Coefficient should be between 0 and 1
+        
+        # Test with custom parameters
+        param_dict = Dict(
+            :n_samples => 2000,
+            :n_iterations => 5,
+            :n_elbo_samples => 10
+        )
+        
+        adviresults2 = Models.solve(model, param_dict)
+        samples2 = adviresults2.samples
+        map_estimate2 = adviresults2.MAP
+        chain2 = adviresults2.chain
+        
+        @test size(samples2, 1) == 2000  # Custom n_samples
+        @test length(map_estimate2) == 3
+    end
+
+    @testset "ADVI with Missing Data Handling" begin
+        # Test that ADVI works with different missing data patterns
+        missing_rates = [0.1, 0.2, 0.3]
+        
+        for rate in missing_rates
+            local_mask = rand(size(data_ts)...) .< rate
+            local_data = copy(data_ts)
+            local_data[local_mask] .= NaN
+            
+            model = one_timescale_and_osc_with_missing_model(
+                local_data,
+                times,
+                :advi;
+                summary_method=:psd,
+                prior=[Normal(0.3, 0.2), Normal(40.0, 5.0), Uniform(0.0, 1.0)]
+            )
+            
+            adviresults = Models.solve(model)
+            samples = adviresults.samples
+            map_estimate = adviresults.MAP
+            
+            @test !any(isnan, samples)  # No NaN in posterior samples
+            @test !any(isnan, map_estimate)  # No NaN in MAP estimate
+            @test all(map_estimate[1:3] .> 0)  # All parameters should be positive
+        end
+    end
 end 
+
