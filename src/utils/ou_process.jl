@@ -11,7 +11,7 @@ import DifferentialEquations as deq
 using StaticArrays
 import SciMLBase
 
-export generate_ou_process, generate_ou_with_oscillation, informed_prior_one_timescale, generate_ou_process_sciml
+export generate_ou_process, generate_ou_with_oscillation, generate_ou_process_sciml
 """
 Generate an Ornstein-Uhlenbeck process with a single timescale with vanilla Julia code.
 
@@ -22,7 +22,6 @@ Bayesian inference doesn't have to deal with it.
 - `dt::Float64`: Time step size
 - `T::Float64`: Total time length
 - `num_trials::Int64`: Number of trials/trajectories to generate
-- `backend::String`: Backend to use. Must be 'vanilla' or 'sciml'.
 
 # Returns
 - Matrix{Float64}: Generated OU process data with dimensions (num_trials, num_timesteps)
@@ -34,26 +33,27 @@ function generate_ou_process(tau::Union{Real, Vector{<:Real}},
                             dt::Real,
                             duration::Real,
                             num_trials::Real;
-                            backend::String="sciml",
                             standardize::Bool=true)
-    # if backend == "vanilla"
-    #     return generate_ou_process_vanilla(tau, true_D, dt, duration, num_trials)
-    # elseif backend == "sciml"
-        ou, sol = generate_ou_process_sciml(tau, true_D, dt, duration, num_trials, standardize)
-        if SciMLBase.successful_retcode(sol.retcode)
-            return ou
-        else
-            ou = NaN * ones(num_trials, Int(duration / dt))
-            return ou
-        end
-    # else
-    #     error("Invalid backend: $backend. Must be 'vanilla' or 'sciml'.")
-    # end
+
+    ou, sol = generate_ou_process_sciml(tau, true_D, dt, duration, num_trials, standardize)
+    if SciMLBase.successful_retcode(sol.retcode)
+        return ou
+    else
+        ou = NaN * ones(num_trials, Int(duration / dt))
+        return ou
+    end
 end
 
 # OU Process Differential Equations for DifferentialEquations.jl interface
-f = (du, u, p, t) -> du .= -u ./ p[1]
-g = (du, u, p, t) -> du .= 1.0
+f_inplace = (du, u, p, t) -> du .= -u ./ p[1]
+g_inplace = (du, u, p, t) -> du .= 1.0
+f_outofplace = (u, p, t) -> SA[(-u ./ p[1])...]
+g_outofplace = (u, p, t) -> SA[1.0]
+p = [1.0] # example parameter
+u0_inplace = [randn()]
+u0_outofplace = SA[randn()]
+_prob_inplace = deq.SDEProblem(f_inplace, g_inplace, u0_inplace, (0.0, 1.0), p) # This will be reused below
+_prob_outofplace = deq.SDEProblem(f_outofplace, g_outofplace, u0_outofplace, (0.0, 1.0), p)
 
 """
 Generate an Ornstein-Uhlenbeck process with a single timescale using DifferentialEquations.jl.
@@ -68,8 +68,13 @@ function generate_ou_process_sciml(
 ) where T <: Real
     
     p = [tau]
-    u0 = randn(num_trials) # Quick hack instead of ensemble problem
-    prob = deq.SDEProblem(f, g, u0, (0.0, duration), p)
+    if num_trials <= 20
+        u0 = SA[randn(num_trials)...] # Quick hack instead of ensemble problem
+        prob = deq.remake(_prob_outofplace, p=p, u0=u0, tspan=(0.0, duration))
+    else
+        u0 = randn(num_trials)
+        prob = deq.remake(_prob_inplace, p=p, u0=u0, tspan=(0.0, duration))
+    end
     times = dt:dt:duration
     sol = deq.solve(prob, deq.SOSRA(); saveat=times, verbose=false)
     sol_matrix = reduce(hcat, sol.u)
@@ -81,29 +86,6 @@ function generate_ou_process_sciml(
     return ou_scaled, sol
 end
 
-"""
-Generate an Ornstein-Uhlenbeck process with a single timescale using vanilla Julia code.
-"""
-function generate_ou_process_vanilla(
-    tau::Union{Real, Vector{Real}},
-    true_D::Real,
-    dt::Real,
-    T::Real,
-    num_trials::Integer
-)
-    num_bin = Int(T / dt)
-    noise = randn(num_trials, num_bin)
-    ou = zeros(num_trials, num_bin)
-    ou[:, 1] = noise[:, 1]
-    
-    for i in 2:num_bin
-        ou[:, i] = ou[:, i-1] .- (ou[:, i-1] / tau) * dt .+
-            sqrt(dt) * noise[:, i-1]
-    end
-    ou_scaled = ((ou .- mean(ou, dims=2)) ./ std(ou, dims=2)) * true_D
-
-    return ou_scaled
-end
 
 """
 Generate a one-timescale OU process with an additive oscillation.
@@ -162,11 +144,4 @@ function generate_ou_with_oscillation(theta::Vector{T},
     return data_scaled
 end
 
-"""
-Plan: Revamp this module. 
-- If n_trials < 20, use StaticArrays
-- Else, use the current implementation
-- Recycle problem using remake(prob, p=p)
-
-"""
 end # module OrnsteinUhlenbeck
