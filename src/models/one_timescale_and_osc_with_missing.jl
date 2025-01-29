@@ -9,6 +9,7 @@ using ..OrnsteinUhlenbeck
 using BayesianINT.Utils
 using BayesianINT
 using NaNStatistics
+using DifferentiationInterface
 
 export one_timescale_and_osc_with_missing_model, OneTimescaleAndOscWithMissingModel
 
@@ -87,13 +88,14 @@ function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             weights=[0.5, 0.5],
                                             data_tau=nothing, data_osc=nothing)
     missing_mask = isnan.(data)
-    if summary_method == :acf && fit_method == :abc
+    if summary_method == :acf && (fit_method == :abc || fit_method == :advi)
         acf = comp_ac_time_missing(data)
         acf_mean = mean(acf, dims=1)[:]
+        lags_samples = 0:(size(data, dims)-1)
+        
         if isnothing(n_lags)
-            n_lags = floor(Int, acw0(lags_samples, acf_mean) * 1.5)
+            n_lags = floor(Int, acw0(lags_samples, acf_mean) * 1.1)
         end
-        lags_samples = 0:(n_lags-1)
         lags_freqs = collect(lags_samples * dt)[1:n_lags]
         data_sum_stats = acf_mean[1:n_lags]
 
@@ -134,11 +136,7 @@ function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             data_tau,
                                             data_osc,
                                             missing_mask)
-        # case 2: acf and optimization
-    elseif summary_method == :acf && fit_method == :optimization
-        error("Optimization not implemented yet.")
-        # case 3: psd and abc
-    elseif summary_method == :psd && fit_method == :abc
+    elseif summary_method == :psd && (fit_method == :abc || fit_method == :advi)
         psd, freqs = comp_psd_lombscargle(time, data, missing_mask, dt)
         mean_psd = mean(psd, dims=1)
         if isnothing(freqlims)
@@ -186,8 +184,6 @@ function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             data_tau,
                                             data_osc,
                                             missing_mask)
-    elseif summary_method == :psd && fit_method == :optimization
-        error("Optimization not implemented yet.")
     elseif fit_method == :acw
         possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
         acf_acwtypes = [:acw0, :acw50, :acweuler, :tau]
@@ -338,10 +334,28 @@ function Models.solve(model::OneTimescaleAndOscWithMissingModel, param_dict=noth
                              convergence_window=param_dict[:convergence_window],
                              theta_rtol=param_dict[:theta_rtol],
                              theta_atol=param_dict[:theta_atol])
-    end
     posterior_samples = abc_record[end].theta_accepted
     posterior_MAP = find_MAP(posterior_samples, param_dict[:N])
     return posterior_samples, posterior_MAP, abc_record
+    elseif model.fit_method == :advi
+        if isnothing(param_dict)
+            param_dict = Dict(
+                :n_samples => 4000,
+                :n_iterations => 10,
+                :n_elbo_samples => 20,
+                :optimizer => AutoForwardDiff()
+            )
+        end
+        
+        result = fit_vi(model; 
+            n_samples=param_dict[:n_samples],
+            n_iterations=param_dict[:n_iterations],
+            n_elbo_samples=param_dict[:n_elbo_samples],
+            optimizer=param_dict[:optimizer]
+        )
+        
+        return result
+    end
 end
 
 end

@@ -112,7 +112,7 @@ function one_timescale_and_osc_model(data, time, fit_method;
         acf_mean = mean(acf, dims=1)[:]
         lags_samples = 0.0:(size(data, dims)-1)
         if isnothing(n_lags)
-            n_lags = floor(Int, acw0(lags_samples, acf_mean) * 1.5)
+            n_lags = floor(Int, acw0(lags_samples, acf_mean) * 1.1)
         end
         lags_freqs = collect(lags_samples * dt)[1:n_lags]
         data_sum_stats = acf_mean[1:n_lags]
