@@ -53,7 +53,6 @@ struct OneTimescaleAndOscModel <: AbstractTimescaleModel
     summary_method::Symbol
     lags_freqs::Union{Real, AbstractVector}
     prior::Union{Vector{<:Distribution}, Distribution, String}
-    optalg::Union{Symbol, Nothing}
     acwtypes::Union{Vector{<:Symbol}, Symbol, Nothing}
     distance_method::Symbol
     data_sum_stats::AbstractArray{<:Real}
@@ -78,17 +77,9 @@ end
 one_timescale_and_osc_model(data, time, :abc; summary_method=:acf, prior=nothing, n_lags=nothing, 
                     distance_method=nothing, distance_combined=false, weights=nothing)
 
-2 - summary_method == :acf, fitmethod == :optimization
-one_timescale_and_osc_model(data, time, :optimization; summary_method=:acf, n_lags=nothing, 
-                    optalg=nothing, distance_method=nothing, distance_combined=false, weights=nothing)
-
 3 - summary_method == :psd, fitmethod == :abc
 one_timescale_and_osc_model(data, time, :abc, summary_method == :psd, prior=nothing, 
                     distance_method=nothing, freqlims=nothing, distance_combined=false, weights=nothing)
-
-4 - summary_method == :psd, fitmethod == :optimization
-one_timescale_and_osc_model(data, time, :optimization, summary_method=:psd, optalg=nothing, 
-                    distance_method=nothing, distance_combined=false, weights=nothing)
 
 5 - summary_method == nothing, fitmethod == :acw
 one_timescale_and_osc_model(data, time, :acw; summary_method=nothing, n_lags=nothing, 
@@ -100,7 +91,6 @@ function one_timescale_and_osc_model(data, time, fit_method;
                                      lags_freqs=nothing,
                                      prior=nothing,
                                      n_lags=nothing,
-                                     optalg=nothing,
                                      acwtypes=nothing,
                                      distance_method=nothing,
                                      dt=time[2] - time[1],
@@ -138,7 +128,7 @@ function one_timescale_and_osc_model(data, time, fit_method;
 
         return OneTimescaleAndOscModel(data, time, fit_method, summary_method, lags_freqs,
                                        prior,
-                                       optalg, acwtypes, distance_method, data_sum_stats,
+                                       acwtypes, distance_method, data_sum_stats,
                                        dt, T,
                                        numTrials, data_mean, data_sd, freqlims, n_lags,
                                        freq_idx,
@@ -180,7 +170,7 @@ function one_timescale_and_osc_model(data, time, fit_method;
         end
 
         return OneTimescaleAndOscModel(data, time, fit_method, summary_method, lags_freqs,
-                                       prior, optalg, acwtypes, distance_method,
+                                       prior, acwtypes, distance_method,
                                        data_sum_stats,
                                        dt, T, numTrials, data_mean, data_sd, freqlims,
                                        n_lags,

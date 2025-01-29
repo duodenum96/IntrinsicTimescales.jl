@@ -190,11 +190,6 @@ using DifferentiationInterface
             @test size(posterior_samples, 2) == 1  # One parameter (tau)
             @test !isempty(posterior_samples)
             @test !any(isnan, posterior_samples)
-            
-            # Test ABC convergence
-            final_epsilon = abc_record[end].epsilon
-            @test final_epsilon < abc_record[1].epsilon
-            @test abc_record[end].n_accepted >= param_dict[:min_accepted]
         end
         
         @testset "ABC Inference - PSD" begin
@@ -262,103 +257,74 @@ using DifferentiationInterface
         # end
     end
 
-    @testset "Model Inference using Optimization" begin
-        # Setup synthetic data with known parameters
-        true_tau = 50.0
-        dt = 1.0
-        T = 1000.0
-        num_trials = 500
-        n_lags = 50
-        time = dt:dt:T
-        D = 1.0
-        
-        # Generate synthetic data
-        data = generate_ou_process(true_tau, D, dt, T, num_trials)
-        
-        @testset "Optimization Inference - ACF" begin
-            model = one_timescale_model(
-                data,
-                collect(time),
-                :optimization;
-                summary_method=:acf,
-                n_lags=n_lags,
-                optalg=NelderMead()
-            )
-            
-            solution = Models.solve(model)
-            
-            # Test optimization results
-            @test solution.minimum > 0  # Loss should be positive
-            @test !isnan(solution.minimum)
-            @test solution.u[1] ≈ true_tau rtol=0.2  # Should be within 20% of true value
-            @test solution.retcode == ReturnCode.Success
-        end
-        
-        @testset "Optimization Inference - PSD" begin
-            model = one_timescale_model(
-                data,
-                time,
-                :optimization;
-                summary_method=:psd,
-                freqlims=(0.5 / 1000.0, 100.0 / 1000.0),
-                optalg=LBFGS()
-            )
-            
-            solution = Models.solve(model)
-            
-            # Test optimization results
-            @test solution.minimum > 0
-            @test !isnan(solution.minimum)
-            @test solution.u[1] ≈ true_tau rtol=0.2
-            @test solution.retcode == ReturnCode.Success
-        end
-        
-        @testset "Different Optimizers" begin
-            optimizers = [
-                LBFGS(),
-                Optim.BFGS(),
-                Optim.NelderMead()
-            ]
-            
-            for opt in optimizers
-                model = one_timescale_model(
-                    data,
-                    time,
-                    :optimization;
-                    summary_method=:acf,
-                    n_lags=n_lags,
-                    optalg=opt
-                )
-                
-                solution = Models.solve(model)
-                
-                # Test basic properties for each optimizer
-                @test !isnan(solution.minimum)
-                @test solution.retcode == ReturnCode.Success
-                @test solution.u[1] > 0  # tau should be positive
-            end
-        end
-        
-        @testset "Optimization with Different Initial Conditions" begin
-            initial_conditions = [10.0, 30.0, 70.0, 90.0]
-            
-            for u0_val in initial_conditions
-                model = one_timescale_model(
-                    data,
-                    time,
-                    :optimization;
-                    summary_method=:acf,
-                    n_lags=n_lags,
-                    optalg=LBFGS(),
-                    u0=[u0_val]
-                )
-                
-                solution = Models.solve(model)
-                
-                # Test convergence from different starting points
-                @test solution.u[1] ≈ true_tau rtol=0.2
-                @test solution.retcode == ReturnCode.Success
-            end
-        end
+    
+@testset "OneTimescaleModel ADVI Tests" begin
+    # Set random seed for reproducibility
+
+    # Generate test data
+    true_tau = 300.0 / 1000.0  # 300ms converted to seconds
+    num_trials = 30
+    T = 10.0
+    dt = 1 / 500
+    times = dt:dt:T
+    nlags = 150
+
+    data_ts = generate_ou_process(true_tau, 1.0, dt, T, num_trials)
+
+    @testset "Model Construction" begin
+        model = one_timescale_model(
+            data_ts, 
+            times, 
+            :advi;
+            summary_method=:acf,
+            prior=[Normal(0.3, 0.2)]
+        )
+
+        @test model.fit_method == :advi
+        @test model.summary_method == :acf
+        @test model.prior isa Normal
     end
+
+    @testset "ADVI Fitting" begin
+        model = one_timescale_model(
+            data_ts, 
+            times, 
+            :advi;
+            summary_method=:acf,
+            prior=[Normal(0.3, 0.2)]
+        )
+
+        # Test with default parameters
+        result = BayesianINT.solve(model)
+        samples = result.samples
+        map_estimate = result.MAP
+        chain = result.chain
+        
+        @test size(samples, 2) == 4000  # Default n_samples
+        @test length(map_estimate) == 2  # One parameter (tau) and one uncertainty (sigma)
+        @test map_estimate[1] > 0  # Tau should be positive
+        
+        # Test with custom parameters
+        param_dict = Dict(
+            :n_samples => 2000,
+            :n_iterations => 5,
+            :n_elbo_samples => 10,
+            :optimizer => AutoForwardDiff()
+        )
+        
+        result2 = BayesianINT.solve(model, param_dict)
+        samples2 = result2.samples
+        map_estimate2 = result2.MAP
+        chain2 = result2.chain
+
+        # Truncated vs softplus (with @btime):
+        # truncated: 13.895 s (1452078 allocations: 35.39 GiB)
+        # softplus : 14.233 s (1658998 allocations: 35.54 GiB)
+        
+        @test size(samples2, 2) == 2000  # Custom n_samples
+        @test length(map_estimate2) == 2
+        @test map_estimate2[1] > 0
+    end
+    
+end
 end

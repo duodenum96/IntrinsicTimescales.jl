@@ -2,7 +2,7 @@ module Models
 
 using Distributions
 
-export AbstractTimescaleModel, BaseModel, check_inputs, check_acwtypes
+export AbstractTimescaleModel, BaseModel, check_inputs, check_acwtypes, solve
 
 abstract type AbstractTimescaleModel end
 

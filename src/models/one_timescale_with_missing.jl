@@ -38,7 +38,6 @@ struct OneTimescaleWithMissingModel <: AbstractTimescaleModel
     summary_method::Symbol # :psd or :acf
     lags_freqs::Union{Real, AbstractVector}
     prior::Union{Vector{<:Distribution}, Distribution, String}
-    optalg::Union{Symbol, Nothing}
     acwtypes::Union{Vector{<:Symbol}, Symbol, Nothing}
     distance_method::Symbol
     data_sum_stats::AbstractArray{<:Real}
@@ -85,7 +84,6 @@ function one_timescale_with_missing_model(data, time, fit_method;
                                           lags_freqs=nothing,
                                           prior=nothing,
                                           n_lags=nothing,
-                                          optalg=nothing,
                                           acwtypes=nothing,
                                           distance_method=nothing,
                                           dt=time[2] - time[1],
@@ -127,7 +125,7 @@ function one_timescale_with_missing_model(data, time, fit_method;
 
         return OneTimescaleWithMissingModel(data, time, fit_method, summary_method,
                                             lags_freqs, prior,
-                                            optalg, acwtypes, distance_method,
+                                            acwtypes, distance_method,
                                             data_sum_stats, dt, T,
                                             numTrials, data_mean, data_sd, freqlims, n_lags,
                                             freq_idx,
@@ -162,7 +160,7 @@ function one_timescale_with_missing_model(data, time, fit_method;
 
         return OneTimescaleWithMissingModel(data, time, fit_method, summary_method,
                                             lags_freqs, prior,
-                                            optalg, acwtypes, distance_method,
+                                            acwtypes, distance_method,
                                             data_sum_stats, dt, T,
                                             numTrials, data_mean, data_sd, freqlims, n_lags,
                                             freq_idx,
