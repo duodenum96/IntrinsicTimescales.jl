@@ -93,9 +93,9 @@ end
     ou_process = generate_ou_process(τ, D, dt, T, num_trials)
     
     max_lags = 100
-    ac_time = comp_ac_time(ou_process, max_lags, dims=2)
-    ac_time_missing = comp_ac_time_missing(ou_process, max_lags, dims=2)
-    ac_fft = comp_ac_fft(ou_process; n_lags=max_lags)
+    ac_time = mean(comp_ac_time(ou_process, n_lags=max_lags, dims=2), dims=1)[:]
+    ac_time_missing = mean(comp_ac_time_missing(ou_process, n_lags=max_lags, dims=2), dims=1)[:]
+    ac_fft = mean(comp_ac_fft(ou_process; n_lags=max_lags), dims=1)[:]
     
     # Test that all methods give similar results
     @test maximum(abs.(ac_time - ac_time_missing)) < 0.001 # error: 2e-16
@@ -104,7 +104,7 @@ end
     # Test theoretical decay of OU process
     lags = (0:(max_lags-1)) * dt
     theoretical_ac = exp.(-lags/τ)
-    @test cor(ac_time_missing[1, :], theoretical_ac) > 0.95  # Strong correlation with theory
+    @test cor(ac_time_missing, theoretical_ac) > 0.95  # Strong correlation with theory
     
     # Test 2: Data with missing values
     ou_missing = copy(ou_process)
@@ -114,7 +114,7 @@ end
     missing_indices = rand(1:length(t), n_missing)
     ou_missing[1,missing_indices] .= NaN
     
-    ac_missing = comp_ac_time_missing(ou_missing, max_lags)
+    ac_missing = mean(comp_ac_time_missing(ou_missing, n_lags=max_lags, dims=2), dims=1)[:]
     
     # Test that autocorrelation still decays
     @test ac_missing[1] ≈ 1.0 atol=0.1  # Should start near 1
@@ -125,8 +125,8 @@ end
     ou_missing = copy(ou_process)
     missing_index = rand(1:length(t))
     ou_missing[1, missing_index] = NaN
-    ac_missing_single = comp_ac_time_missing(ou_missing, max_lags)
-    @test maximum(abs.(mean(ac_missing_single, dims=1) - mean(ac_time, dims=1))) < 0.001
+    ac_missing_single = mean(comp_ac_time_missing(ou_missing, n_lags=max_lags, dims=2), dims=1)[:]
+    @test maximum(abs.(ac_missing_single - ac_time)) < 0.001
 end
 
 @testset "PSD Implementations" begin
