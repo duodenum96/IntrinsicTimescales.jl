@@ -95,6 +95,7 @@ function comp_psd(x::AbstractArray{T}, fs::Real;
 
     # Get a single time series for frequency calculation
     # Create indices to get first element along all dimensions except dims
+    # TODO: This is redundant, we are already getting indices above. 
     idx = [i == dims ? (1:size(x, dims)) : 1 for i in 1:ndims(x)]
     first_slice = x[idx...]
 
@@ -125,6 +126,7 @@ function comp_psd(x::Vector{T}, fs::Real;
     return power, freqs
 end
 
+# TODO: What to do with this?
 function comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x))
     f = x -> comp_psd_adfriendly(vec(x), fs)[1]
     power = mapslices(f, x, dims=dims)
@@ -169,9 +171,9 @@ end
 """
 Lomb-Scargle periodogram for time series data with missing values
 """
-function _comp_psd_lombscargle(times::AbstractVector{<:Real},
-                               signal::AbstractVector{<:Real},
-                               frequency_grid::AbstractVector{<:Real})
+function _comp_psd_lombscargle(times::AbstractVector{<:Number},
+                               signal::AbstractVector{<:Number},
+                               frequency_grid::AbstractVector{<:Number})
     plan = ls.plan(times, signal, frequencies=frequency_grid)
     psd = ls.lombscargle(plan)
     return psd.power
@@ -194,11 +196,11 @@ Prepare time series data with missing values (NaNs) for Lomb-Scargle periodogram
 - `times_masked`: Vector of vectors of time points with NaN values removed (each vector is a trial)
 - `signal_masked`: Vector of vectors of data values with NaN values removed (each vector is a trial)
 """
-function prepare_lombscargle(times::Vector{Float64}, data::AbstractMatrix{Float64},
-                             nanmask::AbstractMatrix{Bool}, dt::Float64)
+function prepare_lombscargle(times::AbstractVector{T}, data::AbstractMatrix{S},
+                             nanmask::AbstractMatrix{Bool}, dt::Real) where {T<:Number, S<:Number}
     n_trials = size(data, 1)
-    times_masked = Vector{Vector{Float64}}(undef, n_trials)
-    signal_masked = Vector{Vector{Float64}}(undef, n_trials)
+    times_masked = Vector{Vector{T}}(undef, n_trials)
+    signal_masked = Vector{Vector{S}}(undef, n_trials)
     for i in 1:n_trials
         times_masked[i] = times[.!nanmask[i, :]]
         signal_masked[i] = data[i, .!nanmask[i, :]]
@@ -227,7 +229,7 @@ Compute Lomb-Scargle periodogram for data with missing values along specified di
 # Returns
 Tuple of (power, frequencies)
 """
-function comp_psd_lombscargle(times::AbstractVector{<:Real}, data::AbstractVector{<:Real},
+function comp_psd_lombscargle(times::AbstractVector{<:Number}, data::AbstractVector{<:Number},
                               nanmask::AbstractVector{Bool}, dt::Real)
     times_masked = times[.!nanmask]
     signal_masked = data[.!nanmask]
@@ -235,15 +237,14 @@ function comp_psd_lombscargle(times::AbstractVector{<:Real}, data::AbstractVecto
     psd = _comp_psd_lombscargle(times_masked, signal_masked, frequency_grid)
     return psd, frequency_grid
 end
-
-function comp_psd_lombscargle(times::AbstractVector{<:Real}, data::AbstractArray{<:Real},
-                              nanmask::AbstractArray{Bool}, dt::Real; dims::Int=ndims(data))
+function comp_psd_lombscargle(times::AbstractVector{T}, data::AbstractArray{S},
+                              nanmask::AbstractArray{Bool}, dt::Real; dims::Int=ndims(data)) where {T<:Number, S<:Number}
     # Get output size for pre-allocation
     frequency_grid = ls.autofrequency(times, maximum_frequency=1 / (2dt))
     nfreq = length(frequency_grid)
     output_size = collect(size(data))
     output_size[dims] = nfreq
-    power = Array{Float64}(undef, output_size...)
+    power = Array{promote_type(T,S)}(undef, output_size...)
 
     # Create indices for iterating over all dimensions except dims
     other_dims = setdiff(1:ndims(data), dims)
@@ -337,68 +338,48 @@ Compute autocorrelation for data with missing values along specified dimension.
 - `data`: Array of time series data (can contain NaN)
 - `max_lag`: Maximum lag to compute
 - `dims`: Dimension along which to compute autocorrelation (defaults to last dimension)
-- `min_pairs`: Minimum number of valid pairs required to compute correlation (default: 3)
 
 # Returns
 Array with autocorrelation values, specified dimension becomes the dimension for lags. Returns NaN for 
 lags with insufficient valid pairs.
 """
-function comp_ac_time_missing(data::AbstractVector{T}; n_lags::Integer=length(data),
-                              min_pairs::Integer=3) where {T <: Real}
+function comp_ac_time_missing(data::AbstractVector{T}; n_lags::Integer=length(data)) where {T <: Real}
     lags = collect(0:(n_lags-1))
     ac = zeros(T, n_lags)
     n = length(data)
 
     # Handle missing values
     notmask_bool = .!isnan.(data)
-
+    
     # Must copy for thread safety
     x = copy(data)
+    x[.!notmask_bool] .= 0  # Set NaNs to 0 like in acovf
 
-    # Center the data
-    xm = mean(view(x, notmask_bool))
+    # Center the data using only non-missing values
+    xm = sum(x) / sum(notmask_bool)
     x .-= xm
 
-    # Pre-allocate vectors for valid pairs
-    x_valid = Vector{T}(undef, n)
-    y_valid = Vector{T}(undef, n)
-
-    # Compute denominator (sum of squares)
-    ss = sum(abs2, view(x, notmask_bool))
+    # Compute denominator (sum of squares normalized by n)
+    ss = sum(abs2, x) / n
 
     for lag in lags
-        # Count and collect valid pairs
-        # TODO: Like acovf implementation below, set NaNs to 0 to avoid the if loop. 
-        valid_count = 0
-        for i in 1:(n-lag)
-            if notmask_bool[i] && notmask_bool[i + lag]
-                valid_count += 1
-                x_valid[valid_count] = x[i]
-                y_valid[valid_count] = x[i + lag]
-            end
-        end
-
-        # Compute autocovariance if enough valid pairs
-        if valid_count ≥ min_pairs
-            x_slice = view(x_valid, 1:valid_count)
-            y_slice = view(y_valid, 1:valid_count)
-            # Use same normalization as acovf
-            ac[lag+1] = sum(x_slice .* y_slice) / n
-        else
-            ac[lag+1] = NaN
-        end
+        # Create mask for valid pairs at this lag
+        valid_pairs = notmask_bool[1:(n-lag)] .& notmask_bool[(lag+1):n]
+        
+        # Compute autocovariance using masked values
+        # The zeros we inserted for NaNs will not contribute to the sum
+        ac[lag+1] = sum(view(x, 1:(n-lag)) .* view(x, (lag+1):n)) / n
     end
 
-    # Normalize by variance (sum of squares / n) to get correlation
-    ac ./= (ss / n)
+    # Normalize by variance to get correlation
+    ac ./= ss
 
     return ac
 end
 
 function comp_ac_time_missing(data::AbstractArray{T}; dims::Int=ndims(data),
-                              n_lags::Integer=size(data, dims),
-                              min_pairs::Integer=3) where {T <: Real}
-    f = x -> comp_ac_time_missing(vec(x), n_lags=n_lags, min_pairs=min_pairs)
+                              n_lags::Integer=size(data, dims)) where {T <: Real}
+    f = x -> comp_ac_time_missing(vec(x), n_lags=n_lags)
     return mapslices(f, data, dims=dims)
 end
 
