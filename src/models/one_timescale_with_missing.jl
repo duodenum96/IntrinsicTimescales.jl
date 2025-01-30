@@ -37,11 +37,10 @@ Model for inferring a single timescale from time series data with missing values
 # Fields
 - `data::AbstractArray{<:Real}`: Input time series data (may contain NaN)
 - `time::AbstractVector{<:Real}`: Time points corresponding to the data
-- `fit_method::Symbol`: Fitting method (:abc, :optimization, :acw, or :advi)
+- `fit_method::Symbol`: Fitting method (:abc or :advi)
 - `summary_method::Symbol`: Summary statistic type (:psd or :acf)
 - `lags_freqs`: Lags (for ACF) or frequencies (for PSD)
 - `prior`: Prior distribution(s) for parameters
-- `acwtypes`: Types of ACW analysis to perform
 - `distance_method::Symbol`: Distance metric type (:linear or :logarithmic)
 - `data_sum_stats`: Pre-computed summary statistics
 - `dt::Real`: Time step between observations
@@ -61,11 +60,10 @@ Model for inferring a single timescale from time series data with missing values
 struct OneTimescaleWithMissingModel <: AbstractTimescaleModel
     data::AbstractArray{<:Real}
     time::AbstractVector{<:Real}
-    fit_method::Symbol # can be "abc", "optimization", "acw"
+    fit_method::Symbol # can be :abc or :advi
     summary_method::Symbol # :psd or :acf
     lags_freqs::Union{Real, AbstractVector}
     prior::Union{Vector{<:Distribution}, Distribution, String}
-    acwtypes::Union{Vector{<:Symbol}, Symbol, Nothing}
     distance_method::Symbol
     data_sum_stats::AbstractArray{<:Real}
     dt::Real
@@ -91,7 +89,7 @@ Construct a OneTimescaleWithMissingModel for time series analysis with missing d
 # Arguments
 - `data`: Input time series data (may contain NaN)
 - `time`: Time points corresponding to the data
-- `fit_method`: Fitting method to use (:abc, :optimization, :acw, or :advi)
+- `fit_method`: Fitting method to use (:abc or :advi)
 
 # Keyword Arguments
 - `summary_method=:acf`: Summary statistic type (:psd or :acf)
@@ -99,7 +97,6 @@ Construct a OneTimescaleWithMissingModel for time series analysis with missing d
 - `lags_freqs=nothing`: Custom lags or frequencies
 - `prior=nothing`: Prior distribution(s) for parameters
 - `n_lags=nothing`: Number of lags for ACF
-- `acwtypes=nothing`: Types of ACW analysis
 - `distance_method=nothing`: Distance metric type
 - `dt=time[2]-time[1]`: Time step
 - `T=time[end]`: Total time span
@@ -117,10 +114,9 @@ Construct a OneTimescaleWithMissingModel for time series analysis with missing d
 - `OneTimescaleWithMissingModel`: Model instance configured for specified analysis method
 
 # Notes
-Three main usage patterns:
+Four main usage patterns:
 1. ACF-based ABC/ADVI: `summary_method=:acf`, `fit_method=:abc/:advi`
 2. PSD-based ABC/ADVI: `summary_method=:psd`, `fit_method=:abc/:advi`
-3. ACW analysis: `fit_method=:acw`, various `acwtypes`
 """
 function one_timescale_with_missing_model(data, time, fit_method;
                                           summary_method=:acf,
@@ -128,7 +124,6 @@ function one_timescale_with_missing_model(data, time, fit_method;
                                           lags_freqs=nothing,
                                           prior=nothing,
                                           n_lags=nothing,
-                                          acwtypes=nothing,
                                           distance_method=nothing,
                                           dt=time[2] - time[1],
                                           T=time[end],
@@ -170,7 +165,7 @@ function one_timescale_with_missing_model(data, time, fit_method;
 
         return OneTimescaleWithMissingModel(data, time, fit_method, summary_method,
                                             lags_freqs, prior,
-                                            acwtypes, distance_method,
+                                            distance_method,
                                             data_sum_stats, dt, T,
                                             numTrials, data_mean, data_sd, freqlims, n_lags,
                                             freq_idx,
@@ -202,11 +197,12 @@ function one_timescale_with_missing_model(data, time, fit_method;
 
         return OneTimescaleWithMissingModel(data, time, fit_method, summary_method,
                                             lags_freqs, prior,
-                                            acwtypes, distance_method,
+                                            distance_method,
                                             data_sum_stats, dt, T,
                                             numTrials, data_mean, data_sd, freqlims, n_lags,
                                             freq_idx,
                                             dims, distance_combined, weights, data_tau,
+
                                             missing_mask)
     end
 end

@@ -1,5 +1,9 @@
 # src/models/one_timescale.jl
+"""
+    OneTimescale
 
+Module for inferring a single timescale from time series data using the Ornstein-Uhlenbeck process.
+"""
 module OneTimescale
 
 using Distributions
@@ -21,20 +25,21 @@ function informed_prior(data_sum_stats::Vector{<:Real}, lags_freqs; summary_meth
     end
 end
 
+
+
 """
     OneTimescaleModel <: AbstractTimescaleModel
 
 Model for inferring a single timescale from time series data using the Ornstein-Uhlenbeck process.
-We don't recommend creating this model directly.  Instead, use the `one_timescale_model` function.
+We recommend using the `one_timescale_model` constructor function rather than creating directly.
 
 # Fields
 - `data::AbstractArray{<:Real}`: Input time series data
 - `time::AbstractVector{<:Real}`: Time points corresponding to the data
-- `fit_method::Symbol`: Fitting method (:abc, :optimization, :acw, or :advi)
+- `fit_method::Symbol`: Fitting method (:abc or :advi)
 - `summary_method::Symbol`: Summary statistic type (:psd or :acf)
 - `lags_freqs`: Lags (for ACF) or frequencies (for PSD)
 - `prior`: Prior distribution(s) for parameters
-- `acwtypes`: Types of ACW analysis to perform
 - `distance_method::Symbol`: Distance metric type (:linear or :logarithmic)
 - `data_sum_stats`: Pre-computed summary statistics
 - `dt::Real`: Time step between observations
@@ -58,7 +63,6 @@ struct OneTimescaleModel <: AbstractTimescaleModel
     summary_method::Symbol # :psd or :acf
     lags_freqs::Union{Real, AbstractVector} # lags if summary method is acf, freqs otherwise, If the user enters an empty vector, will use defaults. 
     prior::Union{Vector{<:Distribution}, Distribution, String, Nothing} # Vector of prior distributions, single distribution, or string for "informed_prior"
-    acwtypes::Union{Vector{<:Symbol}, Symbol, Nothing} # Types of ACW: ACW-50, ACW-0, ACW-euler, tau, knee frequency
     distance_method::Symbol # :linear or :logarithmic
     data_sum_stats::AbstractArray{<:Real}
     dt::Real
@@ -84,7 +88,7 @@ Construct a OneTimescaleModel for time series analysis.
 # Arguments
 - `data`: Input time series data
 - `time`: Time points corresponding to the data
-- `fit_method`: Fitting method to use (:abc, :acw, or :advi)
+- `fit_method`: Fitting method to use (:abc or :advi)
 
 # Keyword Arguments
 - `summary_method=:acf`: Summary statistic type (:psd or :acf)
@@ -92,7 +96,6 @@ Construct a OneTimescaleModel for time series analysis.
 - `lags_freqs=nothing`: Custom lags or frequencies
 - `prior=nothing`: Prior distribution(s) for parameters
 - `n_lags=nothing`: Number of lags for ACF
-- `acwtypes=nothing`: Types of ACW analysis
 - `distance_method=nothing`: Distance metric type
 - `dt=time[2]-time[1]`: Time step
 - `T=time[end]`: Total time span
@@ -111,15 +114,14 @@ Construct a OneTimescaleModel for time series analysis.
 - `OneTimescaleModel`: Model instance configured for specified analysis method
 
 # Notes
-Three main usage patterns:
-1. ACF-based ABC/ADVI: `summary_method=:acf`, `fit_method=:abc/:advi`
-2. PSD-based ABC/ADVI: `summary_method=:psd`, `fit_method=:abc/:advi`
-3. ACW analysis: `fit_method=:acw`, various `acwtypes`
+Two main usage patterns:
+1. ACF-based inference: `summary_method=:acf`, `fit_method=:abc/:advi`
+2. PSD-based inference: `summary_method=:psd`, `fit_method=:abc/:advi`
 """
 function one_timescale_model(data, time, fit_method; summary_method=:acf,
                              data_sum_stats=nothing,
                              lags_freqs=nothing, prior=nothing, n_lags=nothing,
-                             acwtypes=nothing, distance_method=nothing,
+                             distance_method=nothing,
                              dt=time[2] - time[1], T=time[end], numTrials=size(data, 1),
                              data_mean=mean(data),
                              data_sd=std(data), freqlims=nothing, freq_idx=nothing,
@@ -153,7 +155,7 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
 
 
         return OneTimescaleModel(data, time, fit_method, summary_method, lags_freqs, prior,
-                                 acwtypes, distance_method, data_sum_stats, dt, T,
+                                 distance_method, data_sum_stats, dt, T,
                                  numTrials, data_mean, data_sd, freqlims, n_lags, freq_idx,
                                  dims, distance_combined, weights, data_tau, u0)
         # case 2: psd
@@ -181,7 +183,7 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
         end
 
         return OneTimescaleModel(data, time, fit_method, summary_method, lags_freqs, prior,
-                                 acwtypes, distance_method, data_sum_stats, dt, T,
+                                 distance_method, data_sum_stats, dt, T,
                                  numTrials, data_mean, data_sd, freqlims, n_lags, freq_idx,
                                  dims, distance_combined, weights, data_tau, u0)
     end

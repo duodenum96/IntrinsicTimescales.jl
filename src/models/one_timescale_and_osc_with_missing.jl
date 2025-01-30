@@ -57,12 +57,11 @@ Parameters: [tau, freq, coeff] representing timescale, oscillation frequency, an
 # Fields
 - `data::AbstractArray{<:Real}`: Input time series data (may contain NaN)
 - `time::AbstractVector{<:Real}`: Time points corresponding to the data
-- `fit_method::Symbol`: Fitting method (:abc, :optimization, :acw, or :advi)
+- `fit_method::Symbol`: Fitting method (:abc, :advi)
 - `summary_method::Symbol`: Summary statistic type (:psd or :acf)
 - `lags_freqs`: Lags (for ACF) or frequencies (for PSD)
 - `prior`: Prior distribution(s) for parameters
 - `optalg`: Optimization algorithm for :optimization method
-- `acwtypes`: Types of ACW analysis to perform
 - `distance_method::Symbol`: Distance metric type (:linear or :logarithmic)
 - `data_sum_stats`: Pre-computed summary statistics
 - `dt::Real`: Time step between observations
@@ -88,7 +87,6 @@ struct OneTimescaleAndOscWithMissingModel <: AbstractTimescaleModel
     lags_freqs::Union{Real, AbstractVector}
     prior::Union{Vector{<:Distribution}, Distribution, String}
     optalg::Union{Symbol, Nothing}
-    acwtypes::Union{Vector{<:Symbol}, Symbol, Nothing}
     distance_method::Symbol
     data_sum_stats::AbstractArray{<:Real}
     dt::Real
@@ -114,7 +112,6 @@ function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             prior=nothing,
                                             n_lags=nothing,
                                             optalg=nothing,
-                                            acwtypes=nothing,
                                             distance_method=nothing,
                                             dt=time[2] - time[1],
                                             T=time[end],
@@ -161,7 +158,6 @@ function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             lags_freqs,
                                             prior,
                                             optalg,
-                                            acwtypes,
                                             distance_method,
                                             data_sum_stats,
                                             dt,
@@ -209,7 +205,6 @@ function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             lags_freqs,
                                             prior,
                                             optalg,
-                                            acwtypes,
                                             distance_method,
                                             data_sum_stats,
                                             dt,

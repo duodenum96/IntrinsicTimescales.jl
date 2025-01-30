@@ -1,3 +1,13 @@
+"""
+    ACW
+
+Module providing autocorrelation width (ACW) calculations for time series analysis, including:
+- ACW-0 (zero-crossing)
+- ACW-50 (50% decay)
+- ACW-euler (1/e decay)
+- Exponential decay timescale (tau)
+- Knee frequency estimation
+"""
 module ACW
 
 using INT
@@ -5,6 +15,23 @@ using NaNStatistics
 
 export acw, acw_container
 
+"""
+    acw_container
+
+Structure holding ACW analysis inputs and results.
+
+# Fields
+- `data::AbstractArray{<:Real}`: Input time series data
+- `fs::Real`: Sampling frequency
+- `acwtypes::Union{Vector{<:Symbol}, Symbol, Nothing}`: Types of ACW to compute
+- `n_lags::Union{Int, Nothing}`: Number of lags for ACF calculation
+- `freqlims::Union{Tuple{Real, Real}, Nothing}`: Frequency limits for spectral analysis
+- `acw_results::Vector{<:Real}`: Computed ACW values
+
+# Notes
+- Supported ACW types: :acw0, :acw50, :acweuler, :tau, :knee
+- Results order matches input acwtypes order
+"""
 struct acw_container
     data::AbstractArray{<:Real}
     fs::Real
@@ -16,6 +43,32 @@ end
 
 possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
 
+"""
+    acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, dims=ndims(data))
+
+Compute various autocorrelation width measures for time series data.
+
+# Arguments
+- `data::AbstractArray{<:Real}`: Input time series data
+- `fs::Real`: Sampling frequency
+- `acwtypes::Union{Vector{Symbol}, Symbol}=possible_acwtypes`: Types of ACW to compute
+- `n_lags::Union{Int, Nothing}=nothing`: Number of lags for ACF calculation
+- `freqlims::Union{Tuple{Real, Real}, Nothing}=nothing`: Frequency limits for spectral analysis
+- `dims::Int=ndims(data)`: Dimension along which to compute ACW
+
+# Returns
+- Vector of computed ACW measures, ordered according to input acwtypes
+
+# Notes
+- Supported ACW types:
+  * :acw0 - Time to first zero crossing
+  * :acw50 - Time to 50% decay
+  * :acweuler - Time to 1/e decay
+  * :tau - Exponential decay timescale
+  * :knee - Knee frequency from spectral analysis
+- If n_lags is not specified, uses 1.1 * ACW0
+- For spectral measures, freqlims defaults to full frequency range
+"""
 function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing,
              dims=ndims(data))
 

@@ -51,11 +51,10 @@ Parameters: [tau, freq, coeff] representing timescale, oscillation frequency, an
 # Fields
 - `data::AbstractArray{<:Real}`: Input time series data
 - `time::AbstractVector{<:Real}`: Time points corresponding to the data
-- `fit_method::Symbol`: Fitting method (:abc, :optimization, :acw, or :advi)
+- `fit_method::Symbol`: Fitting method (:abc or :advi)
 - `summary_method::Symbol`: Summary statistic type (:psd or :acf)
 - `lags_freqs`: Lags (for ACF) or frequencies (for PSD)
 - `prior`: Prior distribution(s) for parameters
-- `acwtypes`: Types of ACW analysis to perform
 - `distance_method::Symbol`: Distance metric type (:linear or :logarithmic)
 - `data_sum_stats`: Pre-computed summary statistics
 - `dt::Real`: Time step between observations
@@ -79,7 +78,6 @@ struct OneTimescaleAndOscModel <: AbstractTimescaleModel
     summary_method::Symbol
     lags_freqs::Union{Real, AbstractVector}
     prior::Union{Vector{<:Distribution}, Distribution, String}
-    acwtypes::Union{Vector{<:Symbol}, Symbol, Nothing}
     distance_method::Symbol
     data_sum_stats::AbstractArray{<:Real}
     dt::Real
@@ -105,7 +103,7 @@ Construct a OneTimescaleAndOscModel for time series analysis with oscillation.
 # Arguments
 - `data`: Input time series data
 - `time`: Time points corresponding to the data
-- `fit_method`: Fitting method to use (:abc, :optimization, :acw, or :advi)
+- `fit_method`: Fitting method to use (:abc or :advi)
 
 # Keyword Arguments
 - `summary_method=:psd`: Summary statistic type (:psd or :acf)
@@ -113,7 +111,6 @@ Construct a OneTimescaleAndOscModel for time series analysis with oscillation.
 - `lags_freqs=nothing`: Custom lags or frequencies
 - `prior=nothing`: Prior distribution(s) for parameters
 - `n_lags=nothing`: Number of lags for ACF
-- `acwtypes=nothing`: Types of ACW analysis
 - `distance_method=nothing`: Distance metric type
 - `dt=time[2]-time[1]`: Time step
 - `T=time[end]`: Total time span
@@ -132,20 +129,17 @@ Construct a OneTimescaleAndOscModel for time series analysis with oscillation.
 - `OneTimescaleAndOscModel`: Model instance configured for specified analysis method
 
 # Notes
-Five main usage patterns:
+Four main usage patterns:
 1. ACF-based ABC/ADVI: `summary_method=:acf`, `fit_method=:abc/:advi`
-2. ACF-based optimization: `summary_method=:acf`, `fit_method=:optimization`
-3. PSD-based ABC/ADVI: `summary_method=:psd`, `fit_method=:abc/:advi`
-4. PSD-based optimization: `summary_method=:psd`, `fit_method=:optimization`
-5. ACW analysis: `fit_method=:acw`, various `acwtypes`
+2. PSD-based ABC/ADVI: `summary_method=:psd`, `fit_method=:abc/:advi`
 """
+
 function one_timescale_and_osc_model(data, time, fit_method;
                                      summary_method=:psd,
                                      data_sum_stats=nothing,
                                      lags_freqs=nothing,
                                      prior=nothing,
                                      n_lags=nothing,
-                                     acwtypes=nothing,
                                      distance_method=nothing,
                                      dt=time[2] - time[1],
                                      T=time[end],
@@ -183,7 +177,7 @@ function one_timescale_and_osc_model(data, time, fit_method;
 
         return OneTimescaleAndOscModel(data, time, fit_method, summary_method, lags_freqs,
                                        prior,
-                                       acwtypes, distance_method, data_sum_stats,
+                                       distance_method, data_sum_stats,
                                        dt, T,
                                        numTrials, data_mean, data_sd, freqlims, n_lags,
                                        freq_idx,
@@ -220,7 +214,7 @@ function one_timescale_and_osc_model(data, time, fit_method;
         end
 
         return OneTimescaleAndOscModel(data, time, fit_method, summary_method, lags_freqs,
-                                       prior, acwtypes, distance_method,
+                                       prior, distance_method,
                                        data_sum_stats,
                                        dt, T, numTrials, data_mean, data_sd, freqlims,
                                        n_lags,
