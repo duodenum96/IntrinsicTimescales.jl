@@ -14,6 +14,7 @@ module Utils
 
 using Statistics
 using NonlinearSolve
+using Logging
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
        acw50, acw50_analytical, acw0, acweuler, tau_from_acw50, tau_from_knee, knee_from_tau
@@ -130,7 +131,12 @@ Compute the ACW0 (autocorrelation width at zero crossing) along specified dimens
 - More sensitive to noise than ACW50
 """
 function acw0(lags::AbstractVector{T}, acf::AbstractVector{S}) where {T <: Real, S <: Real}
-    lags[findfirst(acf .<= 0.0)]
+    if any(acf .<= 0.0)
+        return lags[findfirst(acf .<= 0.0)]
+    else
+        @warn "No zero crossings found in ACF. Returning NaN."
+        return NaN
+    end
 end
 
 function acw0(lags::AbstractVector{T}, acf::AbstractArray{S}; dims::Int=ndims(acf)) where {T <: Real, S <: Real}
@@ -204,7 +210,7 @@ Estimate initial parameters for Lorentzian fitting.
 - Estimates knee frequency from half-power point
 - Used as starting point for nonlinear fitting
 """
-function lorentzian_initial_guess(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real}; kwargs...)
+function lorentzian_initial_guess(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real}; min_freq::Real=freqs[1], max_freq::Real=freqs[end])
     # Initial parameter guess
     # u[1]: estimate amplitude from low frequency power
     # u[2]: rough estimate of knee frequency from power spectrum
@@ -243,7 +249,7 @@ Find knee frequency by fitting Lorentzian to power spectral density.
 - Uses Lorentzian fitting with NonlinearSolve.jl
 - Initial guess based on half-power point
 """
-function find_knee_frequency(psd::Vector{T}, freqs::Vector{T};
+function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
                            min_freq::T=freqs[1],
                            max_freq::T=freqs[end]) where {T <: Real}
     # Initial parameter guess
@@ -258,11 +264,11 @@ function find_knee_frequency(psd::Vector{T}, freqs::Vector{T};
     return (sol.u[1], sol.u[2])
 end
 
-function find_knee_frequency(psd::AbstractArray{T}, freqs::Vector{T}; 
+function find_knee_frequency(psd::AbstractArray{T}, freqs::AbstractVector{T}; 
                            dims::Int=ndims(psd),
                            min_freq::T=freqs[1],
                            max_freq::T=freqs[end]) where {T <: Real}
-    f = x -> find_knee_frequency(vec(x), freqs, min_freq=min_freq, max_freq=max_freq)[2]
+    f = x -> find_knee_frequency(vec(x), freqs; min_freq=min_freq, max_freq=max_freq)[2]
     dropdims(mapslices(f, psd, dims=dims), dims=dims)
 end
 

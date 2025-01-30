@@ -1,5 +1,7 @@
 using Test
 using INT.ACW
+using INT
+using Random
 
 @testset "ACW Module Tests" begin
     # Test data setup
@@ -9,7 +11,7 @@ using INT.ACW
     # Using a damped oscillator with noise
     freq = 5.0  # 5 Hz oscillation
     tau = 0.5   # 0.5s decay time
-    signal = exp.(-t/tau) .* sin.(2π*freq*t) 
+    signal = exp.(-t/tau)
     noise = 0.1 * randn(length(t))
     data = signal + noise
 
@@ -22,32 +24,32 @@ using INT.ACW
 
     @testset "ACW Types Validation" begin
         # Test single ACW type
-        result_single = acw(data, fs, :acw0)
+        result_single = acw(data, fs, acwtypes=:acw0)
         @test length(result_single) == 1
         
         # Test multiple ACW types
-        result_multiple = acw(data, fs, [:acw0, :acw50])
+        result_multiple = acw(data, fs, acwtypes=[:acw0, :acw50])
         @test length(result_multiple) == 2
 
         # Test invalid ACW type
-        @test_throws ErrorException acw(data, fs, :invalid_type)
+        @test_throws ErrorException acw(data, fs, acwtypes=:invalid_type)
     end
 
     @testset "ACW Calculations" begin
         # Test ACW-0
-        result = acw(data, fs, :acw0)
+        result = acw(data, fs, acwtypes=:acw0)
         @test length(result) == 1
         @test !isnothing(result[1])
         @test all(isfinite.(result[1]))
 
         # Test ACW-50
-        result = acw(data, fs, :acw50)
+        result = acw(data, fs, acwtypes=:acw50)
         @test length(result) == 1
         @test !isnothing(result[1])
         @test all(isfinite.(result[1]))
 
         # Test tau calculation
-        result = acw(data, fs, :tau)
+        result = acw(data, fs, acwtypes=:tau)
         @test length(result) == 1
         @test !isnothing(result[1])
         @test all(isfinite.(result[1]))
@@ -58,12 +60,12 @@ using INT.ACW
     @testset "Frequency Limits and N_lags" begin
         # Test with custom n_lags
         n_lags = 100
-        result = acw(data, fs, :acw0, n_lags)
+        result = acw(data, fs, acwtypes=:acw0, n_lags=n_lags)
         @test length(result[1]) ≤ n_lags
 
         # Test with frequency limits
         freqlims = (0.1, 10.0)
-        result = acw(data, fs, :knee, nothing, freqlims)
+        result = acw(data, fs, acwtypes=:knee, freqlims=freqlims)
         @test length(result) == 1
         @test !isnothing(result[1])
     end
@@ -71,7 +73,59 @@ using INT.ACW
     @testset "Multi-dimensional Input" begin
         # Create 2D data
         data_2d = hcat(data, data)
-        result = acw(data_2d, fs, :acw0)
-        @test size(result[1], 2) == size(data_2d, 2)
+        result = acw(data_2d, fs, acwtypes=:acw0, dims=1)
+        @test length(result[1]) == size(data_2d, 2)
+
+        # Create 3D data
+        data_3d = cat(data_2d, data_2d, dims=3)
+        result = acw(data_3d, fs, acwtypes=:acw0, dims=1)
+        @test size(result[1]) == (size(data_3d, 2), size(data_3d, 3))
+
+        # Test correctness of results along different dimensions using OU processes
+        fs = 100
+        dt = 1/fs
+        duration = 10.0
+        num_trials = 3
+        
+        # Generate OU processes with different timescales
+        tau1 = 0.2 # Fast timescale
+        tau2 = 0.5 # Medium timescale  
+        tau3 = 1.0 # Slow timescale
+        
+        # Generate three OU processes
+        Random.seed!(666)
+        data1 = generate_ou_process(tau1, 1.0, dt, duration, 1)
+        data2 = generate_ou_process(tau2, 1.0, dt, duration, 1)
+        data3 = generate_ou_process(tau3, 1.0, dt, duration, 1)
+        
+        # Stack into 3D array
+        data_test = cat(data1, data2, data3, dims=1)
+        data_test = reshape(data_test, size(data_test,1), size(data_test,2), 1)
+
+        # Test ACW50 along dimension 1
+        result_test = acw(data_test, fs, acwtypes=:acw50, dims=2)
+        @test size(result_test[1]) == (3, 1) # Check output shape
+        
+        # Test if ACW50 values increase with increasing tau
+        # ACW50 should be proportional to tau: acw50 ≈ -tau * log(0.5)
+        @test result_test[1][1] < result_test[1][2] < result_test[1][3]
+        @test isapprox(result_test[1][1], -tau1 * log(0.5), rtol=0.5)
+        @test isapprox(result_test[1][2], -tau2 * log(0.5), rtol=0.5)
+        @test isapprox(result_test[1][3], -tau3 * log(0.5), rtol=0.5)
+
+        # Test tau estimation directly
+        result_tau = acw(data_test, fs, acwtypes=:tau, dims=2)
+        @test size(result_tau[1]) == (3, 1)
+        @test isapprox(result_tau[1][1], tau1, rtol=1.0)
+        @test isapprox(result_tau[1][2], tau2, rtol=0.5)
+        @test isapprox(result_tau[1][3], tau3, rtol=0.5)
+
+        # Test along dimension 2
+        data_test_perm = permutedims(data_test, (2, 1, 3))
+        result_test_dim2 = acw(data_test_perm, fs, acwtypes=:tau, dims=1)
+        @test size(result_test_dim2[1]) == (3, 1)
+        @test isapprox(result_test_dim2[1][1], tau1, rtol=1.0)
+        @test isapprox(result_test_dim2[1][2], tau2, rtol=0.5)
+        @test isapprox(result_test_dim2[1][3], tau3, rtol=0.5)
     end
 end 
