@@ -1,8 +1,13 @@
-# src/stats/summary.jl
 """
-Compute summary statistics for time series data
-"""
+    SummaryStats
 
+Module for computing various summary statistics from time series data.
+Includes functions for:
+- Autocorrelation (FFT and time-domain methods)
+- Power spectral density (periodogram and Welch methods)
+- Cross-correlation
+- Special handling for missing data (NaN values)
+"""
 module SummaryStats
 # using FFTW, Statistics
 using FFTW
@@ -20,6 +25,23 @@ export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing,
        comp_ac_time_adfriendly, comp_psd_adfriendly, comp_psd_lombscargle,
        prepare_lombscargle, _comp_psd_lombscargle
 
+"""
+    comp_ac_fft(data::Vector{T}; n_lags::Real=length(data)) where {T <: Real}
+
+Compute autocorrelation using FFT method.
+
+# Arguments
+- `data`: Input time series vector
+- `n_lags`: Number of lags to compute (defaults to length of data)
+
+# Returns
+- Vector of autocorrelation values from lag 0 to n_lags-1
+
+# Notes
+- Uses FFT for efficient computation
+- Pads data to next power of 2 for FFT efficiency
+- Normalizes by variance (first lag)
+"""
 function comp_ac_fft(data::Vector{T}; n_lags::Real=length(data)) where {T <: Real}
     # Center the data
     x = data .- mean(data)
@@ -59,23 +81,26 @@ function comp_ac_fft(data::AbstractArray{T}; dims::Real=ndims(data),
 end
 
 """
-Compute power spectral density
-(Just a wrapper for DSP.jl)
-Arguments:
-- x: time series data (time X channels)
-- fs: sampling frequency
-Optional arguments:
-- method: method to use for PSD computation ("periodogram" or "welch")
-- window: window to use for PSD computation (default is hamming)
-- n: window size for Welch method (default is 1/8 of the length of x)
-- noverlap: overlap for Welch method (default is 1/2 of the window size)
-Returns:
-- psd: power spectral density
-- freq: frequency
+    comp_psd(x::AbstractArray{T}, fs::Real; kwargs...) where {T <: Real}
 
-See the documentation of DSP.jl for more details.
-NOTE: If you are using Welch method, don't trust the defaults! Make sure you have reasonable 
-overlap and window size.
+Compute power spectral density using periodogram or welch method.
+
+# Arguments
+- `x`: Time series data (time × channels)
+- `fs`: Sampling frequency
+- `dims=ndims(x)`: Dimension along which to compute PSD
+- `method="periodogram"`: Method to use ("periodogram" or "welch")
+- `window=dsp.hamming`: Window function
+- `n=div(size(x,dims),8)`: Window size for Welch method
+- `noverlap=div(n,2)`: Overlap for Welch method
+
+# Returns
+- `power`: Power spectral density values
+- `freqs`: Corresponding frequencies
+
+# Notes
+- For Welch method, carefully consider window size and overlap
+- Uses DSP.jl for underlying computations
 """
 function comp_psd(x::AbstractArray{T}, fs::Real;
                   dims::Int=ndims(x),
@@ -126,7 +151,20 @@ function comp_psd(x::Vector{T}, fs::Real;
     return power, freqs
 end
 
-# TODO: What to do with this?
+"""
+    comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x))
+
+Compute power spectral density using an automatic differentiation (AD) friendly implementation.
+
+# Arguments
+- `x`: Time series data
+- `fs`: Sampling frequency
+- `dims=ndims(x)`: Dimension along which to compute PSD
+
+# Returns
+- `power`: Power spectral density values
+- `freqs`: Corresponding frequencies
+"""
 function comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x))
     f = x -> comp_psd_adfriendly(vec(x), fs)[1]
     power = mapslices(f, x, dims=dims)
@@ -169,7 +207,23 @@ function comp_psd_adfriendly(x::Vector{<:Real}, fs::Real; demean::Bool=true)
 end
 
 """
-Lomb-Scargle periodogram for time series data with missing values
+    _comp_psd_lombscargle(times, data, frequency_grid)
+
+Internal function to compute Lomb-Scargle periodogram for a single time series.
+
+# Arguments
+- `times`: Time points vector (without NaN)
+- `data`: Time series data (without NaN)
+- `frequency_grid`: Pre-computed frequency grid
+
+# Returns
+- `power`: Lomb-Scargle periodogram values
+- `frequency_grid`: Input frequency grid
+
+# Notes
+- Uses LombScargle.jl for core computation
+- Assumes data has been pre-processed and doesn't contain NaN values
+- Normalizes power spectrum by variance
 """
 function _comp_psd_lombscargle(times::AbstractVector{<:Number},
                                signal::AbstractVector{<:Number},
@@ -180,21 +234,19 @@ function _comp_psd_lombscargle(times::AbstractVector{<:Number},
 end
 
 """
-    prepare_lombscargle(times::AbstractVector{<:Real}, data::AbstractMatrix{<:Real}, nanmask::AbstractMatrix{Bool})
+    prepare_lombscargle(times, data, nanmask)
 
-Prepare time series data with missing values (NaNs) for Lomb-Scargle periodogram analysis by masking out NaN values.
-    Challange: Each trial may have a different number of NaNs.
-    The way we deal with is going from matrix to a vector of vectors.
-    Each vector is a trial with NaNs removed.
+Prepare data for Lomb-Scargle periodogram computation by handling missing values.
 
 # Arguments
-- `times`: Vector of time points
-- `data`: Matrix of time series data, with trials as rows and time points as columns
-- `nanmask`: Boolean matrix indicating location of NaN values (true where NaN)
+- `times`: Time points vector
+- `data`: Time series data (may contain NaN)
+- `nanmask`: Boolean mask indicating NaN positions
 
 # Returns
-- `times_masked`: Vector of vectors of time points with NaN values removed (each vector is a trial)
-- `signal_masked`: Vector of vectors of data values with NaN values removed (each vector is a trial)
+- `valid_times`: Time points with NaN values removed
+- `valid_data`: Data points with NaN values removed
+- `frequency_grid`: Suggested frequency grid for analysis
 """
 function prepare_lombscargle(times::AbstractVector{T}, data::AbstractMatrix{S},
                              nanmask::AbstractMatrix{Bool}, dt::Real) where {T<:Number, S<:Number}
@@ -214,20 +266,25 @@ function prepare_lombscargle(times::AbstractVector{T}, data::AbstractMatrix{S},
 end
 
 """
-    comp_psd_lombscargle(times::AbstractVector{<:Real}, data::AbstractArray{<:Real},
-                        nanmask::AbstractArray{Bool}, dt::Real; dims::Int=ndims(data))
+    comp_psd_lombscargle(times, data, nanmask, dt; dims=ndims(data))
 
-Compute Lomb-Scargle periodogram for data with missing values along specified dimension.
+Compute Lomb-Scargle periodogram for data with missing values.
 
 # Arguments
-- `times`: Vector of time points
-- `data`: Array of time series data
-- `nanmask`: Boolean array indicating missing values (true where NaN)
+- `times`: Time points vector
+- `data`: Time series data (may contain NaN)
+- `nanmask`: Boolean mask indicating NaN positions
 - `dt`: Time step
-- `dims`: Dimension along which to compute PSD (defaults to last dimension)
+- `dims=ndims(data)`: Dimension along which to compute
 
 # Returns
-Tuple of (power, frequencies)
+- `power`: Lomb-Scargle periodogram values
+- `frequency_grid`: Corresponding frequencies
+
+# Notes
+- Handles irregular sampling due to missing data
+- Uses frequency grid based on shortest valid time series
+- Automatically determines appropriate frequency range
 """
 function comp_psd_lombscargle(times::AbstractVector{<:Number}, data::AbstractVector{<:Number},
                               nanmask::AbstractVector{Bool}, dt::Real)
@@ -237,6 +294,7 @@ function comp_psd_lombscargle(times::AbstractVector{<:Number}, data::AbstractVec
     psd = _comp_psd_lombscargle(times_masked, signal_masked, frequency_grid)
     return psd, frequency_grid
 end
+
 function comp_psd_lombscargle(times::AbstractVector{T}, data::AbstractArray{S},
                               nanmask::AbstractArray{Bool}, dt::Real; dims::Int=ndims(data)) where {T<:Number, S<:Number}
     # Get output size for pre-allocation
@@ -329,19 +387,23 @@ function comp_ac_time(data::AbstractArray{T}; dims::Int=ndims(data),
 end
 
 """
-    comp_ac_time_missing(data::AbstractArray{T}, max_lag::Integer;
-                        dims::Int=ndims(data)) where {T <: Real}
+    comp_ac_time_missing(data::AbstractArray{T}; kwargs...) where {T <: Real}
 
-Compute autocorrelation for data with missing values along specified dimension.
+Compute autocorrelation for data with missing values.
 
 # Arguments
-- `data`: Array of time series data (can contain NaN)
-- `max_lag`: Maximum lag to compute
-- `dims`: Dimension along which to compute autocorrelation (defaults to last dimension)
+- `data`: Time series data (may contain NaN)
+- `dims=ndims(data)`: Dimension along which to compute
+- `n_lags=size(data,dims)`: Number of lags to compute
 
 # Returns
-Array with autocorrelation values, specified dimension becomes the dimension for lags. Returns NaN for 
-lags with insufficient valid pairs.
+- Array of autocorrelation values
+
+# Notes
+- Handles missing data using "conservative" approach
+- Sets NaN values to zero after mean adjustment
+- Returns NaN for lags with insufficient valid pairs
+- Based on statsmodels.tsa.stattools implementation
 """
 function comp_ac_time_missing(data::AbstractVector{T}; n_lags::Integer=length(data)) where {T <: Real}
     lags = collect(0:(n_lags-1))
@@ -386,41 +448,29 @@ end
 # The two functions below are Julia translations of the functions from statsmodels.tsa.stattools
 
 """
-Calculate the autocorrelation function.
+    acf_statsmodels(x::Vector{T}; kwargs...) where {T <: Real}
 
-Parameters
-----------
-x : AbstractVector{T} where T<:Real
-   The time series data.
-adjusted : Bool, default false
-   If true, then denominators for autocovariance are n-k, otherwise n.
-nlags : Union{Int,Nothing}, default nothing
-    Number of lags to return autocorrelation for. If not provided,
-    uses min(10 * log10(nobs), nobs - 1). The returned value
-    includes lag 0 (ie., 1) so size of the acf vector is (nlags + 1,).
-qstat : Bool, default false
-    If true, returns the Ljung-Box q statistic for each autocorrelation
-    coefficient. See q_stat for more information.
-isfft : Bool, default true
-    If true, computes the ACF via FFT.
-alpha : Union{Float64,Nothing}, default nothing
-    If a number is given, the confidence intervals for the given level are
-    returned. For instance if alpha=0.05, 95% confidence intervals are
-    returned where the standard deviation is computed according to
-    Bartlett's formula.
-bartlett_confint : Bool, default true
-    If true, use Bartlett's formula for confidence intervals.
-missing_handling : String, default "none"
-    A string in ["none", "raise", "conservative", "drop"] specifying how
-    the NaNs are to be treated.
+Julia implementation of statsmodels.tsa.stattools.acf function. Only for testing.
 
-Returns
--------
-Tuple containing some combination of:
-- acf : Vector{Float64} - The autocorrelation function
-- confint : Matrix{Float64} - Confidence intervals (if alpha provided)
-- qstat : Vector{Float64} - Q-statistics (if qstat=true)
-- pvalue : Vector{Float64} - P-values (if qstat=true)
+# Arguments
+- `x`: Time series data vector
+- `adjusted=false`: Use n-k denominators if true
+- `nlags=nothing`: Number of lags (default: min(10*log10(n), n-1))
+- `qstat=false`: Return Ljung-Box Q-statistics
+- `isfft=false`: Use FFT method
+- `alpha=nothing`: Confidence level for intervals
+- `bartlett_confint=false`: Use Bartlett's formula
+- `missing_handling="conservative"`: NaN handling method
+
+# Returns
+- Vector of autocorrelation values
+
+# Notes
+- Supports multiple missing data handling methods:
+  - "none": No checks
+  - "raise": Error on NaN
+  - "conservative": NaN-aware computations
+  - "drop": Remove NaN values
 """
 function acf_statsmodels(x::Vector{T};
                          adjusted::Bool=false,

@@ -1,5 +1,11 @@
 # src/models/ou_process.jl
 
+"""
+    OrnsteinUhlenbeck
+
+Module for generating Ornstein-Uhlenbeck processes with various configurations.
+Uses DifferentialEquations.jl. 
+"""
 module OrnsteinUhlenbeck
 using Revise
 using Random
@@ -12,21 +18,27 @@ using StaticArrays
 import SciMLBase
 
 export generate_ou_process, generate_ou_with_oscillation, generate_ou_process_sciml
+
 """
-Generate an Ornstein-Uhlenbeck process with a single timescale with vanilla Julia code.
+    generate_ou_process(tau, true_D, dt, duration, num_trials; standardize=true)
+
+Generate an Ornstein-Uhlenbeck process with a single timescale
 
 # Arguments
-- `tau::Float64`: Timescale
-- `true_D::Float64`: Variance of data. This will be used to manually scale the OU process so that 
-Bayesian inference doesn't have to deal with it. 
-- `dt::Float64`: Time step size
-- `T::Float64`: Total time length
-- `num_trials::Int64`: Number of trials/trajectories to generate
+- `tau::Union{Real, Vector{<:Real}}`: Timescale(s) of the OU process
+- `true_D::Real`: Target variance for scaling the process
+- `dt::Real`: Time step size
+- `duration::Real`: Total time length
+- `num_trials::Real`: Number of trials/trajectories
+- `standardize::Bool=true`: Whether to standardize output to match true_D
 
 # Returns
 - Matrix{Float64}: Generated OU process data with dimensions (num_trials, num_timesteps)
 
-The process is generated using the Euler-Maruyama method with the specified time step dt.
+# Notes
+- Uses generate_ou_process_sciml internally
+- Returns NaN matrix if SciML solver fails
+- Standardizes output to have specified variance if standardize=true
 """
 function generate_ou_process(tau::Union{Real, Vector{<:Real}},
                             true_D::Real,
@@ -56,7 +68,27 @@ _prob_inplace = deq.SDEProblem(f_inplace, g_inplace, u0_inplace, (0.0, 1.0), p) 
 _prob_outofplace = deq.SDEProblem(f_outofplace, g_outofplace, u0_outofplace, (0.0, 1.0), p)
 
 """
-Generate an Ornstein-Uhlenbeck process with a single timescale using DifferentialEquations.jl.
+    generate_ou_process_sciml(tau, true_D, dt, duration, num_trials, standardize=true)
+
+Generate an Ornstein-Uhlenbeck process using DifferentialEquations.jl.
+
+# Arguments
+- `tau::Union{T, Vector{T}}`: Timescale(s) of the OU process
+- `true_D::Real`: Target variance for scaling
+- `dt::Real`: Time step size
+- `duration::Real`: Total time length
+- `num_trials::Integer`: Number of trials/trajectories
+- `standardize::Bool=true`: Whether to standardize output
+
+# Returns
+- `Tuple{Matrix{Float64}, ODESolution}`: 
+  - Scaled OU process data
+  - Full SDE solution object
+
+# Notes
+- Uses SOSRA solver for efficiency
+- Switches between static and dynamic arrays based on num_trials
+- Standardizes output to match true_D if standardize=true
 """
 function generate_ou_process_sciml(
     tau::Union{T, Vector{T}},
@@ -88,21 +120,26 @@ end
 
 
 """
+    generate_ou_with_oscillation(theta, dt, duration, num_trials, data_mean, data_var)
+
 Generate a one-timescale OU process with an additive oscillation.
 
 # Arguments
-- `theta::Vector{Float64}`: [timescale of OU, frequency of oscillation, coefficient for OU]
-- `dt::Float64`: Time step size for the OU process generation
-- `bin_size::Float64`: Bin size for binning data and computing autocorrelation
-- `T::Float64`: Duration of trials
-- `num_trials::Int`: Number of trials
-- `data_mean::Float64`: Mean value of the OU process (average of firing rate)
-- `data_var::Float64`: Variance of the OU process (variance of firing rate)
+- `theta::Vector{T}`: Parameters [timescale, frequency, coefficient]
+- `dt::Real`: Time step size
+- `duration::Real`: Total time length
+- `num_trials::Integer`: Number of trials
+- `data_mean::Real`: Target mean value
+- `data_var::Real`: Target variance
 
 # Returns
-- `Tuple{Matrix{Float64}, Int}`: Tuple containing:
-  - Matrix of binned spike-counts (num_trials × num_bins)
-  - Number of bins/samples per trial
+- Matrix{Float64}: Generated data with dimensions (num_trials, num_timesteps)
+
+# Notes
+- Coefficient is bounded between 0 and 1
+- Combines OU process with sinusoidal oscillation
+- Standardizes and scales output to match target mean and variance
+- Returns NaN matrix if SciML solver fails
 """
 function generate_ou_with_oscillation(theta::Vector{T},
                                       dt::Real,

@@ -43,9 +43,34 @@ function informed_prior(data_sum_stats::Vector{<:Real}, lags_freqs; summary_meth
 end
 
 """
-One-timescale OU process model with oscillation
-Parameters: [tau, freq, coeff]
-Additional field: data_osc if the user wants to use combined_distance
+    OneTimescaleAndOscModel <: AbstractTimescaleModel
+
+Model for inferring a single timescale and oscillation from time series data using the Ornstein-Uhlenbeck process.
+Parameters: [tau, freq, coeff] representing timescale, oscillation frequency, and oscillation coefficient.
+
+# Fields
+- `data::AbstractArray{<:Real}`: Input time series data
+- `time::AbstractVector{<:Real}`: Time points corresponding to the data
+- `fit_method::Symbol`: Fitting method (:abc, :optimization, :acw, or :advi)
+- `summary_method::Symbol`: Summary statistic type (:psd or :acf)
+- `lags_freqs`: Lags (for ACF) or frequencies (for PSD)
+- `prior`: Prior distribution(s) for parameters
+- `acwtypes`: Types of ACW analysis to perform
+- `distance_method::Symbol`: Distance metric type (:linear or :logarithmic)
+- `data_sum_stats`: Pre-computed summary statistics
+- `dt::Real`: Time step between observations
+- `T::Real`: Total time span
+- `numTrials::Real`: Number of trials/iterations
+- `data_mean::Real`: Mean of input data
+- `data_sd::Real`: Standard deviation of input data
+- `freqlims`: Frequency limits for PSD analysis
+- `n_lags`: Number of lags for ACF
+- `freq_idx`: Boolean mask for frequency selection
+- `dims::Int`: Dimension along which to compute statistics
+- `distance_combined::Bool`: Whether to use combined distance metric
+- `weights::Vector{Real}`: Weights for combined distance
+- `data_tau::Union{Real, Nothing}`: Pre-computed timescale
+- `data_osc::Union{Real, Nothing}`: Pre-computed oscillation frequency
 """
 struct OneTimescaleAndOscModel <: AbstractTimescaleModel
     data::AbstractArray{<:Real}
@@ -73,18 +98,46 @@ struct OneTimescaleAndOscModel <: AbstractTimescaleModel
 end
 
 """
-5 ways to construct a OneTimescaleAndOscModel:
-1 - summary_method == :acf, fitmethod == :abc
-one_timescale_and_osc_model(data, time, :abc; summary_method=:acf, prior=nothing, n_lags=nothing, 
-                    distance_method=nothing, distance_combined=false, weights=nothing)
+    one_timescale_and_osc_model(data, time, fit_method; kwargs...)
 
-3 - summary_method == :psd, fitmethod == :abc
-one_timescale_and_osc_model(data, time, :abc, summary_method == :psd, prior=nothing, 
-                    distance_method=nothing, freqlims=nothing, distance_combined=false, weights=nothing)
+Construct a OneTimescaleAndOscModel for time series analysis with oscillation.
 
-5 - summary_method == nothing, fitmethod == :acw
-one_timescale_and_osc_model(data, time, :acw; summary_method=nothing, n_lags=nothing, 
-                    acwtypes=[:acw0, acw50, acwe, tau, knee], dims=ndims(data))
+# Arguments
+- `data`: Input time series data
+- `time`: Time points corresponding to the data
+- `fit_method`: Fitting method to use (:abc, :optimization, :acw, or :advi)
+
+# Keyword Arguments
+- `summary_method=:psd`: Summary statistic type (:psd or :acf)
+- `data_sum_stats=nothing`: Pre-computed summary statistics
+- `lags_freqs=nothing`: Custom lags or frequencies
+- `prior=nothing`: Prior distribution(s) for parameters
+- `n_lags=nothing`: Number of lags for ACF
+- `acwtypes=nothing`: Types of ACW analysis
+- `distance_method=nothing`: Distance metric type
+- `dt=time[2]-time[1]`: Time step
+- `T=time[end]`: Total time span
+- `numTrials=size(data,1)`: Number of trials
+- `data_mean=mean(data)`: Data mean
+- `data_sd=std(data)`: Data standard deviation
+- `freqlims=nothing`: Frequency limits for PSD
+- `freq_idx=nothing`: Frequency selection mask
+- `dims=ndims(data)`: Analysis dimension
+- `distance_combined=false`: Use combined distance
+- `weights=[0.5, 0.5]`: Distance weights for combined distance
+- `data_tau=nothing`: Pre-computed timescale
+- `data_osc=nothing`: Pre-computed oscillation frequency
+
+# Returns
+- `OneTimescaleAndOscModel`: Model instance configured for specified analysis method
+
+# Notes
+Five main usage patterns:
+1. ACF-based ABC/ADVI: `summary_method=:acf`, `fit_method=:abc/:advi`
+2. ACF-based optimization: `summary_method=:acf`, `fit_method=:optimization`
+3. PSD-based ABC/ADVI: `summary_method=:psd`, `fit_method=:abc/:advi`
+4. PSD-based optimization: `summary_method=:psd`, `fit_method=:optimization`
+5. ACW analysis: `fit_method=:acw`, various `acwtypes`
 """
 function one_timescale_and_osc_model(data, time, fit_method;
                                      summary_method=:psd,
@@ -230,11 +283,52 @@ function one_timescale_and_osc_model(data, time, fit_method;
 end
 
 # Implementation of required methods
+"""
+    Models.generate_data(model::OneTimescaleAndOscModel, theta::AbstractVector{<:Real})
+
+Generate synthetic data from the Ornstein-Uhlenbeck process with oscillation.
+
+# Arguments
+- `model::OneTimescaleAndOscModel`: Model instance containing simulation parameters
+- `theta::AbstractVector{<:Real}`: Vector containing parameters [tau, freq, coeff]
+
+# Returns
+- Synthetic time series data with same dimensions as model.data
+
+# Notes
+Uses the model's stored parameters:
+- `dt`: Time step
+- `T`: Total time span
+- `numTrials`: Number of trials/trajectories
+- `data_mean`: Mean of the process
+- `data_sd`: Standard deviation of the process
+"""
 function Models.generate_data(model::OneTimescaleAndOscModel, theta::AbstractVector{<:Real})
     return generate_ou_with_oscillation(theta, model.dt, model.T, model.numTrials,
                                         model.data_mean, model.data_sd)
 end
 
+"""
+    Models.summary_stats(model::OneTimescaleAndOscModel, data)
+
+Compute summary statistics (ACF or PSD) from time series data.
+
+# Arguments
+- `model::OneTimescaleAndOscModel`: Model instance specifying summary statistic type
+- `data`: Time series data to analyze
+
+# Returns
+For ACF (`summary_method = :acf`):
+- Mean autocorrelation function up to `n_lags`
+
+For PSD (`summary_method = :psd`):
+- Mean power spectral density within specified frequency range
+
+# Notes
+- ACF is computed using FFT-based method
+- PSD is computed using AD-friendly implementation
+- Throws ArgumentError if summary_method is invalid
+"""
 function Models.summary_stats(model::OneTimescaleAndOscModel, data)
     if model.summary_method == :acf
         return mean(comp_ac_fft(data; n_lags=model.n_lags), dims=1)[:][1:model.n_lags]
@@ -245,9 +339,34 @@ function Models.summary_stats(model::OneTimescaleAndOscModel, data)
     end
 end
 
+"""
+    combined_distance(model::OneTimescaleAndOscModel, simulation_summary, data_summary,
+                     weights, distance_method, data_tau, simulation_tau, 
+                     data_osc, simulation_osc)
+
+Compute combined distance metric between simulated and observed data.
+
+# Arguments
+- `model`: OneTimescaleAndOscModel instance
+- `simulation_summary`: Summary statistics from simulation
+- `data_summary`: Summary statistics from observed data
+- `weights`: Weights for combining distances
+- `distance_method`: Distance metric type
+- `data_tau`: Timescale from observed data
+- `simulation_tau`: Timescale from simulation
+- `data_osc`: Oscillation frequency from observed data
+- `simulation_osc`: Oscillation frequency from simulation
+
+# Returns
+For ACF:
+- Weighted combination of summary statistic distance and timescale distance
+
+For PSD:
+- Weighted combination of summary statistic distance, timescale distance, and oscillation frequency distance
+"""
 function combined_distance(model::OneTimescaleAndOscModel, simulation_summary, data_summary,
-                           weights, distance_method,
-                           data_tau, simulation_tau, data_osc, simulation_osc)
+                         weights, distance_method, data_tau, simulation_tau, 
+                         data_osc, simulation_osc)
     if model.summary_method == :acf
         if distance_method == :linear
             distance_1 = linear_distance(simulation_summary, data_summary)
@@ -270,6 +389,25 @@ function combined_distance(model::OneTimescaleAndOscModel, simulation_summary, d
     end
 end
 
+"""
+    Models.distance_function(model::OneTimescaleAndOscModel, sum_stats, data_sum_stats)
+
+Calculate the distance between summary statistics of simulated and observed data.
+
+# Arguments
+- `model::OneTimescaleAndOscModel`: Model instance
+- `sum_stats`: Summary statistics from simulated data
+- `data_sum_stats`: Summary statistics from observed data
+
+# Returns
+- Distance value based on model.distance_method (:linear or :logarithmic)
+  or combined distance if model.distance_combined is true
+
+# Notes
+If distance_combined is true:
+- For ACF: Combines ACF distance with fitted exponential decay timescale distance
+- For PSD: Combines PSD distance with knee frequency timescale distance and oscillation frequency distance
+"""
 function Models.distance_function(model::OneTimescaleAndOscModel, sum_stats, data_sum_stats)
     if model.distance_combined
         if model.summary_method == :acf
@@ -297,6 +435,29 @@ function Models.distance_function(model::OneTimescaleAndOscModel, sum_stats, dat
     end
 end
 
+"""
+    Models.solve(model::OneTimescaleAndOscModel, param_dict=nothing)
+
+Perform inference using the specified fitting method.
+
+# Arguments
+- `model::OneTimescaleAndOscModel`: Model instance
+- `param_dict=nothing`: Optional dictionary of algorithm parameters. If nothing, uses defaults.
+
+# Returns
+For ABC method:
+- `posterior_samples`: Matrix of accepted parameter samples
+- `posterior_MAP`: Maximum a posteriori estimate
+- `abc_record`: Full record of ABC iterations
+
+For ADVI method:
+- `TuringResult`: Container with samples, MAP estimates, variances, and full chain
+
+# Notes
+- For ABC: Uses Population Monte Carlo ABC with adaptive epsilon selection
+- For ADVI: Uses Automatic Differentiation Variational Inference via Turing.jl
+- Parameter dictionary can be customized for each method (see get_param_dict_abc())
+"""
 function Models.solve(model::OneTimescaleAndOscModel, param_dict=nothing)
     if model.fit_method == :abc
         if isnothing(param_dict)

@@ -1,5 +1,15 @@
 # src/utils/utils.jl
 
+"""
+    Utils
+
+Module providing utility functions for time series analysis, including:
+- Exponential decay fitting
+- Oscillation peak detection
+- Knee frequency estimation
+- Lorentzian fitting
+- ACF width calculations
+"""
 module Utils
 
 using Statistics
@@ -9,11 +19,20 @@ export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        acw50, acw50_analytical, acw0, acweuler, tau_from_acw50, tau_from_knee, knee_from_tau
 
 """
-Exponential decay fit
-tau = u[1]
-acf = exp(-(1/tau) * lags)
-acf is a 1D vector (ACF)
-lags is a 1D vector (x axis)
+    expdecay(tau, lags)
+
+Compute exponential decay function.
+
+# Arguments
+- `tau::Real`: Timescale parameter
+- `lags::AbstractVector`: Time lags
+
+# Returns
+- Vector of exp(-t/tau) values
+
+# Notes
+- Used for fitting autocorrelation functions
+- Assumes exponential decay model: acf = exp(-t/tau)
 """
 function expdecay(tau, lags)
     # Return best fit parameters
@@ -31,6 +50,23 @@ function residual_expdecay!(du, u, p)
     return nothing
 end
 
+"""
+    fit_expdecay(lags, acf; dims=ndims(acf))
+
+Fit exponential decay to autocorrelation function.
+
+# Arguments
+- `lags::AbstractVector{T}`: Time lags
+- `acf::AbstractArray{T}`: Autocorrelation values
+- `dims::Int=ndims(acf)`: Dimension along which to fit
+
+# Returns
+- Fitted timescale parameter(s)
+
+# Notes
+- Uses NonlinearSolve.jl with FastShortcutNLLSPolyalg
+- Initial guess based on ACW50
+"""
 function fit_expdecay(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real}
     u0 = [tau_from_acw50(acw50(lags, acf))]
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay!,
@@ -51,19 +87,23 @@ tau_from_knee(knee) = 1 ./ (2 .* pi .* knee)
 knee_from_tau(tau) = 1 ./ (2 .* pi .* tau)
 
 """
-    acw50(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+    acw50(lags, acf; dims=ndims(acf))
 
 Compute the ACW50 (autocorrelation width at 50%) along specified dimension.
 
 # Arguments
-- `lags`: Vector of lag values
-- `acf`: Array of autocorrelation values
-- `dims`: Dimension along which to compute ACW50 (defaults to last dimension)
+- `lags::AbstractVector{T}`: Vector of lag values
+- `acf::AbstractArray{T}`: Array of autocorrelation values
+- `dims::Int=ndims(acf)`: Dimension along which to compute ACW50
 
 # Returns
-Array with ACW50 values, reduced along specified dimension
+- First lag where autocorrelation falls below 0.5
+
+# Notes
+- Used for estimating characteristic timescales
+- Related to tau by: tau = -acw50/log(0.5)
 """
-function acw50(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real} 
+function acw50(lags::AbstractVector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
     lags[findfirst(acf .<= 0.5)]
 end
 
@@ -73,17 +113,21 @@ function acw50(lags::AbstractVector{T}, acf::AbstractArray{T}; dims::Int=ndims(a
 end
 
 """
-    acw0(lags::Vector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+    acw0(lags, acf; dims=ndims(acf))
 
-Compute the ACW0 (autocorrelation width at 0) along specified dimension.
+Compute the ACW0 (autocorrelation width at zero crossing) along specified dimension.
 
 # Arguments
-- `lags`: Vector of lag values
-- `acf`: Array of autocorrelation values
-- `dims`: Dimension along which to compute ACW0 (defaults to last dimension)
+- `lags::AbstractVector{T}`: Vector of lag values
+- `acf::AbstractArray{T}`: Array of autocorrelation values
+- `dims::Int=ndims(acf)`: Dimension along which to compute ACW0
 
 # Returns
-Array with ACW0 values, reduced along specified dimension
+- First lag where autocorrelation crosses zero
+
+# Notes
+- Alternative measure of characteristic timescale
+- More sensitive to noise than ACW50
 """
 function acw0(lags::AbstractVector{T}, acf::AbstractVector{S}) where {T <: Real, S <: Real}
     lags[findfirst(acf .<= 0.0)]
@@ -94,6 +138,22 @@ function acw0(lags::AbstractVector{T}, acf::AbstractArray{S}; dims::Int=ndims(ac
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
 
+"""
+    acweuler(lags, acf; dims=ndims(acf))
+
+Compute the ACW at 1/e (≈ 0.368) along specified dimension.
+
+# Arguments
+- `lags::AbstractVector{T}`: Vector of lag values
+- `acf::AbstractArray{S}`: Array of autocorrelation values
+- `dims::Int=ndims(acf)`: Dimension along which to compute
+
+# Returns
+- First lag where autocorrelation falls below 1/e
+
+# Notes
+- For exponential decay, equals the timescale parameter tau
+"""
 function acweuler(lags::AbstractVector{T}, acf::AbstractVector{S}) where {T <: Real, S <: Real}
     lags[findfirst(acf .<= 1/ℯ)]
 end
@@ -103,6 +163,18 @@ function acweuler(lags::AbstractVector{T}, acf::AbstractArray{S}; dims::Int=ndim
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
 
+"""
+    lorentzian(f, u)
+
+Compute Lorentzian function values.
+
+# Arguments
+- `f::AbstractVector`: Frequency values
+- `u::Vector`: Parameters [amplitude, knee_frequency]
+
+# Returns
+- Vector of Lorentzian values: amp/(1 + (f/knee)²)
+"""
 function lorentzian(f, u)
     return u[1] ./ (1 .+ (f ./ u[2]) .^ 2)
 end
@@ -113,10 +185,26 @@ function residual_lorentzian!(du, u, p)
     return nothing
 end
 
-function lorentzian_initial_guess(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real};
-                                  min_freq::Real=freqs[1],
-                                  max_freq::Real=freqs[end])
+"""
+    lorentzian_initial_guess(psd, freqs; min_freq=freqs[1], max_freq=freqs[end])
 
+Estimate initial parameters for Lorentzian fitting.
+
+# Arguments
+- `psd::AbstractVector{<:Real}`: Power spectral density values
+- `freqs::AbstractVector{<:Real}`: Frequency values
+- `min_freq::Real`: Minimum frequency to consider
+- `max_freq::Real`: Maximum frequency to consider
+
+# Returns
+- Vector{Float64}: Initial guess for [amplitude, knee_frequency]
+
+# Notes
+- Estimates amplitude from maximum PSD value
+- Estimates knee frequency from half-power point
+- Used as starting point for nonlinear fitting
+"""
+function lorentzian_initial_guess(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real}; kwargs...)
     # Initial parameter guess
     # u[1]: estimate amplitude from low frequency power
     # u[2]: rough estimate of knee frequency from power spectrum
@@ -137,19 +225,23 @@ function lorentzian_initial_guess(psd::AbstractVector{<:Real}, freqs::AbstractVe
 end
 
 """
-    find_knee_frequency(psd::AbstractArray{T}, freqs::Vector{T}; dims::Int=ndims(psd)) where {T <: Real}
+    find_knee_frequency(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end])
 
-Find the knee frequency by fitting a Lorentzian function to the PSD along specified dimension.
+Find knee frequency by fitting Lorentzian to power spectral density.
 
 # Arguments
-- `psd`: Array of PSD values
-- `freqs`: Vector of frequencies
-- `dims`: Dimension along which to compute knee frequency (defaults to last dimension)
-- `min_freq`: Minimum frequency to consider
-- `max_freq`: Maximum frequency to consider
+- `psd::AbstractArray{T}`: Power spectral density values
+- `freqs::Vector{T}`: Frequency values
+- `dims::Int=ndims(psd)`: Dimension along which to compute
+- `min_freq::T=freqs[1]`: Minimum frequency to consider
+- `max_freq::T=freqs[end]`: Maximum frequency to consider
 
 # Returns
-Array with knee frequency values, reduced along specified dimension
+- Knee frequency values (frequency at half power)
+
+# Notes
+- Uses Lorentzian fitting with NonlinearSolve.jl
+- Initial guess based on half-power point
 """
 function find_knee_frequency(psd::Vector{T}, freqs::Vector{T};
                            min_freq::T=freqs[1],
@@ -175,28 +267,29 @@ function find_knee_frequency(psd::AbstractArray{T}, freqs::Vector{T};
 end
 
 """
-    fooof_fit(psd::AbstractArray{T}, freqs::Vector{T}; dims::Int=ndims(psd)) where {T <: Real}
+    fooof_fit(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end], oscillation_peak=true)
 
-FOOOF style fitting along specified dimension.
-1) Fit a Lorentzian to the PSD
-2) Subtract Lorentzian
-3) Find oscillation peaks
-In FOOOF, the following steps are also performed:
-4) Fit Gaussian to peaks
-5) Iterate until convergence
-
-We only implement the first three steps since our interest is mainly in the knee frequency.
+Perform FOOOF-style fitting of power spectral density.
 
 # Arguments
-- `psd`: Array of PSD values
-- `freqs`: Vector of frequencies
-- `dims`: Dimension along which to compute fit (defaults to last dimension)
-- `min_freq`: Minimum frequency to consider
-- `max_freq`: Maximum frequency to consider
-- `oscillation_peak`: Whether to compute oscillation peak
+- `psd::AbstractArray{T}`: Power spectral density values
+- `freqs::Vector{T}`: Frequency values
+- `dims::Int=ndims(psd)`: Dimension along which to compute
+- `min_freq::T=freqs[1]`: Minimum frequency to consider
+- `max_freq::T=freqs[end]`: Maximum frequency to consider
+- `oscillation_peak::Bool=true`: Whether to compute oscillation peak
 
 # Returns
-Array with fitted parameters, reduced along specified dimension
+If oscillation_peak=true:
+- Tuple of (knee_frequency, oscillation_peak_frequency)
+If oscillation_peak=false:
+- knee_frequency only
+
+# Notes
+- Implements first 3 steps of FOOOF algorithm:
+  1. Fit Lorentzian to PSD
+  2. Subtract Lorentzian
+  3. Find oscillation peaks
 """
 function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
                   min_freq::T=freqs[1],
@@ -235,7 +328,24 @@ function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T};
 end
 
 """
-Find the dominant oscillatory peak in the PSD using prominence
+    find_oscillation_peak(psd, freqs; min_freq=5.0/1000.0, max_freq=50.0/1000.0, min_prominence_ratio=0.1)
+
+Find dominant oscillatory peak in power spectral density.
+
+# Arguments
+- `psd::AbstractVector`: Power spectral density values
+- `freqs::AbstractVector`: Frequency values
+- `min_freq::Real=5.0/1000.0`: Minimum frequency to consider
+- `max_freq::Real=50.0/1000.0`: Maximum frequency to consider
+- `min_prominence_ratio::Real=0.1`: Minimum peak prominence as fraction of max PSD
+
+# Returns
+- Frequency of most prominent peak, or NaN if no significant peak found
+
+# Notes
+- Uses peak prominence for robustness
+- Filters peaks by minimum prominence threshold
+- Returns NaN if no peaks meet criteria
 """
 function find_oscillation_peak(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real};
                                min_freq::Real=5.0 / 1000.0,

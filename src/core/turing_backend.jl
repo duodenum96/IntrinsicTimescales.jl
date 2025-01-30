@@ -7,6 +7,17 @@ using ..Models
 
 export fit_vi, TuringResult
 
+"""
+    TuringResult{T<:Real}
+
+Container for ADVI (Automatic Differentiation Variational Inference) results.
+
+# Fields
+- `samples::AbstractArray{T}`: Matrix of posterior samples
+- `MAP::AbstractVector{T}`: Maximum a posteriori estimates
+- `variances::AbstractVector{T}`: Posterior variances for each parameter
+- `chain`: Turing chain object containing full inference results
+"""
 struct TuringResult{T<:Real}
     samples::AbstractArray{T}
     MAP::AbstractVector{T}
@@ -14,11 +25,24 @@ struct TuringResult{T<:Real}
     chain::Any
 end
 
-
 """
     create_turing_model(model, data_sum_stats; σ_prior=Exponential(1))
 
-Creates a Turing model for the given model object and summary statistics.
+Create a Turing probabilistic model for variational inference.
+
+# Arguments
+- `model`: Model instance containing prior distributions and data generation methods
+- `data_sum_stats`: Summary statistics of the observed data
+- `σ_prior=Exponential(1)`: Prior distribution for the uncertainty parameter σ
+
+# Returns
+- Turing model object ready for inference
+
+# Notes
+The created model includes:
+- Parameter sampling from truncated priors (positive values only)
+- Data generation using the model's forward simulation
+- Likelihood computation using Normal distribution
 """
 function create_turing_model(model, data_sum_stats; σ_prior=Exponential(1))
     Turing.@model function fit_summary_stats(model, data)
@@ -43,16 +67,28 @@ function create_turing_model(model, data_sum_stats; σ_prior=Exponential(1))
 end
 
 """
-    TuringResult{T<:Real}
-
-Type-parameterized struct to hold ADVI results.
-"""
-
-"""
     fit_vi(model; n_samples=4000, n_iterations=10, n_elbo_samples=20, 
            optimizer=AutoForwardDiff())
 
-Fits a model using Variational Inference through Turing.
+Perform variational inference using ADVI (Automatic Differentiation Variational Inference).
+
+# Arguments
+- `model`: Model instance to perform inference on
+- `n_samples::Int=4000`: Number of posterior samples to draw
+- `n_iterations::Int=10`: Number of ADVI iterations
+- `n_elbo_samples::Int=20`: Number of samples for ELBO estimation
+- `optimizer=AutoForwardDiff()`: Optimization algorithm for ADVI
+
+# Returns
+- `TuringResult`: Container with inference results including:
+  - Posterior samples
+  - MAP estimates
+  - Parameter variances
+  - Full Turing chain
+
+# Notes
+Uses Turing.jl's ADVI implementation for fast approximate Bayesian inference.
+The model is automatically constructed with appropriate priors and likelihood.
 """
 function fit_vi(model; n_samples=4000, n_iterations=10, n_elbo_samples=20, 
                 optimizer=AutoForwardDiff())

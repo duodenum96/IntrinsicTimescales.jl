@@ -17,6 +17,21 @@ using KernelDensity
 
 export basic_abc, pmc_abc, effective_sample_size, weighted_covar, find_MAP, get_param_dict_abc
 
+"""
+    draw_theta_pmc(model, theta_prev, weights, tau_squared; jitter::Float64=1e-5)
+
+Draw new parameter values using the PMC proposal distribution.
+
+# Arguments
+- `model`: Model instance
+- `theta_prev`: Previously accepted parameters
+- `weights`: Importance weights from previous iteration
+- `tau_squared`: Covariance matrix for proposal distribution
+- `jitter::Float64=1e-5`: Small value added to covariance diagonal for numerical stability
+
+# Returns
+- Vector of proposed parameters
+"""
 function draw_theta_pmc(model, theta_prev, weights, tau_squared; jitter::Float64=1e-5)
     @inbounds theta_star = theta_prev[sb.sample(collect(1:length(theta_prev)),
                                                 sb.pweights(weights)),
@@ -36,7 +51,33 @@ function draw_theta_pmc(model, theta_prev, weights, tau_squared; jitter::Float64
 end
 
 """
-Basic ABC rejection sampling algorithm
+    basic_abc(model::Models.AbstractTimescaleModel; kwargs...)
+
+Perform basic ABC rejection sampling.
+
+# Arguments
+- `model::Models.AbstractTimescaleModel`: Model to perform inference on
+- `epsilon::Float64`: Acceptance threshold
+- `max_iter::Integer`: Maximum number of iterations
+- `min_accepted::Integer`: Minimum number of accepted samples required
+- `pmc_mode::Bool=false`: Whether to use PMC proposal distribution
+- `weights=Array{Float64}`: Importance weights (used in PMC mode)
+- `theta_prev=Array{Float64}`: Previous parameters (used in PMC mode)
+- `tau_squared=Array{Float64}`: Covariance matrix (used in PMC mode)
+- `show_progress::Bool=true`: Whether to show progress bar
+
+# Returns
+NamedTuple containing:
+- `samples`: All proposed parameters
+- `isaccepted`: Boolean mask of accepted samples
+- `theta_accepted`: Accepted parameters
+- `distances`: Distances for all proposals
+- `n_accepted`: Number of accepted samples
+- `n_total`: Total number of iterations
+- `epsilon`: Acceptance threshold used
+- `weights`: Sample weights (uniform in basic ABC)
+- `tau_squared`: Covariance matrix (zeros in basic ABC)
+- `eff_sample`: Effective sample size
 """
 function basic_abc(model::Models.AbstractTimescaleModel;
                    epsilon::Float64,
@@ -342,14 +383,19 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 end
 
 """
-Calculates importance weights for PMC-ABC algorithm.
+    calc_weights(theta_prev, theta, tau_squared, weights, prior)
 
-Parameters:
-    theta_prev: Previous accepted parameters
-    theta: Current parameters
-    tau_squared: Covariance matrix for proposal distribution
-    weights: Previous importance weights
-    prior: Prior distribution(s)
+Calculate importance weights for PMC-ABC algorithm.
+
+# Arguments
+- `theta_prev`: Previously accepted parameters
+- `theta`: Current parameters
+- `tau_squared`: Covariance matrix for proposal distribution
+- `weights`: Previous importance weights
+- `prior`: Prior distribution(s)
+
+# Returns
+- Vector of normalized importance weights
 """
 function calc_weights(theta_prev::Union{Vector{Float64}, Matrix{Float64}},
                       theta::Union{Vector{Float64}, Matrix{Float64}},
@@ -401,16 +447,16 @@ function calc_weights(theta_prev::Union{Vector{Float64}, Matrix{Float64}},
 end
 
 """
-    weighted_covar(x::Union{Vector{Float64}, Matrix{Float64}}, w::Vector{Float64})
+    weighted_covar(x::Matrix{Float64}, w::Vector{Float64})
 
-Calculates weighted covariance matrix.
+Calculate weighted covariance matrix.
 
 # Arguments
-- `x`: 1 or 2 dimensional array of values
-- `w`: 1 dimensional array of weights
+- `x`: Matrix of values where each row is an observation
+- `w`: Vector of weights corresponding to each observation
 
 # Returns
-- Weighted covariance matrix of x or weighted variance if x is 1d
+- Weighted covariance matrix
 """
 function weighted_covar(x::Matrix{Float64}, w::Vector{Float64})
     # Normalize weights to ensure they sum to 1
@@ -445,6 +491,17 @@ function weighted_covar(x::Matrix{Float64}, w::Vector{Float64})
     end
 end
 
+"""
+    effective_sample_size(w::Vector{Float64})
+
+Calculate effective sample size from importance weights.
+
+# Arguments
+- `w`: Vector of importance sampling weights
+
+# Returns
+- Float64: Effective sample size
+"""
 function effective_sample_size(w::Vector{Float64})
     """
     Calculates effective sample size
@@ -618,6 +675,22 @@ function find_MAP(theta_accepted::AbstractArray{Float64}, N::Integer=10000)
     return theta_map
 end
 
+"""
+    get_param_dict_abc()
+
+Get default parameter dictionary for ABC algorithm.
+
+# Returns
+Dictionary containing default values for all ABC parameters including:
+- Basic ABC parameters (epsilon_0, max_iter, etc.)
+- Acceptance rate parameters
+- Display parameters
+- Numerical stability parameters
+- Epsilon selection parameters
+- Adaptive alpha parameters
+- Early stopping parameters
+- MAP estimation parameters
+"""
 function get_param_dict_abc()
     return Dict(:epsilon_0 => 1.0,
                 :max_iter => 10000,
