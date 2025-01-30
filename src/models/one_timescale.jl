@@ -6,11 +6,8 @@ using Distributions
 using ..Models
 using ..OrnsteinUhlenbeck
 using INT
-using Optimization
-using OptimizationOptimJL
 using ComponentArrays
 using DifferentiationInterface
-import Enzyme
 
 export one_timescale_model, OneTimescaleModel
 
@@ -87,7 +84,7 @@ Construct a OneTimescaleModel for time series analysis.
 # Arguments
 - `data`: Input time series data
 - `time`: Time points corresponding to the data
-- `fit_method`: Fitting method to use (:abc, :optimization, :acw, or :advi)
+- `fit_method`: Fitting method to use (:abc, :acw, or :advi)
 
 # Keyword Arguments
 - `summary_method=:acf`: Summary statistic type (:psd or :acf)
@@ -130,7 +127,7 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
                              weights=[0.5, 0.5], data_tau=nothing, u0=nothing)
 
     # case 1: acf and abc or advi
-    if summary_method == :acf && (fit_method == :abc || fit_method == :advi)
+    if summary_method == :acf
         acf = comp_ac_fft(data)
         acf_mean = mean(acf, dims=1)[:]
         lags_samples = 0.0:(size(data, dims)-1)
@@ -147,7 +144,7 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
             distance_method = :linear
         end
 
-        if distance_combined || fit_method == :optimization
+        if distance_combined
             data_tau = fit_expdecay(lags_freqs, data_sum_stats)
             u0 = [data_tau]
         end
@@ -158,7 +155,7 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
                                  numTrials, data_mean, data_sd, freqlims, n_lags, freq_idx,
                                  dims, distance_combined, weights, data_tau, u0)
         # case 2: psd
-    elseif summary_method == :psd && (fit_method == :abc || fit_method == :advi)
+    elseif summary_method == :psd
         fs = 1 / dt
         psd, freqs = comp_psd(data, fs)
         mean_psd = mean(psd, dims=1)
@@ -185,50 +182,6 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
                                  acwtypes, distance_method, data_sum_stats, dt, T,
                                  numTrials, data_mean, data_sd, freqlims, n_lags, freq_idx,
                                  dims, distance_combined, weights, data_tau, u0)
-        # case 3: acw
-    elseif fit_method == :acw
-        possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
-        acf_acwtypes = [:acw0, :acw50, :acweuler, :tau]
-        n_acw = length(acwtypes)
-        if n_acw == 0
-            error("No ACW types specified. Possible ACW types: $(possible_acwtypes)")
-        end
-        result = Vector{Vector{<:Real}}(undef, n_acw)
-        acwtypes = check_acwtypes(acwtypes, possible_acwtypes)
-        if any(in.(acf_acwtypes, [acwtypes]))
-            acf = comp_ac_fft(data; dims=dims)
-            lags_samples = 0.0:(size(data, dims)-1)
-            lags = lags_samples * dt
-            if any(in.(:acw0, [acwtypes]))
-                acw0_idx = findfirst(acwtypes .== :acw0)
-                acw0_result = acw0(lags, acf; dims=dims)
-                result[acw0_idx] = acw0_result
-            end
-            if any(in.(:acw50, [acwtypes]))
-                acw50_idx = findfirst(acwtypes .== :acw50)
-                acw50_result = acw50(lags, acf; dims=dims)
-                result[acw50_idx] = acw50_result
-            end
-            if any(in.(:acweuler, [acwtypes]))
-                acweuler_idx = findfirst(acwtypes .== :acweuler)
-                acweuler_result = acweuler(lags, acf; dims=dims)
-                result[acweuler_idx] = acweuler_result
-            end
-            if any(in.(:tau, [acwtypes]))
-                tau_idx = findfirst(acwtypes .== :tau)
-                tau_result = fit_expdecay(collect(lags), acf; dims=dims)
-                result[tau_idx] = tau_result
-            end
-        end
-
-        if any(in.(:knee, [acwtypes]))
-            knee_idx = findfirst(acwtypes .== :knee)
-            fs = 1 / dt
-            psd, freqs = comp_psd(data, fs, dims=dims)
-            knee_result = tau_from_knee(find_knee_frequency(psd, freqs; dims=dims))
-            result[knee_idx] = knee_result
-        end
-        return result
     end
 end
 

@@ -18,7 +18,6 @@ import StatsBase as sb
 using Missings
 using LinearAlgebra
 import LombScargle as ls
-using Infiltrator
 include("bat_autocor.jl")
 
 export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing,

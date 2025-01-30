@@ -4,8 +4,6 @@ using Distributions
 using INT
 using INT.OneTimescale
 using INT.Models
-using Optimization
-using OptimizationOptimJL
 using DifferentiationInterface
 
 

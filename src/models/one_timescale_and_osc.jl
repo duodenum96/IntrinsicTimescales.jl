@@ -160,7 +160,7 @@ function one_timescale_and_osc_model(data, time, fit_method;
                                      data_tau=nothing, data_osc=nothing)
 
     # case 1: acf and abc or advi
-    if summary_method == :acf && (fit_method == :abc || fit_method == :advi)
+    if summary_method == :acf
         acf = comp_ac_fft(data)
         acf_mean = mean(acf, dims=1)[:]
         lags_samples = 0.0:(size(data, dims)-1)
@@ -187,13 +187,8 @@ function one_timescale_and_osc_model(data, time, fit_method;
                                        numTrials, data_mean, data_sd, freqlims, n_lags,
                                        freq_idx,
                                        dims, distance_combined, weights, data_tau, data_osc)
-
-        # case 2: acf and optimization
-    elseif summary_method == :acf && fit_method == :optimization
-        error("Optimization not implemented yet.")
-
         # case 3: psd and abc or advi
-    elseif summary_method == :psd && (fit_method == :abc || fit_method == :advi)
+    elseif summary_method == :psd
         fs = 1 / dt
         psd, freqs = comp_psd_adfriendly(data, fs)
         mean_psd = mean(psd, dims=1)
@@ -231,54 +226,6 @@ function one_timescale_and_osc_model(data, time, fit_method;
                                        freq_idx, dims, distance_combined, weights, data_tau,
                                        data_osc)
 
-        # case 4: psd and optimization
-    elseif summary_method == :psd && fit_method == :optimization
-        error("Optimization not implemented yet.")
-
-        # case 5: acw
-    elseif fit_method == :acw
-        possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
-        acf_acwtypes = [:acw0, :acw50, :acweuler, :tau]
-        n_acw = length(acwtypes)
-        if n_acw == 0
-            error("No ACW types specified. Possible ACW types: $(possible_acwtypes)")
-        end
-        result = Vector{Vector{<:Real}}(undef, n_acw)
-        acwtypes = check_acwtypes(acwtypes, possible_acwtypes)
-        if any(in.(acf_acwtypes, [acwtypes]))
-            acf = comp_ac_fft(data; dims=dims)
-            lags_samples = 0.0:(size(data, dims)-1)
-            lags = lags_samples * dt
-            if any(in.(:acw0, [acwtypes]))
-                acw0_idx = findfirst(acwtypes .== :acw0)
-                acw0_result = acw0(lags, acf; dims=dims)
-                result[acw0_idx] = acw0_result
-            end
-            if any(in.(:acw50, [acwtypes]))
-                acw50_idx = findfirst(acwtypes .== :acw50)
-                acw50_result = acw50(lags, acf; dims=dims)
-                result[acw50_idx] = acw50_result
-            end
-            if any(in.(:acweuler, [acwtypes]))
-                acweuler_idx = findfirst(acwtypes .== :acweuler)
-                acweuler_result = acweuler(lags, acf; dims=dims)
-                result[acweuler_idx] = acweuler_result
-            end
-            if any(in.(:tau, [acwtypes]))
-                tau_idx = findfirst(acwtypes .== :tau)
-                tau_result = fit_expdecay(collect(lags), acf; dims=dims)
-                result[tau_idx] = tau_result
-            end
-        end
-
-        if any(in.(:knee, [acwtypes]))
-            knee_idx = findfirst(acwtypes .== :knee)
-            fs = 1 / dt
-            psd, freqs = comp_psd_adfriendly(data, fs, dims=dims)
-            knee_result = tau_from_knee(find_knee_frequency(psd, freqs; dims=dims))
-            result[knee_idx] = knee_result
-        end
-        return result
     end
 end
 

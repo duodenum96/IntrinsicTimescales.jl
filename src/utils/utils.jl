@@ -103,7 +103,7 @@ Compute the ACW50 (autocorrelation width at 50%) along specified dimension.
 - Used for estimating characteristic timescales
 - Related to tau by: tau = -acw50/log(0.5)
 """
-function acw50(lags::AbstractVector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+function acw50(lags::AbstractVector{T}, acf::AbstractVector{T}; dims::Int=ndims(acf)) where {T <: Real}
     lags[findfirst(acf .<= 0.5)]
 end
 

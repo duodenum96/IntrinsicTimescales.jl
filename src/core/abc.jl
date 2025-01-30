@@ -6,7 +6,6 @@
 
 module ABC
 
-using Infiltrator
 using ..Models
 using Statistics
 import Distributions as dist

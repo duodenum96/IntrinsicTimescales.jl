@@ -21,7 +21,7 @@ Base model structure for timescale inference using various methods.
 - `data`: Input time series data
 - `time`: Time points corresponding to the data
 - `data_sum_stats`: Pre-computed summary statistics of the data
-- `fitmethod::Symbol`: Fitting method to use. Options: `:abc`, `:optimization`, `:acw`
+- `fitmethod::Symbol`: Fitting method to use. Options: `:abc`, `:advi`, `:acw`
 - `summary_method::Symbol`: Summary statistic type. Options: `:psd` (power spectral density) or `:acf` (autocorrelation)
 - `lags_freqs::AbstractVector{<:Real}`: Lags (for ACF) or frequencies (for PSD) at which to compute summary statistics
 - `prior`: Prior distributions for parameters. Can be Vector{Distribution}, single Distribution, or "informed_prior"
@@ -37,7 +37,7 @@ struct BaseModel <: AbstractTimescaleModel
     data
     time
     data_sum_stats
-    fitmethod::Symbol # can be "abc", "optimization", "acw"
+    fitmethod::Symbol # can be "abc", "advi", "acw"
     summary_method::Symbol # :psd or :acf
     lags_freqs::AbstractVector{<:Real} # :lags if summary method is acf, freqs otherwise
     prior::Union{Vector{<:Distribution}, Distribution, String} # Vector of prior distributions or string for "informed_prior"
@@ -106,6 +106,26 @@ function distance_function end
 
 function rescale_theta end
 
+"""
+    solve(model::AbstractTimescaleModel, param_dict=nothing)
+
+Fit the timescale model using the specified fitting method.
+
+# Arguments
+- `model`: The timescale model instance to fit
+- `param_dict`: Optional dictionary of fitting parameters. If not provided, default parameters will be used.
+
+# Returns
+For ADVI fitting method:
+- `samples`: Array of posterior samples
+- `map_estimate`: Maximum a posteriori estimate of parameters
+- `vi_result`: Full variational inference result object
+
+For ABC fitting method:
+- `samples`: Array of accepted parameter samples
+- `weights`: Importance weights for the samples
+- `distances`: Distances between simulated and observed summary statistics
+"""
 function solve(model::AbstractTimescaleModel, param_dict=nothing) end
 
 # Combined generation and reduction step
@@ -164,8 +184,8 @@ Validate the fitting method and summary statistic choices.
 - `ArgumentError`: If invalid options are provided
 """
 function check_inputs(fitmethod, summary_method)
-    if !(fitmethod in [:abc, :optimization, :acw])
-        throw(ArgumentError("fitmethod must be :abc, :optimization, or :acw"))
+    if !(fitmethod in [:abc, :advi, :acw])
+        throw(ArgumentError("fitmethod must be :abc, :advi, or :acw"))
     end
 
     if !(summary_method in [:acf, :psd])

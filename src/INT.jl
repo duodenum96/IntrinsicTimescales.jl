@@ -71,6 +71,9 @@ include("models/one_timescale_and_osc_with_missing.jl")
 include("core/turing_backend.jl")
 @reexport using .TuringBackend
 
+include("core/acw.jl")
+@reexport using .ACW
+
 export AbstractTimescaleModel,
        BaseModel,
        generate_ou_process,
