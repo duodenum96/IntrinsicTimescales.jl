@@ -5,7 +5,7 @@ module OneTimescale
 using Distributions
 using ..Models
 using ..OrnsteinUhlenbeck
-using BayesianINT
+using INT
 using Optimization
 using OptimizationOptimJL
 using ComponentArrays

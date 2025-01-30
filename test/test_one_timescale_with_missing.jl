@@ -1,10 +1,10 @@
 using Test
 using Statistics
 using Distributions
-using BayesianINT
-using BayesianINT.OrnsteinUhlenbeck
-using BayesianINT.OneTimescaleWithMissing
-using BayesianINT.Models
+using INT
+using INT.OrnsteinUhlenbeck
+using INT.OneTimescaleWithMissing
+using INT.Models
 using NaNStatistics
 
 @testset "OneTimescaleWithMissing Model Tests" begin

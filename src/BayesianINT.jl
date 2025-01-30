@@ -1,5 +1,5 @@
 """
-    BayesianINT
+    INT
 
 A Julia package for Bayesian inference of timescales in time series data.
 
@@ -28,7 +28,7 @@ A Julia package for Bayesian inference of timescales in time series data.
 - `OneTimescaleWithMissing`: Single timescale with missing data
 - `OneTimescaleAndOscWithMissing`: Single timescale and oscillations with missing data
 """
-module BayesianINT
+module INT
 
 using Revise
 using Reexport

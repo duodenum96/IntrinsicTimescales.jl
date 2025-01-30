@@ -1,9 +1,9 @@
 using Test
 using Statistics
 using Distributions
-using BayesianINT
-using BayesianINT.OneTimescaleAndOsc
-using BayesianINT.Models
+using INT
+using INT.OneTimescaleAndOsc
+using INT.Models
 using DifferentiationInterface
 
 @testset "OneTimescaleAndOsc Model Tests" begin

@@ -1,6 +1,6 @@
 using Test
 using Distributions
-using BayesianINT
+using INT
 using Statistics
 using StatsBase
 using LinearAlgebra

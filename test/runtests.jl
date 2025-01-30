@@ -1,7 +1,7 @@
-using BayesianINT
+using INT
 using Test
 
-@testset "BayesianINT.jl" begin
+@testset "INT.jl" begin
     # Include all test files
     include("test_summary_stats.jl")
     include("test_distances.jl")

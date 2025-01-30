@@ -1,9 +1,9 @@
 using Test
 using Statistics
 using Distributions
-using BayesianINT
-using BayesianINT.OneTimescale
-using BayesianINT.Models
+using INT
+using INT.OneTimescale
+using INT.Models
 using Optimization
 using OptimizationOptimJL
 using DifferentiationInterface
@@ -295,7 +295,7 @@ using DifferentiationInterface
         )
 
         # Test with default parameters
-        result = BayesianINT.solve(model)
+        result = INT.solve(model)
         samples = result.samples
         map_estimate = result.MAP
         chain = result.chain
@@ -312,7 +312,7 @@ using DifferentiationInterface
             :optimizer => AutoForwardDiff()
         )
         
-        result2 = BayesianINT.solve(model, param_dict)
+        result2 = INT.solve(model, param_dict)
         samples2 = result2.samples
         map_estimate2 = result2.MAP
         chain2 = result2.chain

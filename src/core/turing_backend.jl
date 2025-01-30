@@ -2,7 +2,7 @@ module TuringBackend
 
 using Turing
 using Statistics
-using BayesianINT
+using INT
 using ..Models
 
 export fit_vi, TuringResult

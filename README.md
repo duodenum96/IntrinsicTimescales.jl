@@ -1,1 +1,1 @@
-# BayesianINT
+# INT

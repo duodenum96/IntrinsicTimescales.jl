@@ -14,8 +14,8 @@ using Distributions
 using Statistics
 using ..Models
 using ..OrnsteinUhlenbeck
-using BayesianINT.Utils
-using BayesianINT
+using INT.Utils
+using INT
 using NaNStatistics
 using DifferentiationInterface
 

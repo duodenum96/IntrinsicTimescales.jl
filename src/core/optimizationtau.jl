@@ -3,7 +3,7 @@ module OptimizationTau
 using Optimization
 using Optim
 using ForwardDiff
-using BayesianINT
+using INT
 
 # This thing is not needed.  
 

@@ -1,10 +1,10 @@
 using Test
 using Distributions
-using BayesianINT
+using INT
 using Statistics
-using BayesianINT
-using BayesianINT.Models
-using BayesianINT.OrnsteinUhlenbeck
+using INT
+using INT.Models
+using INT.OrnsteinUhlenbeck
 using LinearAlgebra
 BLAS.set_num_threads(20)
 # using Plots

@@ -7,8 +7,8 @@ using Distributions
 using Statistics
 using ..Models
 using ..OrnsteinUhlenbeck
-using BayesianINT.Utils
-using BayesianINT
+using INT.Utils
+using INT
 using DifferentiationInterface
 
 export one_timescale_and_osc_model, OneTimescaleAndOscModel

@@ -2,7 +2,7 @@
 using Test
 using Statistics
 using Distributions
-using BayesianINT
+using INT
 
 @testset "OU Process Generation" begin
         tau = 0.5

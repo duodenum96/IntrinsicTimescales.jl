@@ -14,7 +14,7 @@ using Distributions
 using ..Models
 using ..OrnsteinUhlenbeck
 using NaNStatistics
-using BayesianINT
+using INT
 using DifferentiationInterface
 
 export OneTimescaleWithMissingModel, one_timescale_with_missing_model

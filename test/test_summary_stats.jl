@@ -1,7 +1,7 @@
 # test/test_summary_stats.jl
 using Statistics
 using Test
-using BayesianINT
+using INT
 
 # Helper function to find local maxima
 function findlocalmaxima(x)

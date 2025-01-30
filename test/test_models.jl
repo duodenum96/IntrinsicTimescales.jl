@@ -1,6 +1,6 @@
 # test/test_models.jl
 using Distributions
-using BayesianINT
+using INT
 using Test
 # @testset "Two Timescale Model" begin
 #     @testset "Parameter Generation" begin

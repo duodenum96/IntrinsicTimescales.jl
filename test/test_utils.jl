@@ -1,8 +1,8 @@
 using Test
-using BayesianINT.Utils
+using INT.Utils
 using Random
-using BayesianINT.OrnsteinUhlenbeck
-using BayesianINT.SummaryStats
+using INT.OrnsteinUhlenbeck
+using INT.SummaryStats
 
 @testset "find_knee_frequency tests" begin
     # Test 1: Perfect Lorentzian

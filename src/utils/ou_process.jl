@@ -10,7 +10,7 @@ module OrnsteinUhlenbeck
 using Revise
 using Random
 using Distributions
-using BayesianINT
+using INT
 using ..Models
 using NonlinearSolve
 import DifferentialEquations as deq

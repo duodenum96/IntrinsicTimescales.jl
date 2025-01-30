@@ -3,7 +3,7 @@ module TwoTimescaleModels
 
 using ..Models
 using Distributions
-using BayesianINT
+using INT
 
 export TwoTimescaleModel
 
