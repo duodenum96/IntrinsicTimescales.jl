@@ -2,40 +2,7 @@
 using Distributions
 using INT
 using Test
-# @testset "Two Timescale Model" begin
-#     @testset "Parameter Generation" begin
-#         prior = [
-#             Uniform(0.0, 60.0), # tau1
-#             Uniform(20.0, 140.0), # tau2
-#             Uniform(0.0, 1.0) # p
-#         ]
-        
-#         model = TwoTimescaleModel(
-#             randn(10, 100),  # dummy data
-#             prior,
-#             zeros(10),      # dummy summary stats
-#             1.0,            # epsilon
-#             1.0,            # dt
-#             100.0,          # T
-#             10,             # numTrials
-#             1.0,             # data_var
-#             10              # n_lags
-#         )
-        
-#         # Test parameter drawing
-#         theta = Models.draw_theta(model)
-#         @test length(theta) == 3
-#         @test 0 ≤ theta[1] ≤ 60
-#         @test 20 ≤ theta[2] ≤ 140
-#         @test 0 ≤ theta[3] ≤ 1
-        
-#         # Test data generation
-#         data = Models.generate_data(model, theta)
-#         @test size(data) == (10, 100)
-#         # @test abs(mean(data) - model.data_mean) < 0.1
-#         # @test abs(var(data) - model.data_var) < 0.1
-#     end
-# end
+using INT.Models
 
 @testset "OneTimescaleAndOscWithMissing Model" begin
     @testset "Parameter Generation and Data" begin
@@ -94,4 +61,81 @@ using Test
         @test distance > 0
     end
 end
+
+# NOTE: There are too many tests here due to for loops, commenting them for now but 
+# no errors when I run. 
+# @testset "Data reshaping tests" begin
+#     @testset "2D data with different time dimensions" begin
+#         # Create test data with identifiable pattern: 10 trials x 100 timepoints
+#         data_time_last = [i + j/100 for i in 1:10, j in 1:100]
+#         time = collect(1:100)
+        
+#         # Test when dims matches ndims (should not reshape)
+#         data, dims = check_model_inputs(data_time_last, time, :abc, :acf, "informed_prior", :linear, 2)
+#         @test size(data) == size(data_time_last)
+#         @test all(data .== data_time_last)
+        
+#         # Test when time is in first dimension
+#         time = collect(1:10)
+#         data_time_first = [i + j/100 for j in 1:10, i in 1:100]  # Note: i and j swapped in both position and value
+#         data, dims = check_model_inputs(data_time_first, time, :abc, :acf, "informed_prior", :linear, 1)
+#         @test size(data) == (100, 10)
+#         # Check specific elements to ensure correct reshaping
+#         for j in 1:10, i in 1:100
+#             @test data[i,j] ≈ data_time_first[j,i]
+#             @test data[i,j] ≈ i + j/100
+#         end
+#     end
+
+#     @testset "3D data with different time dimensions" begin
+#         # Create test data with identifiable pattern: 5 channels x 10 trials x 100 timepoints
+#         data_time_last = [c + t + tp/100 for c in 1:5, t in 1:10, tp in 1:100]
+#         time = collect(1:100)
+        
+#         # Test when dims matches ndims (should not reshape)
+#         data, dims = check_model_inputs(data_time_last, time, :abc, :acf, "informed_prior", :linear, 3)
+#         @test size(data) == size(data_time_last)
+#         @test all(data .== data_time_last)
+        
+#         # Test when time is in first dimension
+#         data_time_first = [c + t + tp/100 for tp in 1:100, c in 1:5, t in 1:10]  # Note order of indices
+#         data, dims = check_model_inputs(data_time_first, time, :abc, :acf, "informed_prior", :linear, 1)
+#         @test size(data) == (5, 10, 100)
+#         for c in 1:5, t in 1:10, tp in 1:100
+#             @test data[c,t,tp] ≈ data_time_first[tp,c,t]
+#             @test data[c,t,tp] ≈ c + t + tp/100  # This should match the original pattern
+#         end
+        
+#         # Test when time is in middle dimension
+#         data_time_middle = [c + t + tp/100 for c in 1:5, tp in 1:100, t in 1:10]
+#         data, dims = check_model_inputs(data_time_middle, time, :abc, :acf, "informed_prior", :linear, 2)
+#         @test size(data) == (5, 10, 100)
+#         for c in 1:5, t in 1:10, tp in 1:100
+#             @test data[c,t,tp] ≈ data_time_middle[c,tp,t]
+#             @test data[c,t,tp] ≈ c + t + tp/100
+#         end
+#     end
+
+#     @testset "1D data handling" begin
+#         # Test vector data with identifiable pattern
+#         data_vector = [t/100 for t in 1:100]
+#         time = collect(1:100)
+#         data, dims = check_model_inputs(data_vector, time, :abc, :acf, "informed_prior", :linear)
+#         @test size(data) == (1, 100)
+#         for t in 1:100
+#             @test data[1,t] ≈ data_vector[t]
+#             @test data[1,t] ≈ t/100
+#         end
+#     end
+
+#     @testset "Error cases" begin
+#         data = rand(10, 100)
+#         time = collect(1:50)  # Wrong length
+        
+#         # Test mismatched time vector length
+#         @test_throws ArgumentError check_model_inputs(
+#             data, time, :abc, :acf, "informed_prior", :linear, 2
+#         )
+#     end
+# end 
 

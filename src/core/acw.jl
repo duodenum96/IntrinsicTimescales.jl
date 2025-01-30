@@ -18,6 +18,11 @@ possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
 function acw(data, fs, acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing,
              dims=size(data, ndims(data)))
 
+    if data isa AbstractVector
+        data = reshape(data, (1, length(data)))
+        dims = size(data, ndims(data))
+    end
+
     if acwtypes isa Symbol
         acwtypes = [acwtypes]
     end

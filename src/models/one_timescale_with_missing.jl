@@ -141,6 +141,7 @@ function one_timescale_with_missing_model(data, time, fit_method;
                                           distance_combined=false,
                                           weights=[0.5, 0.5],
                                           data_tau=nothing)
+    data, dims = check_model_inputs(data, time, fit_method, summary_method, prior, distance_method)
     missing_mask = isnan.(data)
 
     # case 1: acf and abc or advi

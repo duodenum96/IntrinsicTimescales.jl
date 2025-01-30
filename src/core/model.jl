@@ -2,7 +2,7 @@ module Models
 
 using Distributions
 
-export AbstractTimescaleModel, BaseModel, check_inputs, check_acwtypes, solve
+export AbstractTimescaleModel, BaseModel, check_inputs, check_acwtypes, solve, check_model_inputs
 
 """
     AbstractTimescaleModel
@@ -216,6 +216,75 @@ function check_acwtypes(acwtypes, possible_acwtypes)
         error("Possible acwtypes: $(possible_acwtypes)")
     end
     return acwtypes
+end
+
+"""
+    check_model_inputs(data, time, fit_method, summary_method, prior, acwtypes, distance_method)
+
+Validate inputs for timescale model construction.
+
+# Arguments
+- `data`: Input time series data
+- `time`: Time points corresponding to the data
+- `fit_method`: Fitting method (:abc, :advi)
+- `summary_method`: Summary statistic type (:psd or :acf)
+- `prior`: Prior distribution(s) for parameters
+- `acwtypes`: Types of ACW analysis
+- `distance_method`: Distance metric type (:linear or :logarithmic)
+
+# Throws
+- `ArgumentError`: If any inputs are invalid or incompatible
+"""
+function check_model_inputs(data, time, fit_method, summary_method, prior, distance_method, dims=ndims(data))
+    if data isa AbstractVector
+        data = reshape(data, (1, length(data)))
+        dims = ndims(data)
+    end
+
+    # If dims doesn't match ndims(data), permute dimensions to put time axis last
+    if dims != ndims(data)
+        # Calculate permutation order
+        other_dims = deleteat!(collect(1:ndims(data)), dims)
+        perm = [other_dims..., dims]
+        
+        # Permute dimensions
+        data = permutedims(data, perm)
+        dims = ndims(data)
+    end
+    
+    # Check data and time
+    if length(time) != size(data, ndims(data))
+        throw(ArgumentError("Time vector length must match data length"))
+    end
+    
+    if !issorted(time)
+        throw(ArgumentError("Time vector must be monotonically increasing"))
+    end
+    
+    # Check fit method
+    if !(fit_method in [:abc, :advi, :acw])
+        throw(ArgumentError("fit_method must be :abc, :advi, or :acw"))
+    end
+    
+    # Check summary method
+    if !(summary_method in [:acf, :psd])
+        throw(ArgumentError("summary_method must be :acf or :psd"))
+    end
+    
+    # Check prior if using abc/advi
+    if fit_method in [:abc, :advi]
+        if isnothing(prior) && prior != "informed_prior"
+            throw(ArgumentError("prior must be specified or set to \"informed_prior\" for abc/advi methods"))
+        end
+    end
+    
+    # Check distance method
+    if !isnothing(distance_method)
+        if !(distance_method in [:linear, :logarithmic])
+            throw(ArgumentError("distance_method must be :linear or :logarithmic"))
+        end
+    end
+    return data, dims
 end
 
 end # module
