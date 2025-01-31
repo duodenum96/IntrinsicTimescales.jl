@@ -424,9 +424,6 @@ function comp_ac_time_missing(data::AbstractVector{T}; n_lags::Integer=length(da
     ss = sum(abs2, x) / n
 
     for lag in lags
-        # Create mask for valid pairs at this lag
-        valid_pairs = notmask_bool[1:(n-lag)] .& notmask_bool[(lag+1):n]
-        
         # Compute autocovariance using masked values
         # The zeros we inserted for NaNs will not contribute to the sum
         ac[lag+1] = sum(view(x, 1:(n-lag)) .* view(x, (lag+1):n)) / n
