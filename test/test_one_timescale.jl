@@ -182,14 +182,14 @@ using ABC
             param_dict[:max_iter] = 10000
             param_dict[:target_epsilon] = 1e-2
             
-            posterior_samples, posterior_MAP, abc_container = Models.solve(model, param_dict)
+            posterior_samples, posterior_MAP, abc_results = Models.solve(model, param_dict)
             
             # Test posterior properties
             @test posterior_MAP[1] ≈ true_tau atol=10.0
             @test size(posterior_samples, 2) == 1  # One parameter (tau)
             @test !isempty(posterior_samples)
             @test !any(isnan, posterior_samples)
-            @test abc_container isa ABC.ABCContainer
+            @test abc_results isa ABC.ABCResults
         end
         
         @testset "ABC Inference - PSD" begin
@@ -211,7 +211,7 @@ using ABC
             param_dict[:N] = 10000
             param_dict[:distance_max] = 500.0
             
-            posterior_samples, posterior_MAP, abc_container = Models.solve(model, param_dict)
+            posterior_samples, posterior_MAP, abc_results = Models.solve(model, param_dict)
             
             # Test posterior properties
             @test posterior_MAP[1] ≈ true_tau atol=10.0
@@ -220,7 +220,7 @@ using ABC
             @test !any(isnan, posterior_samples)
             
             # Test ABC convergence
-            @test abc_container.epsilon_history[end] < abc_container.epsilon_history[1]
+            @test abc_results.epsilon_history[end] < abc_results.epsilon_history[1]
         end
         
         # This is too slow, not recommended. Keeping here for completeness. 
@@ -309,7 +309,7 @@ using ABC
             :n_samples => 2000,
             :n_iterations => 5,
             :n_elbo_samples => 10,
-            :optimizer => AutoForwardDiff()
+            :autodiff => AutoForwardDiff()
         )
         
         result2 = INT.solve(model, param_dict)

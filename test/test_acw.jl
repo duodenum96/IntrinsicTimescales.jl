@@ -14,7 +14,7 @@ using Random
     data = signal + noise
 
     @testset "Basic ACW Container" begin
-        container = ACWContainer(fs, [0.0], :acw0, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
+        container = ACWResults(fs, [0.0], :acw0, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
         @test container.fs == fs
         @test container.acw_results == [0.0]
         @test container.acwtypes == :acw0

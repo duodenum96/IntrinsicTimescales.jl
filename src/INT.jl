@@ -27,6 +27,7 @@ A Julia package for Bayesian inference of timescales in time series data.
 - `OneTimescaleAndOsc`: Single timescale with oscillations
 - `OneTimescaleWithMissing`: Single timescale with missing data
 - `OneTimescaleAndOscWithMissing`: Single timescale and oscillations with missing data
+- `Plotting`: Plotting functions for results
 """
 module INT
 
@@ -73,6 +74,9 @@ include("core/turing_backend.jl")
 
 include("core/acw.jl")
 @reexport using .ACW
+
+include("core/plotting.jl")
+@reexport using .Plotting
 
 export AbstractTimescaleModel,
        BaseModel,

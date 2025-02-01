@@ -1,9 +1,11 @@
 module Plotting
 
+export plot, posterior_predictive
+
 using Plots
 colorpalette = palette(:Catppuccin_mocha)[[4, 5, 7, 9, 3, 10, 13]]
 
-function plot(container::ACWContainer; only_acf::Bool=false, only_psd::Bool=false, show::Bool=true)
+function plot(container::ACWResults; only_acf::Bool=false, only_psd::Bool=false, show::Bool=true)
     # Check if we have data to plot
     if only_acf && isnothing(container.acf)
         error("ACF data not available in container")
@@ -52,7 +54,180 @@ function plot(container::ACWContainer; only_acf::Bool=false, only_psd::Bool=fals
     return p
 end
 
+"""
+    plot(container::ABCResults, model::Models.AbstractTimescaleModel; show::Bool=true)
 
+Plot posterior predictive check for ABC results. Shows the data summary statistics (ACF or PSD)
+with posterior predictive samples overlaid.
+
+# Arguments
+- `container::ABCResults`: Container with ABC results
+- `model::Models.AbstractTimescaleModel`: Model used for inference
+- `show::Bool=true`: Whether to display the plot
+- `n_samples::Int=100`: Number of posterior samples to use for prediction
+
+# Returns
+- Plot object
+"""
+function posterior_predictive(container::ABCResults, model::Models.AbstractTimescaleModel; 
+             show::Bool=true, n_samples::Int=100)
+    
+    # Randomly sample from posterior
+    n_params = size(container.final_theta, 2)
+    sample_indices = rand(1:size(container.final_theta, 1), n_samples)
+    theta_samples = container.final_theta[sample_indices, :]
+    
+    # Generate predictions for each sample
+    predictions = zeros(n_samples, length(model.data_sum_stats))
+    for i in 1:n_samples
+        sim_data = Models.generate_data(model, theta_samples[i, :])
+        predictions[i, :] = Models.summary_stats(model, sim_data)
+    end
+    
+    # Calculate mean and quantiles of predictions
+    pred_mean = mean(predictions, dims=1)[:]
+    pred_lower = [quantile(predictions[:, i], 0.025) for i in 1:size(predictions, 2)]
+    pred_upper = [quantile(predictions[:, i], 0.975) for i in 1:size(predictions, 2)]
+    
+    # Create plot
+    p = plot()
+    
+    # Plot posterior predictive interval
+    if model.summary_method == :acf
+        if model.distance_method == :logarithmic
+            plot!(p, model.lags_freqs, pred_mean,
+                  ribbon=(pred_mean - pred_lower, pred_upper - pred_mean),
+                  fillalpha=0.3, color=colorpalette[1], label="Posterior predictive",
+                  yscale=:log10)
+            plot!(p, model.lags_freqs, model.data_sum_stats,
+                  color=:black, linewidth=2, label="Data",
+                  xlabel="Lag (s)", ylabel="Autocorrelation",
+                  title="Posterior Predictive Check - ACF",
+                  yscale=:log10)
+        else
+            plot!(p, model.lags_freqs, pred_mean,
+                  ribbon=(pred_mean - pred_lower, pred_upper - pred_mean),
+                  fillalpha=0.3, color=colorpalette[1], label="Posterior predictive")
+            plot!(p, model.lags_freqs, model.data_sum_stats,
+                  color=:black, linewidth=2, label="Data",
+                  xlabel="Lag (s)", ylabel="Autocorrelation",
+                  title="Posterior Predictive Check - ACF")
+        end
+              
+    elseif model.summary_method == :psd
+        # For PSD, use log scale if distance method is logarithmic
+        if model.distance_method == :logarithmic
+            plot!(p, model.lags_freqs, pred_mean,
+                  ribbon=(pred_mean - pred_lower, pred_upper - pred_mean),
+                  fillalpha=0.3, color=colorpalette[1], label="Posterior predictive",
+                  xscale=:log10, yscale=:log10)
+            plot!(p, model.lags_freqs, model.data_sum_stats,
+                  color=:black, linewidth=2, label="Data",
+                  xlabel="Frequency (Hz)", ylabel="Power",
+                  title="Posterior Predictive Check - PSD")
+        else
+            plot!(p, model.lags_freqs, pred_mean,
+                  ribbon=(pred_mean - pred_lower, pred_upper - pred_mean),
+                  fillalpha=0.3, color=colorpalette[1], label="Posterior predictive")
+            plot!(p, model.lags_freqs, model.data_sum_stats,
+                  color=:black, linewidth=2, label="Data",
+                  xlabel="Frequency (Hz)", ylabel="Power",
+                  title="Posterior Predictive Check - PSD")
+        end
+    end
+    
+    if show
+        display(p)
+    end
+    return p
+end
+
+"""
+    plot(container::ADVIResult, model::Models.AbstractTimescaleModel; show::Bool=true)
+
+Plot posterior predictive check for ADVI results. Shows the data summary statistics (ACF or PSD)
+with posterior predictive samples overlaid.
+
+# Arguments
+- `container::ADVIResult`: Container with ADVI results
+- `model::Models.AbstractTimescaleModel`: Model used for inference
+- `show::Bool=true`: Whether to display the plot
+- `n_samples::Int=100`: Number of posterior samples to use for prediction
+
+# Returns
+- Plot object
+"""
+function plot(container::ADVIResult, model::Models.AbstractTimescaleModel; 
+             show::Bool=true, n_samples::Int=100)
+    
+    # Randomly sample from posterior
+    sample_indices = rand(1:size(container.samples, 2), n_samples)
+    theta_samples = container.samples[:, sample_indices]'  # Transpose to match ABC format
+    
+    # Generate predictions for each sample
+    predictions = zeros(n_samples, length(model.data_sum_stats))
+    for i in 1:n_samples
+        sim_data = Models.generate_data(model, theta_samples[i, :])
+        predictions[i, :] = Models.summary_stats(model, sim_data)
+    end
+    
+    # Calculate mean and quantiles of predictions
+    pred_mean = mean(predictions, dims=1)[:]
+    pred_lower = [quantile(predictions[:, i], 0.025) for i in 1:size(predictions, 2)]
+    pred_upper = [quantile(predictions[:, i], 0.975) for i in 1:size(predictions, 2)]
+    
+    # Create plot
+    p = plot()
+    
+    # Plot posterior predictive interval
+    if model.summary_method == :acf
+        if model.distance_method == :logarithmic
+            plot!(p, model.lags_freqs, pred_mean,
+                  ribbon=(pred_mean - pred_lower, pred_upper - pred_mean),
+                  fillalpha=0.3, color=colorpalette[1], label="Posterior predictive",
+                  yscale=:log10)
+            plot!(p, model.lags_freqs, model.data_sum_stats,
+                  color=:black, linewidth=2, label="Data",
+                  xlabel="Lag (s)", ylabel="Autocorrelation",
+                  title="Posterior Predictive Check - ACF",
+                  yscale=:log10)
+        else
+            plot!(p, model.lags_freqs, pred_mean,
+                  ribbon=(pred_mean - pred_lower, pred_upper - pred_mean),
+                  fillalpha=0.3, color=colorpalette[1], label="Posterior predictive")
+            plot!(p, model.lags_freqs, model.data_sum_stats,
+                  color=:black, linewidth=2, label="Data",
+                  xlabel="Lag (s)", ylabel="Autocorrelation",
+                  title="Posterior Predictive Check - ACF")
+        end
+              
+    elseif model.summary_method == :psd
+        # For PSD, use log scale if distance method is logarithmic
+        if model.distance_method == :logarithmic
+            plot!(p, model.lags_freqs, pred_mean,
+                  ribbon=(pred_mean - pred_lower, pred_upper - pred_mean),
+                  fillalpha=0.3, color=colorpalette[1], label="Posterior predictive",
+                  xscale=:log10, yscale=:log10)
+            plot!(p, model.lags_freqs, model.data_sum_stats,
+                  color=:black, linewidth=2, label="Data",
+                  xlabel="Frequency (Hz)", ylabel="Power",
+                  title="Posterior Predictive Check - PSD")
+        else
+            plot!(p, model.lags_freqs, pred_mean,
+                  ribbon=(pred_mean - pred_lower, pred_upper - pred_mean),
+                  fillalpha=0.3, color=colorpalette[1], label="Posterior predictive")
+            plot!(p, model.lags_freqs, model.data_sum_stats,
+                  color=:black, linewidth=2, label="Data",
+                  xlabel="Frequency (Hz)", ylabel="Power",
+                  title="Posterior Predictive Check - PSD")
+        end
+    end
+    
+    if show
+        display(p)
+    end
+    return p
+end
 
 end
 

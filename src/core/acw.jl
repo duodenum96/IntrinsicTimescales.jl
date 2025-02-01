@@ -13,10 +13,10 @@ module ACW
 using INT
 using NaNStatistics
 
-export acw, ACWContainer
+export acw, ACWResults
 
 """
-    ACWContainer
+    ACWResults
 
 Structure holding ACW analysis inputs and results.
 
@@ -32,7 +32,7 @@ Structure holding ACW analysis inputs and results.
 - Supported ACW types: :acw0, :acw50, :acweuler, :tau, :knee
 - Results order matches input acwtypes order
 """
-struct ACWContainer
+struct ACWResults
     fs::Real
     acw_results::Union{AbstractArray{<:Real}, Vector{AbstractArray{<:Real}}}
     acwtypes::Union{Vector{<:Symbol}, Symbol} # Types of ACW: ACW-50, ACW-0, ACW-euler, tau, knee frequency
@@ -221,9 +221,9 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
     end
 
     if n_acw == 1
-        return ACWContainer(fs, result[1], acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
+        return ACWResults(fs, result[1], acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
     else
-        return ACWContainer(fs, result, acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
+        return ACWResults(fs, result, acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
     end
 end
 

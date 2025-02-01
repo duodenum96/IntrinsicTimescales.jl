@@ -15,10 +15,10 @@ using LinearAlgebra
 using KernelDensity
 
 export basic_abc, pmc_abc, effective_sample_size, weighted_covar, find_MAP, get_param_dict_abc, 
-    abc_container, ABCContainer
+    abc_results, ABCResults
 
     """
-    ABCContainer
+    ABCResults
 
 Container for ABC results to standardize plotting interface.
 
@@ -30,21 +30,22 @@ Container for ABC results to standardize plotting interface.
 - `final_theta::Matrix{Float64}`: Final accepted parameter values
 - `final_weights::Vector{Float64}`: Final weights
 """
-struct ABCContainer
+struct ABCResults
     theta_history::Vector{Matrix{Float64}}
     epsilon_history::Vector{Float64}
     acc_rate_history::Vector{Float64}
     weights_history::Vector{Vector{Float64}}
     final_theta::Matrix{Float64}
     final_weights::Vector{Float64}
+    MAP::Vector{Float64}
 end
 
 """
-    abc_container(output_record::Vector{NamedTuple})
+    abc_results(output_record::Vector{NamedTuple})
 
-Construct abc_container from PMC-ABC output record.
+Construct abc_results from PMC-ABC output record.
 """
-function abc_container(output_record::Vector{NamedTuple})
+function abc_results(output_record::Vector{NamedTuple})
     n_steps = length(output_record)
     
 
@@ -55,14 +56,17 @@ function abc_container(output_record::Vector{NamedTuple})
     
     final_theta = output_record[end].theta_accepted
     final_weights = output_record[end].weights
+
+    MAP = find_MAP(final_theta)
     
-    return ABCContainer(
+    return ABCResults(
         theta_history,
         epsilon_history,
         acc_rate_history,
         weights_history,
         final_theta,
-        final_weights
+        final_weights,
+        MAP
     )
 end
 
@@ -428,7 +432,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
         end
     end
 
-    return abc_container(output_record)
+    return abc_results(output_record)
 end
 
 """

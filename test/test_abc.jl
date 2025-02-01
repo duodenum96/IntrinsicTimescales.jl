@@ -123,7 +123,7 @@ using Revise
         )
         
         # Test basic properties
-        @test results isa ABC.ABCContainer
+        @test results isa ABC.ABCResults
         @test length(results.theta_history) ≤ 2  # May stop early due to acceptance rate
         @test length(results.theta_history[1]) ≥ 10
         @test results.epsilon_history[1] ≥ results.epsilon_history[end]  # Epsilon should decrease

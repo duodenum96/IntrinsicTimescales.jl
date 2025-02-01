@@ -328,7 +328,7 @@ For ABC method:
 - `abc_record`: Full record of ABC iterations
 
 For ADVI method:
-- `TuringResult`: Container with samples, MAP estimates, variances, and full chain
+- `ADVIResult`: Container with samples, MAP estimates, variances, and full chain
 
 # Notes
 - For ABC: Uses Population Monte Carlo ABC with adaptive epsilon selection
@@ -369,9 +369,8 @@ function Models.solve(model::OneTimescaleWithMissingModel, param_dict=nothing)
                              theta_rtol=param_dict[:theta_rtol],
                              theta_atol=param_dict[:theta_atol])
 
-        posterior_samples = abc_record[end].theta_accepted
-        posterior_MAP = find_MAP(posterior_samples, param_dict[:N])
-        return posterior_samples, posterior_MAP, abc_record
+        return abc_record
+
 
     elseif model.fit_method == :advi
         if isnothing(param_dict)
@@ -379,7 +378,7 @@ function Models.solve(model::OneTimescaleWithMissingModel, param_dict=nothing)
                 :n_samples => 4000,
                 :n_iterations => 10,
                 :n_elbo_samples => 20,
-                :optimizer => AutoForwardDiff()
+                :autodiff => AutoForwardDiff()
             )
         end
         
@@ -387,7 +386,7 @@ function Models.solve(model::OneTimescaleWithMissingModel, param_dict=nothing)
             n_samples=param_dict[:n_samples],
             n_iterations=param_dict[:n_iterations],
             n_elbo_samples=param_dict[:n_elbo_samples],
-            optimizer=param_dict[:optimizer]
+            optimizer=param_dict[:autodiff]
         )
         
         return result.samples, result.MAP, result

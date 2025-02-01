@@ -5,10 +5,10 @@ using Statistics
 using INT
 using ..Models
 
-export fit_vi, TuringResult
+export fit_vi, ADVIResult, get_param_dict_advi
 
 """
-    TuringResult{T<:Real}
+    ADVIResult{T<:Real}
 
 Container for ADVI (Automatic Differentiation Variational Inference) results.
 
@@ -18,7 +18,7 @@ Container for ADVI (Automatic Differentiation Variational Inference) results.
 - `variances::AbstractVector{T}`: Posterior variances for each parameter
 - `chain`: Turing chain object containing full inference results
 """
-struct TuringResult{T<:Real}
+struct ADVIResult{T<:Real}
     samples::AbstractArray{T}
     MAP::AbstractVector{T}
     variances::AbstractVector{T}
@@ -80,7 +80,7 @@ Perform variational inference using ADVI (Automatic Differentiation Variational 
 - `optimizer=AutoForwardDiff()`: Optimization algorithm for ADVI
 
 # Returns
-- `TuringResult`: Container with inference results including:
+- `ADVIResult`: Container with inference results including:
   - Posterior samples
   - MAP estimates
   - Parameter variances
@@ -105,7 +105,16 @@ function fit_vi(model; n_samples=4000, n_iterations=10, n_elbo_samples=20,
     MAP = find_MAP(samples_matrix')
     variances = vec(var(samples_matrix, dims=1))
     
-    return TuringResult(samples_matrix, MAP, variances, chain)
+    return ADVIResult(samples_matrix, MAP, variances, chain)
+end
+
+function get_param_dict_advi()
+    return Dict(
+        :n_samples => 4000,
+        :n_iterations => 10,
+        :n_elbo_samples => 20,
+        :autodiff => AutoForwardDiff()
+    )
 end
 
 end # module

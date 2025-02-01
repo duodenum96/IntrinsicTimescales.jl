@@ -166,7 +166,7 @@ using NaNStatistics
             param_dict[:max_iter] = 10000
             param_dict[:target_epsilon] = 1e-3
             
-            posterior_samples, posterior_MAP, abc_container = Models.solve(model, param_dict)
+            posterior_samples, posterior_MAP, abc_results = Models.solve(model, param_dict)
             
             # Test posterior properties
             @test posterior_MAP[1] ≈ true_tau atol=10.0
@@ -175,7 +175,7 @@ using NaNStatistics
             @test !any(isnan, posterior_samples)
             
             # Test ABC convergence
-            @test abc_container.epsilon_history[end] < abc_container.epsilon_history[1]
+            @test abc_results.epsilon_history[end] < abc_results.epsilon_history[1]
         end
     end
 
@@ -258,7 +258,7 @@ end
             :n_samples => 2000,
             :n_iterations => 5,
             :n_elbo_samples => 5,
-            :optimizer => AutoForwardDiff()
+            :autodiff => AutoForwardDiff()
         )
         
         samples2, map_estimate2, vi_result2 = Models.solve(model, param_dict)
