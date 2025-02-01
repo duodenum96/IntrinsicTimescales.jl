@@ -33,12 +33,16 @@ Structure holding ACW analysis inputs and results.
 - Results order matches input acwtypes order
 """
 struct acw_container
-    data::AbstractArray{<:Real}
     fs::Real
-    acwtypes::Union{Vector{<:Symbol}, Symbol, Nothing} # Types of ACW: ACW-50, ACW-0, ACW-euler, tau, knee frequency
-    n_lags::Union{Int, Nothing}
-    freqlims::Union{Tuple{Real, Real}, Nothing}
-    acw_results::Vector{<:Real}
+    acw_results::Union{Vector{<:Real}, Vector{Vector{<:Real}}}
+    acwtypes::Union{Vector{<:Symbol}, Symbol} # Types of ACW: ACW-50, ACW-0, ACW-euler, tau, knee frequency
+    n_lags::Union{Int}
+    freqlims::Union{Tuple{Real, Real}}
+    acf::Union{Vector{<:Real}, Vector{Vector{<:Real}}, Nothing}
+    psd::Union{Vector{<:Real}, Vector{Vector{<:Real}}, Nothing}
+    freqs::Union{Vector{<:Real}, Vector{Vector{<:Real}}, Nothing}
+    lags::Union{Vector{<:Real}, Vector{Vector{<:Real}}, Nothing}
+
 end
 
 possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
@@ -54,13 +58,20 @@ Compute various autocorrelation width measures for time series data.
 - `acwtypes::Union{Vector{Symbol}, Symbol}=possible_acwtypes`: Types of ACW to compute
 - `n_lags::Union{Int, Nothing}=nothing`: Number of lags for ACF calculation
 - `freqlims::Union{Tuple{Real, Real}, Nothing}=nothing`: Frequency limits for spectral analysis
-- `dims::Int=ndims(data)`: Dimension along which to compute ACW
+- `time::Union{Vector{Real}, Nothing}=nothing`: Time vector. This is required for Lomb-Scargle method in the case of missing data.
+- `dims::Int=ndims(data)`: Dimension along which to compute ACW (Dimension of time)
+- `return_acf::Bool=true`: Whether to return the ACF
+- `return_psd::Bool=true`: Whether to return the PSD
+
+- `average_over_trials::Bool=false`: Whether to average the ACF or PSD over trials
+- `trial_dim::Int=1`: Dimension along which to average the ACF or PSD over trials (Dimension of trials)
 
 # Returns
 - Vector of computed ACW measures, ordered according to input acwtypes
 
 # Notes
 - Supported ACW types:
+
   * :acw0 - Time to first zero crossing
   * :acw50 - Time to 50% decay
   * :acweuler - Time to 1/e decay
@@ -69,8 +80,14 @@ Compute various autocorrelation width measures for time series data.
 - If n_lags is not specified, uses 1.1 * ACW0
 - For spectral measures, freqlims defaults to full frequency range
 """
-function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing,
-             dims=ndims(data))
+function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
+             dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
+             trial_dim=1)
+
+    missingmask = ismissing.(data)
+    if any(missingmask)
+        data[missingmask] .= NaN
+    end
 
     if data isa AbstractVector
         data = reshape(data, (1, length(data)))
@@ -91,8 +108,24 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
     result = Vector{AbstractArray{<:Real}}(undef, n_acw)
     acwtypes = check_acwtypes(acwtypes, possible_acwtypes)
 
+    nanmask = isnan.(data)
+    iscomplete = !any(nanmask)
+
     if any(in.(acf_acwtypes, [acwtypes]))
-        acf = comp_ac_fft(data; dims=dims)
+        if iscomplete
+            acf = comp_ac_fft(data; dims=dims)
+        else
+            if isnothing(n_lags)
+                acf = comp_ac_time_missing(data; dims=dims)
+            else
+                acf = comp_ac_time_missing(data; dims=dims, n_lags=n_lags)
+            end
+        end
+
+        if average_over_trials
+            acf = mean(acf, dims=trial_dim)
+        end
+
         lags_samples = 0.0:(size(data, dims)-1)
         lags = lags_samples * dt
 
@@ -122,6 +155,7 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
                 n_lags = ceil(Int, n_lags)
             end
         end
+
         acf = selectdim(acf, dims, 1:n_lags)
         lags = lags[1:n_lags]
 
@@ -134,15 +168,38 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
 
     if any(in.(:knee, [acwtypes]))
         knee_idx = findfirst(acwtypes .== :knee)
-        fs = 1 / dt
-        psd, freqs = comp_psd(data, fs, dims=dims)
+        if iscomplete
+            psd, freqs = comp_psd(data, fs, dims=dims)
+        else
+            if isnothing(time)
+                raise(ArgumentError("Time vector is required for Lomb-Scargle method in the case of missing data.\n" * 
+                        "Call the function as `acw(data, fs; time=time)`"))
+            end
+            psd, freqs = comp_psd_lombscargle(time, data, nanmask, dt; dims=dims)
+        end
+
         if isnothing(freqlims)
             freqlims = (freqs[1], freqs[end])
         end
         knee_result = tau_from_knee(find_knee_frequency(psd, freqs; dims=dims, min_freq=freqlims[1], max_freq=freqlims[2]))
         result[knee_idx] = knee_result
     end
-    return result
+
+    if !return_acf
+        acf = nothing
+        lags = nothing
+    end
+    if !return_psd
+        psd = nothing
+        freqs = nothing
+    end
+
+    if n_acw == 1
+        return acw_container(fs, result[1], acwtypes, n_lags, freqlims, acf, psd, freqs, lags)
+    else
+        return acw_container(fs, result, acwtypes, n_lags, freqlims, acf, psd, freqs, lags)
+    end
 end
+
 
 end
