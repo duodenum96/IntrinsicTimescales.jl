@@ -13,10 +13,10 @@ module ACW
 using INT
 using NaNStatistics
 
-export acw, acw_container
+export acw, ACWContainer
 
 """
-    acw_container
+    ACWContainer
 
 Structure holding ACW analysis inputs and results.
 
@@ -32,17 +32,17 @@ Structure holding ACW analysis inputs and results.
 - Supported ACW types: :acw0, :acw50, :acweuler, :tau, :knee
 - Results order matches input acwtypes order
 """
-struct acw_container
+struct ACWContainer
     fs::Real
-    acw_results::Union{Vector{<:Real}, Vector{Vector{<:Real}}}
+    acw_results::Union{AbstractArray{<:Real}, Vector{AbstractArray{<:Real}}}
     acwtypes::Union{Vector{<:Symbol}, Symbol} # Types of ACW: ACW-50, ACW-0, ACW-euler, tau, knee frequency
-    n_lags::Union{Int}
-    freqlims::Union{Tuple{Real, Real}}
-    acf::Union{Vector{<:Real}, Vector{Vector{<:Real}}, Nothing}
-    psd::Union{Vector{<:Real}, Vector{Vector{<:Real}}, Nothing}
-    freqs::Union{Vector{<:Real}, Vector{Vector{<:Real}}, Nothing}
-    lags::Union{Vector{<:Real}, Vector{Vector{<:Real}}, Nothing}
-
+    n_lags::Union{Int, Nothing}
+    freqlims::Union{Tuple{Real, Real}, Nothing}
+    acf::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}
+    psd::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}
+    freqs::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}
+    lags::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}
+    x_dim::Union{Int, Nothing}
 end
 
 possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
@@ -164,6 +164,14 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
             tau_result = fit_expdecay(collect(lags), acf; dims=dims)
             result[tau_idx] = tau_result
         end
+
+        if data isa Vector
+            acf = acf[:]
+        end
+    else
+        lags = nothing
+        acf = nothing
+        n_lags = nothing
     end
 
     if any(in.(:knee, [acwtypes]))
@@ -183,6 +191,15 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         end
         knee_result = tau_from_knee(find_knee_frequency(psd, freqs; dims=dims, min_freq=freqlims[1], max_freq=freqlims[2]))
         result[knee_idx] = knee_result
+
+        if data isa Vector
+            psd = psd[:]
+        end
+
+    else
+        freqlims = nothing
+        psd = nothing
+        freqs = nothing
     end
 
     if !return_acf
@@ -194,10 +211,19 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         freqs = nothing
     end
 
-    if n_acw == 1
-        return acw_container(fs, result[1], acwtypes, n_lags, freqlims, acf, psd, freqs, lags)
+    # Find the dimension of x axis (lags or freqs)
+    if !isnothing(lags)
+        x_dim = findfirst(size(lags) .== size(acf))
+    elseif !isnothing(freqs)
+        x_dim = findfirst(size(freqs) .== size(psd))
     else
-        return acw_container(fs, result, acwtypes, n_lags, freqlims, acf, psd, freqs, lags)
+        x_dim = nothing
+    end
+
+    if n_acw == 1
+        return ACWContainer(fs, result[1], acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
+    else
+        return ACWContainer(fs, result, acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
     end
 end
 
