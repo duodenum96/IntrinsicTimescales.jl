@@ -14,7 +14,57 @@ using ProgressMeter
 using LinearAlgebra
 using KernelDensity
 
-export basic_abc, pmc_abc, effective_sample_size, weighted_covar, find_MAP, get_param_dict_abc
+export basic_abc, pmc_abc, effective_sample_size, weighted_covar, find_MAP, get_param_dict_abc, 
+    abc_container, ABCContainer
+
+    """
+    ABCContainer
+
+Container for ABC results to standardize plotting interface.
+
+# Fields
+- `theta_history::Vector{Matrix{Float64}}`: History of parameter values across iterations
+- `epsilon_history::Vector{Float64}`: History of epsilon values
+- `acc_rate_history::Vector{Float64}`: History of acceptance rates
+- `weights_history::Vector{Vector{Float64}}`: History of weights
+- `final_theta::Matrix{Float64}`: Final accepted parameter values
+- `final_weights::Vector{Float64}`: Final weights
+"""
+struct ABCContainer
+    theta_history::Vector{Matrix{Float64}}
+    epsilon_history::Vector{Float64}
+    acc_rate_history::Vector{Float64}
+    weights_history::Vector{Vector{Float64}}
+    final_theta::Matrix{Float64}
+    final_weights::Vector{Float64}
+end
+
+"""
+    abc_container(output_record::Vector{NamedTuple})
+
+Construct abc_container from PMC-ABC output record.
+"""
+function abc_container(output_record::Vector{NamedTuple})
+    n_steps = length(output_record)
+    
+
+    theta_history = [output_record[i].theta_accepted for i in 1:n_steps]
+    epsilon_history = [output_record[i].epsilon for i in 1:n_steps]
+    acc_rate_history = [output_record[i].n_accepted/output_record[i].n_total for i in 1:n_steps]
+    weights_history = [output_record[i].weights for i in 1:n_steps]
+    
+    final_theta = output_record[end].theta_accepted
+    final_weights = output_record[end].weights
+    
+    return ABCContainer(
+        theta_history,
+        epsilon_history,
+        acc_rate_history,
+        weights_history,
+        final_theta,
+        final_weights
+    )
+end
 
 """
     draw_theta_pmc(model, theta_prev, weights, tau_squared; jitter::Float64=1e-5)
@@ -378,7 +428,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
         end
     end
 
-    return output_record
+    return abc_container(output_record)
 end
 
 """
@@ -734,5 +784,8 @@ function get_param_dict_abc()
                 # MAP N
                 :N => 10000)
 end
+
+
+
 
 end # module

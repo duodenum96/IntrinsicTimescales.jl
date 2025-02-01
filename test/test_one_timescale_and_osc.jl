@@ -175,20 +175,18 @@ using DifferentiationInterface
         param_dict[:max_iter] = 10000
         param_dict[:target_epsilon] = 1e-2
         
-        posterior_samples, posterior_MAP, abc_record = Models.solve(model, param_dict)
+        posterior_samples, posterior_MAP, abc_container = Models.solve(model, param_dict)
         
         # Test posterior properties
         @test posterior_MAP[1] ≈ true_tau atol=30.0
         @test posterior_MAP[2] ≈ true_freq atol=0.05
-        # @test posterior_MAP[3] ≈ true_coeff atol=0.2 (interestingly getting the coefficient right is super difficult)
         @test size(posterior_samples, 2) == 3  # Three parameters
         @test !isempty(posterior_samples)
         @test !any(isnan, posterior_samples)
         
         # Test ABC convergence
-        final_epsilon = abc_record[end].epsilon
-        @test final_epsilon < abc_record[1].epsilon
-        @test abc_record[end].n_accepted >= param_dict[:min_accepted]
+        @test abc_container.epsilon_history[end] < abc_container.epsilon_history[1]
+        @test length(abc_container.theta_history[end]) >= param_dict[:min_accepted]
     end
 
     @testset "Model Behavior" begin

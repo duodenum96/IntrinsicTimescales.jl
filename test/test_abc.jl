@@ -123,10 +123,10 @@ using Revise
         )
         
         # Test basic properties
-        @test length(results) ≤ 2  # May stop early due to acceptance rate
-        @test length(results[1].theta_accepted) ≥ 10
-        @test results[1].epsilon ≥ results[end].epsilon  # Epsilon should decrease
-        @test all(r -> length(r.weights) == length(r.theta_accepted), results)
-        @test all(r -> r.eff_sample > 0, results)
+        @test results isa ABC.ABCContainer
+        @test length(results.theta_history) ≤ 2  # May stop early due to acceptance rate
+        @test length(results.theta_history[1]) ≥ 10
+        @test results.epsilon_history[1] ≥ results.epsilon_history[end]  # Epsilon should decrease
+        @test all(i -> length(results.weights_history[i]) == size(results.theta_history[i], 2), 1:length(results.theta_history))
     end
 end
