@@ -15,9 +15,19 @@ using Revise
         # Simple model that generates normal distribution
         model = Models.BaseModel(
             randn(100),  # data
-            prior,
+            [1.0],
             [0.0],      # dummy summary stat
-            1.0         # epsilon
+            :abc,
+            :psd,
+            [0.0],
+            prior,
+            :acw0,
+            :linear,
+            1.0,
+            1.0,         # epsilon
+            1.0,
+            1.0,
+            1.0
         )
         
         # Run ABC
@@ -106,11 +116,22 @@ using Revise
         # Create simple test model
         prior = [Uniform(0.0, 10.0)]
         model = Models.BaseModel(
-            randn(100),
-            prior,
+            randn(100),  # data
+            [1.0],
+            [0.0],      # dummy summary stat
+            :abc,
+            :psd,
             [0.0],
+            prior,
+            :acw0,
+            :linear,
+            1.0,
+            1.0,         # epsilon
+            1.0,
+            1.0,
             1.0
         )
+        
         
         # Run PMC-ABC with minimal steps
         results = ABC.pmc_abc(
@@ -127,6 +148,6 @@ using Revise
         @test length(results.theta_history) ≤ 2  # May stop early due to acceptance rate
         @test length(results.theta_history[1]) ≥ 10
         @test results.epsilon_history[1] ≥ results.epsilon_history[end]  # Epsilon should decrease
-        @test all(i -> length(results.weights_history[i]) == size(results.theta_history[i], 2), 1:length(results.theta_history))
+        @test all(i -> length(results.weights_history[i]) == size(results.theta_history[i], 1), 1:length(results.theta_history))
     end
 end

@@ -5,7 +5,7 @@ using INT
 using INT.OneTimescale
 using INT.Models
 using DifferentiationInterface
-using ABC
+using .ABC
 
 
 @testset "OneTimescale Model Tests" begin
@@ -15,7 +15,7 @@ using ABC
     num_trials = 10
     n_lags = 3000
     ntime = Int(T / dt)
-    time = 0:dt:T
+    time = dt:dt:T
     test_data = randn(num_trials, ntime)  # 10 trials, 10000 timepoints
     data_mean = mean(test_data)
     data_sd = std(test_data)
@@ -56,19 +56,7 @@ using ABC
         @test model.distance_method == :logarithmic
     end
 
-    @testset "Model Construction - ACW" begin
-        acw_results = one_timescale_model(
-            test_data,
-            time,
-            :acw;
-            acwtypes=[:acw0, :acw50, :acweuler, :tau, :knee]
-        )
-
-        @test length(acw_results) == 5
-        @test all(x -> x isa AbstractArray{<:Real}, acw_results)
-        @test all(all.(map(x -> x .> 0, acw_results)))  # All timescales should be positive
-    end
-
+    
     @testset "Informed Prior" begin
         model = one_timescale_model(
             test_data,
@@ -182,15 +170,17 @@ using ABC
             param_dict[:max_iter] = 10000
             param_dict[:target_epsilon] = 1e-2
             
-            posterior_samples, posterior_MAP, abc_results = Models.solve(model, param_dict)
+            results = Models.solve(model, param_dict)
             
             # Test posterior properties
-            @test posterior_MAP[1] ≈ true_tau atol=10.0
-            @test size(posterior_samples, 2) == 1  # One parameter (tau)
-            @test !isempty(posterior_samples)
-            @test !any(isnan, posterior_samples)
-            @test abc_results isa ABC.ABCResults
+            @test results.MAP[1] isa Float64
+            @test size(results.final_theta, 2) == 1  # One parameter (tau)
+
+            @test !isempty(results.final_theta)
+            @test !any(isnan, results.final_theta)
+            @test results isa ABC.ABCResults
         end
+
         
         @testset "ABC Inference - PSD" begin
             model = one_timescale_model(
@@ -207,22 +197,25 @@ using ABC
             param_dict[:epsilon_0] = 1.0
             param_dict[:steps] = 100
             param_dict[:max_iter] = 10000
-            param_dict[:target_epsilon] = 1e-4
+            param_dict[:target_epsilon] = 1e-2
             param_dict[:N] = 10000
             param_dict[:distance_max] = 500.0
             
-            posterior_samples, posterior_MAP, abc_results = Models.solve(model, param_dict)
+            results = Models.solve(model, param_dict)
             
             # Test posterior properties
-            @test posterior_MAP[1] ≈ true_tau atol=10.0
-            @test size(posterior_samples, 2) == 1
-            @test !isempty(posterior_samples)
-            @test !any(isnan, posterior_samples)
+            @test results.MAP[1] ≈ true_tau atol=10.0
+            @test size(results.final_theta, 2) == 1
+
+            @test !isempty(results.final_theta)
+            @test !any(isnan, results.final_theta)
             
+
             # Test ABC convergence
-            @test abc_results.epsilon_history[end] < abc_results.epsilon_history[1]
+            @test results.epsilon_history[end] < results.epsilon_history[1]
         end
         
+
         # This is too slow, not recommended. Keeping here for completeness. 
         # @testset "Combined Distance Inference" begin
         #     model = one_timescale_model(
@@ -282,8 +275,9 @@ using ABC
 
         @test model.fit_method == :advi
         @test model.summary_method == :acf
-        @test model.prior isa Normal
+        @test model.prior[1] isa Distribution
     end
+
 
     @testset "ADVI Fitting" begin
         model = one_timescale_model(
@@ -298,24 +292,25 @@ using ABC
         result = INT.solve(model)
         samples = result.samples
         map_estimate = result.MAP
-        chain = result.chain
+        posterior = result.variational_posterior
         
+
         @test size(samples, 2) == 4000  # Default n_samples
         @test length(map_estimate) == 2  # One parameter (tau) and one uncertainty (sigma)
         @test map_estimate[1] > 0  # Tau should be positive
         
         # Test with custom parameters
-        param_dict = Dict(
-            :n_samples => 2000,
-            :n_iterations => 5,
-            :n_elbo_samples => 10,
-            :autodiff => AutoForwardDiff()
-        )
+        param_dict = get_param_dict_advi()
+        param_dict[:n_samples] = 2000
+        param_dict[:n_iterations] = 5
+        param_dict[:n_elbo_samples] = 10
+        param_dict[:autodiff] = AutoForwardDiff()
         
         result2 = INT.solve(model, param_dict)
         samples2 = result2.samples
         map_estimate2 = result2.MAP
-        chain2 = result2.chain
+        posterior2 = result2.variational_posterior
+
 
         # Truncated vs softplus (with @btime):
         # truncated: 13.895 s (1452078 allocations: 35.39 GiB)

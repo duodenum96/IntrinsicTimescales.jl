@@ -1,8 +1,10 @@
 module Plotting
 
+using Plots
+using INT
+
 export plot, posterior_predictive
 
-using Plots
 colorpalette = palette(:Catppuccin_mocha)[[4, 5, 7, 9, 3, 10, 13]]
 
 function plot(container::ACWResults; only_acf::Bool=false, only_psd::Bool=false, show::Bool=true)

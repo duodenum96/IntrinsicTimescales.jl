@@ -202,13 +202,13 @@ end
         psd_2d = repeat(perfect_psd', 3, 1)  # 3 trials
         detected_knees_2d = find_knee_frequency(psd_2d, freqs, dims=2)
         @test length(detected_knees_2d) == 3
-        @test all(x -> isapprox(x[2], f_knee, rtol=0.1), detected_knees_2d)
+        @test all(x -> isapprox(x, f_knee, rtol=0.1), detected_knees_2d)
         
         # 3D case - multiple experiments
         psd_3d = repeat(perfect_psd, 1, 3, 2)  # 3×2 experiments
         detected_knees_3d = find_knee_frequency(psd_3d, freqs, dims=1)
         @test size(detected_knees_3d) == (3, 2)
-        @test all(x -> isapprox(x[2], f_knee, rtol=0.1), detected_knees_3d)
+        @test all(x -> isapprox(x, f_knee, rtol=0.1), detected_knees_3d)
     end
 
     @testset "fooof_fit with different dimensions" begin

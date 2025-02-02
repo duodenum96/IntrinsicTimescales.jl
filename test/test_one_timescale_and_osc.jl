@@ -150,8 +150,6 @@ using DifferentiationInterface
         dt = 1.0
         T = 20.0 * 1000.0
         num_trials = 15
-
-
         
         data = generate_ou_with_oscillation(
             [true_tau, true_freq, true_coeff],
@@ -175,19 +173,22 @@ using DifferentiationInterface
         param_dict[:max_iter] = 10000
         param_dict[:target_epsilon] = 1e-2
         
-        posterior_samples, posterior_MAP, abc_results = Models.solve(model, param_dict)
+        results = Models.solve(model, param_dict)
         
+
         # Test posterior properties
-        @test posterior_MAP[1] ≈ true_tau atol=30.0
-        @test posterior_MAP[2] ≈ true_freq atol=0.05
-        @test size(posterior_samples, 2) == 3  # Three parameters
-        @test !isempty(posterior_samples)
-        @test !any(isnan, posterior_samples)
+        @test results.MAP[1] ≈ true_tau atol=30.0
+        @test results.MAP[2] ≈ true_freq atol=0.05
+        @test size(results.final_theta, 2) == 3  # Three parameters
+        @test !isempty(results.final_theta)
+        @test !any(isnan, results.final_theta)
         
+
         # Test ABC convergence
-        @test abc_results.epsilon_history[end] < abc_results.epsilon_history[1]
-        @test length(abc_results.theta_history[end]) >= param_dict[:min_accepted]
+        @test results.epsilon_history[end] < results.epsilon_history[1]
+        @test length(results.theta_history[end]) >= param_dict[:min_accepted]
     end
+
 
     @testset "Model Behavior" begin
         model = one_timescale_and_osc_model(
@@ -259,8 +260,8 @@ end
         adviresults = Models.solve(model)
         samples = adviresults.samples
         map_estimate = adviresults.MAP
-        chain = adviresults.chain
-        
+        posterior = adviresults.variational_posterior
+
         @test size(samples, 2) == 4000  # Default n_samples
         @test length(map_estimate) == 4  # Three parameters + sigma
         @test map_estimate[1] > 0  # Tau should be positive
@@ -268,18 +269,18 @@ end
         @test 0 <= map_estimate[3] <= 1  # Coefficient should be between 0 and 1
         
         # Test with custom parameters
-        param_dict = Dict(
-            :n_samples => 2000,
-            :n_iterations => 5,
-            :n_elbo_samples => 10,
-            :progress => false
-        )
+        param_dict = get_param_dict_advi()
+        param_dict[:n_samples] = 2000
+        param_dict[:n_iterations] = 5
+        param_dict[:n_elbo_samples] = 10
+        param_dict[:autodiff] = AutoForwardDiff()
+
         
         adviresults2 = Models.solve(model, param_dict)
         samples2 = adviresults2.samples
         map_estimate2 = adviresults2.MAP
-        chain2 = adviresults2.chain
-        
+        posterior2 = adviresults2.variational_posterior
+
         @test size(samples2, 1) == 2000  # Custom n_samples
         @test length(map_estimate2) == 3
     end
@@ -296,7 +297,8 @@ end
         adviresults_acf = Models.solve(model_acf)
         samples_acf = adviresults_acf.samples
         map_acf = adviresults_acf.MAP
-        chain_acf = adviresults_acf.chain
+        posterior_acf = adviresults_acf.variational_posterior
+
 
         @test size(samples_acf, 2) == 4000  # Default n_samples
         @test length(map_acf) == 4  # Three parameters + sigma

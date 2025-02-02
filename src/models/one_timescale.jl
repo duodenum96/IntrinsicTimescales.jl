@@ -140,7 +140,7 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
         end
         lags_freqs = collect(lags_samples * dt)[1:n_lags]
         data_sum_stats = acf_mean[1:n_lags]
-        if (isnothing(prior) || prior == "informed_prior") && fit_method == :abc
+        if (isnothing(prior) || prior == "informed_prior")
             prior = informed_prior(data_sum_stats, lags_freqs;
                                    summary_method=summary_method) # TODO: We are calculating a bunch of stuff twice here :(
         end
@@ -169,7 +169,7 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
         freq_idx = (freqs .< freqlims[2]) .&& (freqs .> freqlims[1])
         lags_freqs = freqs[freq_idx]
         data_sum_stats = mean_psd[freq_idx]
-        if (isnothing(prior) || prior == "informed_prior") && fit_method == :abc
+        if (isnothing(prior) || prior == "informed_prior")
             prior = informed_prior(data_sum_stats, lags_freqs;
                                    summary_method=summary_method)
         end

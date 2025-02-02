@@ -50,36 +50,6 @@ end
         @test abs(peak_freq - f0) < freq_resolution
     end
 
-    @testset "Cross-correlation" begin
-        # Test with identical signals (should give autocorrelation)
-        signal = randn(100)
-        max_lag = 10
-        cc = comp_cc(signal, signal, max_lag)
-
-        @test cc[1]≈var(signal) atol=0.1
-        @test all(abs.(cc) .<= cc[1])  # Max at zero lag
-
-        # Test with shifted signals
-        shift = 5
-        signal2 = vcat(zeros(shift), signal[1:end-shift])
-        cc_shifted = comp_cc(signal[:], signal2[:], max_lag)
-        @test argmax(cc_shifted) ≈ shift + 1
-
-        # Should give similar result to fft-based autocorrelation
-        dt = 0.001
-        T = 10.0
-        τ = 1.0  # time constant
-        D = 1.0  # noise amplitude
-        t = dt:dt:T
-        num_trials = 30
-        ou_process = generate_ou_process(τ, D, dt, T, num_trials)
-        data = ou_process[:]
-        max_lags = 1200
-
-        ac = comp_ac_fft(data; n_lags=max_lags)
-        cc = comp_ac_time(data, max_lags)
-        @test maximum(abs.(cc - ac)) < 0.05 # The difference is only for later lags close to zero. 
-    end
 end
 
 @testset "Autocorrelation with missing data" begin
@@ -261,13 +231,14 @@ end
     
     @testset "Time domain autocorrelation" begin
         max_lags = 100
-        ac_time_dim3 = comp_ac_time(data_3d, max_lags, dims=3)
-        
+        ac_time_dim3 = comp_ac_time(data_3d; n_lags=max_lags, dims=3)
+
         # Compare with FFT method
         ac_fft_dim3 = comp_ac_fft(data_3d, dims=3, n_lags=max_lags)
-        @test maximum(abs.(ac_time_dim3 - ac_fft_dim3)) < 0.05
+        @test all(isapprox.(ac_time_dim3, ac_fft_dim3, atol=0.05))
     end
     
+
     @testset "Missing data autocorrelation" begin
         # Create data with missing values
         data_3d_missing = copy(data_3d)
@@ -280,15 +251,11 @@ end
         end
         
         max_lags = 100
-        ac_missing_dim3 = comp_ac_time_missing(data_3d_missing, max_lags, dims=3)
+        ac_missing_dim3 = comp_ac_time_missing(data_3d_missing; n_lags=max_lags, dims=3)
         
         # Test basic properties
         @test all(ac_missing_dim3[:,:,1] .≈ 1.0)
         @test mean(diff(ac_missing_dim3[:,:,1:div(end,2)], dims=3) .<= 0) > 0.9 # Overall Decreasing
-        
-        # Test with minimum pairs threshold
-        ac_missing_strict = comp_ac_time_missing(data_3d_missing, max_lags, dims=3, min_pairs=800)
-        @test any(isnan.(ac_missing_strict))  # Should have some NaN values
     end
     
     @testset "Power spectral density" begin

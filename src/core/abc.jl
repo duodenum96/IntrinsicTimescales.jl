@@ -395,7 +395,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
         if accept_rate < minAccRate
             println("epsilon = $(epsilon)")
             println("Acceptance Rate = $(accept_rate)")
-            return output_record[1:i_step]
+            return abc_results(output_record[1:i_step])
         end
 
         push!(theta_history, current_theta)
@@ -421,14 +421,14 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 
             if converged
                 println("Parameters converged after $(i_step) iterations")
-                return output_record[1:i_step]
+                return abc_results(output_record[1:i_step])
             end
         end
 
         if epsilon < target_epsilon
             println("epsilon = $(epsilon)")
             println("Acceptance Rate = $(accept_rate)")
-            return output_record[1:i_step]
+            return abc_results(output_record[1:i_step])
         end
     end
 

@@ -166,18 +166,21 @@ using NaNStatistics
             param_dict[:max_iter] = 10000
             param_dict[:target_epsilon] = 1e-3
             
-            posterior_samples, posterior_MAP, abc_results = Models.solve(model, param_dict)
+            results = Models.solve(model, param_dict)
             
+
             # Test posterior properties
-            @test posterior_MAP[1] ≈ true_tau atol=10.0
-            @test size(posterior_samples, 2) == 1  # One parameter (tau)
-            @test !isempty(posterior_samples)
-            @test !any(isnan, posterior_samples)
+            @test results.MAP[1] ≈ true_tau atol=10.0
+            @test size(results.final_theta, 2) == 1  # One parameter (tau)
+            @test !isempty(results.final_theta)
+            @test !any(isnan, results.final_theta)
             
+
             # Test ABC convergence
-            @test abc_results.epsilon_history[end] < abc_results.epsilon_history[1]
+            @test results.epsilon_history[end] < results.epsilon_history[1]
         end
     end
+
 
     @testset "Model Behavior with Missing Data" begin
         # Test effect of different timescales with missing data
@@ -247,22 +250,30 @@ end
         )
 
         # Test with default parameters
-        samples, map_estimate, vi_result = Models.solve(model)
+        results = Models.solve(model)
+        samples = results.samples
+        map_estimate = results.MAP
+        posterior = results.variational_posterior
         
+
         @test size(samples, 2) == 4000  # Default n_samples
         @test length(map_estimate) == 2  # One parameter (tau) and uncertainty
         @test map_estimate[1] > 0  # Tau should be positivee
         
         # Test with custom parameters
-        param_dict = Dict(
-            :n_samples => 2000,
-            :n_iterations => 5,
-            :n_elbo_samples => 5,
-            :autodiff => AutoForwardDiff()
-        )
+        param_dict = get_param_dict_advi()
+        param_dict[:n_samples] = 2000
+        param_dict[:n_iterations] = 5
+        param_dict[:n_elbo_samples] = 5
+        param_dict[:autodiff] = AutoForwardDiff()
         
-        samples2, map_estimate2, vi_result2 = Models.solve(model, param_dict)
+
+        results2 = Models.solve(model, param_dict)
+        samples2 = results2.samples
+        map_estimate2 = results2.MAP
+        posterior2 = results2.variational_posterior
         
+
         @test size(samples2, 1) == 2000  # Custom n_samples
         @test length(map_estimate2) == 1
         @test map_estimate2[1] > 0

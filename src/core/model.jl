@@ -271,15 +271,9 @@ function check_model_inputs(data, time, fit_method, summary_method, prior, dista
         throw(ArgumentError("summary_method must be :acf or :psd"))
     end
     
-    # Check prior if using abc/advi
-    if fit_method in [:abc, :advi]
-        if isnothing(prior) && prior != "informed_prior"
-            throw(ArgumentError("prior must be specified or set to \"informed_prior\" for abc/advi methods"))
-        end
-    end
-    
     # Check distance method
     if !isnothing(distance_method)
+
         if !(distance_method in [:linear, :logarithmic])
             throw(ArgumentError("distance_method must be :linear or :logarithmic"))
         end

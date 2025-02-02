@@ -132,19 +132,24 @@ using NaNStatistics
         param_dict[:max_iter] = 10000
         param_dict[:target_epsilon] = 1e-2
         
-        posterior_samples, posterior_MAP, abc_results = Models.solve(model, param_dict)
+        results = Models.solve(model, param_dict)
+        samples = results.final_theta
+        map_estimate = results.MAP
         
         # Test posterior properties
-        @test posterior_MAP[1] ≈ true_tau atol=50.0
-        @test posterior_MAP[2] ≈ true_freq atol=0.1
-        @test size(posterior_samples, 2) == 3
-        @test !isempty(posterior_samples)
-        @test !any(isnan, posterior_samples)
+        @test map_estimate[1] ≈ true_tau atol=50.0
+        @test map_estimate[2] ≈ true_freq atol=0.1
+
+        @test size(samples, 2) == 3
+        @test !isempty(samples)
+        @test !any(isnan, samples)
         
+
         # Test ABC convergence
-        @test abc_results.epsilon_history[end] < abc_results.epsilon_history[1]
-        @test length(abc_results.theta_history[end]) >= param_dict[:min_accepted]
+        @test results.epsilon_history[end] < results.epsilon_history[1]
+        @test length(results.theta_history[end]) >= param_dict[:min_accepted]
     end
+
 
     @testset "Model Behavior with Missing Data" begin
         dt = 1.0
@@ -330,13 +335,15 @@ end
         )
 
         # Test with default parameters
-        adviresults = Models.solve(model)
+        results = Models.solve(model)
         
-        samples = adviresults.samples
-        map_estimate = adviresults.MAP
-        chain = adviresults.chain
+        samples = results.samples
+        map_estimate = results.MAP
+        variational_posterior = results.variational_posterior
         
+
         @test size(samples, 2) == 4000  # Default n_samples
+
         @test length(map_estimate) == 4  # Three parameters + sigma
         @test map_estimate[1] > 0  # Tau should be positive
         @test map_estimate[2] > 0  # Frequency should be positive
@@ -352,7 +359,7 @@ end
         adviresults2 = Models.solve(model, param_dict)
         samples2 = adviresults2.samples
         map_estimate2 = adviresults2.MAP
-        chain2 = adviresults2.chain
+        variational_posterior2 = adviresults2.variational_posterior
         
         @test size(samples2, 1) == 2000  # Custom n_samples
         @test length(map_estimate2) == 3

@@ -21,8 +21,7 @@ Container for ADVI (Automatic Differentiation Variational Inference) results.
 struct ADVIResult{T<:Real}
     samples::AbstractArray{T}
     MAP::AbstractVector{T}
-    variances::AbstractVector{T}
-    chain::Any
+    variational_posterior::Any
 end
 
 """
@@ -103,9 +102,8 @@ function fit_vi(model; n_samples=4000, n_iterations=10, n_elbo_samples=20,
     
     # Compute MAP and variances
     MAP = find_MAP(samples_matrix')
-    variances = vec(var(samples_matrix, dims=1))
     
-    return ADVIResult(samples_matrix, MAP, variances, chain)
+    return ADVIResult(samples_matrix, MAP, chain)
 end
 
 function get_param_dict_advi()
