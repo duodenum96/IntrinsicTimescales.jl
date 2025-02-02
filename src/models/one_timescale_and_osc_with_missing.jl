@@ -414,15 +414,8 @@ function Models.solve(model::OneTimescaleAndOscWithMissingModel, param_dict=noth
     return abc_record
     elseif model.fit_method == :advi
 
-        
         if isnothing(param_dict)
-            get_param_dict_advi()
-            param_dict = Dict(
-                :n_samples => 4000,
-                :n_iterations => 10,
-                :n_elbo_samples => 20,
-                :autodiff => AutoForwardDiff()
-            )
+            param_dict = get_param_dict_advi()
         end
         
         result = fit_vi(model; 

@@ -374,14 +374,10 @@ function Models.solve(model::OneTimescaleWithMissingModel, param_dict=nothing)
 
     elseif model.fit_method == :advi
         if isnothing(param_dict)
-            param_dict = Dict(
-                :n_samples => 4000,
-                :n_iterations => 10,
-                :n_elbo_samples => 20,
-                :autodiff => AutoForwardDiff()
-            )
+            param_dict = get_param_dict_advi()
         end
         
+
         result = fit_vi(model; 
             n_samples=param_dict[:n_samples],
             n_iterations=param_dict[:n_iterations],
@@ -389,7 +385,7 @@ function Models.solve(model::OneTimescaleWithMissingModel, param_dict=nothing)
             optimizer=param_dict[:autodiff]
         )
         
-        return result.samples, result.MAP, result
+        return result
     end
 end
 
