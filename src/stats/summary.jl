@@ -181,28 +181,34 @@ end
 function comp_psd_adfriendly(x::Vector{<:Real}, fs::Real; demean::Bool=true)
     n = length(x)
     n2 = 2 * _ac_next_pow_two(n)
-    x2 = zeros(eltype(x), n2)
-    idxs2 = firstindex(x2):(firstindex(x2)+n-1)
-
+    
+    # Prepare the data
     if demean
-        x2_demeaned = x .- mean(x)
+        x_demeaned = x .- mean(x)
     else
-        x2_demeaned = x
+        x_demeaned = x
     end
 
     # Compute window (Hamming)
     window = 0.54 .- 0.46 .* cos.(2π .* (0:n-1) ./ (n - 1))
-
+    
+    # Zero pad the windowed data
+    x_padded = zeros(eltype(x), n2)
+    x_padded[1:n] = x_demeaned .* window
+    
     # Scale factor for power normalization
+    # Using n instead of n2 because that's our effective data length
     scale = 1.0 / (fs * sum(window .^ 2))
-
-    x2_fft = fft(x2_demeaned .* window)
-    psd = real.(view(x2_fft .* conj.(x2_fft), idxs2)) .* scale
-
-    freqs = fftfreq(n2, fs)[1:n]
-    freqs2 = freqs[freqs.≥0]
-
-    return psd[2:end], freqs2[2:end]
+    
+    # Compute FFT and get power
+    x_fft = fft(x_padded)
+    psd = abs2.(x_fft[1:div(n2,2)+1]) .* scale
+    
+    # Compute frequency vector (only positive frequencies)
+    freqs = fftfreq(n2, fs)[1:div(n2,2)+1]
+    
+    # Return only positive frequencies, excluding DC (zero frequency)
+    return psd[2:end], freqs[2:end]
 end
 
 """
