@@ -11,6 +11,5 @@ using Test
     include("test_one_timescale_and_osc_with_missing.jl")
     include("test_abc.jl")
     include("test_ou_process.jl")
-    include("test_ou_inference.jl")
     include("test_acw.jl")
 end

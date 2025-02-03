@@ -200,7 +200,7 @@ using NaNStatistics
         theta2 = [2.0]  # slower timescale
         
         model = one_timescale_with_missing_model(
-            data,
+            test_data,
             time,
             :abc;
             summary_method=:acf,
