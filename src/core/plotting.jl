@@ -7,7 +7,7 @@ export plot, posterior_predictive
 
 colorpalette = palette(:Catppuccin_mocha)[[4, 5, 7, 9, 3, 10, 13]]
 
-function intplot(container::ACWResults; only_acf::Bool=false, only_psd::Bool=false, show::Bool=true)
+function acwplot(container::ACWResults; only_acf::Bool=false, only_psd::Bool=false, show::Bool=true)
     # Check if we have data to plot
     if only_acf && isnothing(container.acf)
         error("ACF data not available in container")
