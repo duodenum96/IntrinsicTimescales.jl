@@ -3,10 +3,110 @@
 Performed via the function `acw` in INT.jl. 
 
 ```julia
-acwresults = acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, dims=ndims(data))
+acwresults = acw(data, fs; acwtypes=[:acw0, :acw50, :acweuler, :tau, :knee], 
+                n_lags=nothing, freqlims=nothing, dims=ndims(data), 
+                return_acf=true, return_psd=true, 
+                average_over_trials=false, trial_dims=1)
 ```
 
-Mandatory arguments: 
-`data`: Your data as a vector or n-dimensional array. If it is n-dimensional, by default, the 
-dimension of time is assumed to be the last dimension. For example, if you have a 2D array where 
-rows are subjects and columns are time points, `acw` function will correctly assume that 
+Simple usage:
+
+```julia
+results = acw(data, fs)
+acw_results = results.acw_results
+acw_0 = acw_results[1]
+acw_50 = acw_result[2]
+# And so on...
+```
+
+#### Mandatory arguments: 
+
+* `data`: Your time-series data as a vector or n-dimensional array. 
+
+If it is n-dimensional, by default, the dimension of time is assumed to be the last dimension. For example, if you have a 2D array where rows are subjects and columns are time points, `acw` function will correctly assume that the last (2nd) dimension is time. If the dimension of time is any other dimension than the last, you can set it via `dims` argument. For example: 
+
+```julia
+data = randn(100, 200, 5) # 100 trials, 200 time points, 5 channels
+acw(data, fs; dims=2)
+```
+
+* `fs`: Sampling rate of your data. A floating point number. 
+
+#### Optional arguments:
+
+* `acwtypes`: A symbol or a vector of symbols denoting which ACW types to calculate. 
+In Julia, a symbol is written as `:symbol`. Example:
+
+```julia
+acw(data, fs; acwtypes=:acw0)
+acw(data, fs; acwtypes=[:acw0, :acw50])
+```
+
+Supported ACW types:
+
+`:acw0`: The lag where autocorrelation function crosses 0.
+
+`:acw50`: The lag where autocorrelation function crosses 0.5.
+
+`:acweuler`: The lag where autocorrelation function crosses ``1/e``. Corresponds to the inverse decay rate of an exponential decay function. 
+
+`:tau`: Fit an exponential decay function ``e^{\frac{t}{\tau}}`` to the autocorrelation function and extract ``\tau``, which is the inverse decay rate. 
+
+`:knee`: Fit a lorentzian function ``\frac{A}{a^2 + f^2}`` to the power spectrum. By Wiener-Khinchine theorem, this is the power spectrum of a time-series with an autocorrelation function of exponential decay form. The parameter ``a`` corresponds to the knee frequency. ``\tau`` and ``a`` has the relationship ``\tau = \frac{1}{2 \pi a}``. The `:knee` method uses this relationship to estimate ``\tau`` from the knee frequency. 
+
+* `n_lags`: An integer. Only used when `:tau` is in `acwtypes`. The number of lags to be used for fitting an exponential decay function. 
+
+By default, this is set to `1.1*acw0`. The reason for cutting the autocorrelation function is due to increased measurement noise for autocorrelation function for later lags. Intuitively, when we perform correlation of a time-series with a shifted version of itself, we have less and less number of time points to calculate the correlation. This is why if you plot the autocorrelation function, the portion of it after ACW-0 looks more noisy. For more details, see [Practice 1]. 
+
+* `freqlims`: Only used when `:knee` is in `acwtypes`. The frequency limits to fit the lorentzian function. 
+
+By default, the lowest and highest frequencies that can be estimated from your data. A tuple of two floating point numbers, for example, `(freq_low, freq_high)` or `(1.0, 50.0)`. 
+
+* `dims`: The dimension of time in your data. See above, the `data` argument for the explanation. An integer. 
+
+* `return_acf`: Whether or not to return the autocorrelation function (ACF) in the results object. A boolean. 
+
+* `return_psd`: Whether or not to return the power spectrum (psd) in the results object. A boolean. 
+
+* `average_over_trials`: Whether or not to average the ACF or PSD across trials, as in [Honey et al., 2012]. 
+
+Assuming that your data is stationary, averaging over trials can greatly reduce noise in your ACF/PSD estimations. By default, the dimension of trials is assumed to be the first dimension of your data. For example, if your data is two dimensional with rows as trials and columns as time points, the function will correctly infer the dimension of trials. If this is not the case, set the dimension of trials with the argument `trial_dims`. Below is an example of a three dimensional data with time as second and trials as third argument:
+
+```julia
+data = randn(10, 1000, 20) # 10 subjects, 1000 time points, 20 trials
+result = acw(data, fs; dims=2, average_over_trials=true, trial_dims=3)
+```
+
+* `trial_dims`: Dimension of trials to average over. See above (`average_over_trials`) for explanation. An integer.
+
+#### Returns
+
+* `acwresults`: An `ACWResults` object. It has the fields `fs`, `acw_results`, `acwtypes`, `n_lags`, `freqlims`, `acf`, `psd`, `freqs`, `lags`, `x_dim`. You can access these fields as `acwresults.acw_results`. 
+
+The reason to not return the results directly but return the `ACWResults` object is 1) give access to ACF and PSDs where the calculations are performed, 2) make plotting easy. You can simply type `plot(acwresults)` to plot ACF and PSDs. 
+
+Your primary interest should be the field `acwresults.acw_results`. This is a vector of arrays. Easiest way to explain this is via an example: 
+
+```julia
+data = randn(2, 1000, 10) # assume 2 subjects, 1000 time points and 10 trials
+fs = 1.0
+acwresults = acw(data, fs; acwtypes=[:acw0, :tau], dims=2)
+acw_results = acwresults.acw_results 
+```
+
+`acw_results` is a two element vector containing the results with the same order of `acwtypes` as you specify. Since we wrote `:acw0` as the first element and `:tau` as the second element, we can extract the results as 
+
+```julia
+acw_0 = acw_results[1]
+tau = acw_results[2]
+```
+
+Let's check the dimensionality of these results. Remember that we specified 2 subjects, 1000 time points and 10 trials. The result collapses the dimension of time and gives the result as an 2x10 matrix. 
+
+```julia
+size(acw_0) # should be (2, 10)
+size(tau) # should be (2, 10)
+```
+
+## Plotting
+
