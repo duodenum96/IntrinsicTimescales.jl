@@ -10,6 +10,7 @@ module OrnsteinUhlenbeck
 using Revise
 using Random
 using Distributions: Distribution
+using Statistics
 using INT
 using ..Models
 using NonlinearSolve
