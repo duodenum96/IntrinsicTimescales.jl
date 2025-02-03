@@ -33,8 +33,6 @@ module INT
 
 using Revise
 using Reexport
-using Statistics
-using Distributions
 
 include("core/model.jl")
 @reexport using .Models
@@ -53,9 +51,6 @@ include("utils/utils.jl")
 
 include("utils/ou_process.jl")
 @reexport using .OrnsteinUhlenbeck
-
-include("models/two_timescale.jl")
-@reexport using .TwoTimescaleModels
 
 include("models/one_timescale.jl")
 @reexport using .OneTimescale

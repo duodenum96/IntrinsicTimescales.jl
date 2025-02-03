@@ -7,23 +7,23 @@ export plot, posterior_predictive
 
 colorpalette = palette(:Catppuccin_mocha)[[4, 5, 7, 9, 3, 10, 13]]
 
-function acwplot(container::ACWResults; only_acf::Bool=false, only_psd::Bool=false, show::Bool=true)
+function acwplot(acwresults::ACWResults; only_acf::Bool=false, only_psd::Bool=false, show::Bool=true)
     # Check if we have data to plot
-    if only_acf && isnothing(container.acf)
+    if only_acf && isnothing(acwresults.acf)
         error("ACF data not available in container")
-    elseif only_psd && isnothing(container.psd)
+    elseif only_psd && isnothing(acwresults.psd)
         error("PSD data not available in container")
     end
 
-    if !isnothing(container.acf)
-        if ndims(container.acf) > 2
+    if !isnothing(acwresults.acf)
+        if ndims(acwresults.acf) > 2
             throw("We don't support plotting for more than 2 dimensions. Use a for-loop.")
         end
     end
 
     # Determine number of subplots needed
-    n_plots = ((!only_psd && !isnothing(container.acf)) ? 1 : 0) + 
-              ((!only_acf && !isnothing(container.psd)) ? 1 : 0)
+    n_plots = ((!only_psd && !isnothing(acwresults.acf)) ? 1 : 0) + 
+              ((!only_acf && !isnothing(acwresults.psd)) ? 1 : 0)
     
     if n_plots == 0
         error("No data available to plot")
@@ -34,8 +34,8 @@ function acwplot(container::ACWResults; only_acf::Bool=false, only_psd::Bool=fal
     current_plot = 1
 
     # Plot ACF if available and requested
-    if !only_psd && !isnothing(container.acf)
-        plot!(p[current_plot], container.lags, container.acf, 
+    if !only_psd && !isnothing(acwresults.acf)
+        plot!(p[current_plot], acwresults.lags, acwresults.acf, 
               label="ACF", color=colorpalette[1],
               xlabel="Lag (s)", ylabel="Autocorrelation",
               title="Autocorrelation Function")
@@ -43,8 +43,8 @@ function acwplot(container::ACWResults; only_acf::Bool=false, only_psd::Bool=fal
     end
 
     # Plot PSD if available and requested
-    if !only_acf && !isnothing(container.psd)
-        plot!(p[current_plot], container.freqs, container.psd, 
+    if !only_acf && !isnothing(acwresults.psd)
+        plot!(p[current_plot], acwresults.freqs, acwresults.psd, 
               label="PSD", color=colorpalette[2],
               xlabel="Frequency (Hz)", ylabel="Power",
               title="Power Spectral Density",

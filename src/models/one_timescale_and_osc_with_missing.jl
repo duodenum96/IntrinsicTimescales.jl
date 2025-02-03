@@ -10,7 +10,7 @@ Uses specialized methods for handling NaN values:
 """
 module OneTimescaleAndOscWithMissing
 
-using Distributions
+using Distributions: Distribution, Normal, Uniform
 using Statistics
 using ..Models
 using ..OrnsteinUhlenbeck
@@ -377,10 +377,11 @@ For ADVI method:
 - For ADVI: Uses Automatic Differentiation Variational Inference via Turing.jl
 - Parameter dictionary can be customized for each method (see get_param_dict_abc())
 """
-function Models.fit(model::OneTimescaleAndOscWithMissingModel, param_dict=nothing)
+function Models.fit(model::OneTimescaleAndOscWithMissingModel, param_dict::Dict=Dict())
     if model.fit_method == :abc
-        if isnothing(param_dict)
+        if isempty(param_dict)
             param_dict = get_param_dict_abc()
+
         end
 
         abc_record = pmc_abc(model;

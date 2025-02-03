@@ -3,7 +3,7 @@
 
 module OneTimescaleAndOsc
 
-using Distributions
+using Distributions: Distribution, Normal, Uniform
 using Statistics
 using ..Models
 using ..OrnsteinUhlenbeck
@@ -393,17 +393,18 @@ For ABC method:
 - `abc_record`: Full record of ABC iterations
 
 For ADVI method:
-- `ADVIResult`: Container with samples, MAP estimates, variances, and full chain
+- `ADVIResult`: Container with samples, MAP estimates, variances, and full variational posterior
 
 # Notes
 - For ABC: Uses Population Monte Carlo ABC with adaptive epsilon selection
 - For ADVI: Uses Automatic Differentiation Variational Inference via Turing.jl
 - Parameter dictionary can be customized for each method (see get_param_dict_abc())
 """
-function Models.fit(model::OneTimescaleAndOscModel, param_dict=nothing)
+function Models.fit(model::OneTimescaleAndOscModel, param_dict::Dict=Dict())
     if model.fit_method == :abc
-        if isnothing(param_dict)
+        if isempty(param_dict)
             param_dict = get_param_dict_abc()
+
         end
 
         abc_record = pmc_abc(model;
@@ -450,7 +451,6 @@ function Models.fit(model::OneTimescaleAndOscModel, param_dict=nothing)
         
         return result
     end
-
 end
 
 end # module OneTimescaleAndOsc

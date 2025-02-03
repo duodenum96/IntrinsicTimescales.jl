@@ -9,7 +9,7 @@ Uses DifferentialEquations.jl.
 module OrnsteinUhlenbeck
 using Revise
 using Random
-using Distributions
+using Distributions: Distribution
 using INT
 using ..Models
 using NonlinearSolve

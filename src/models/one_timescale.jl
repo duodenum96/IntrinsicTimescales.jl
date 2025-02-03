@@ -6,12 +6,14 @@ Module for inferring a single timescale from time series data using the Ornstein
 """
 module OneTimescale
 
-using Distributions
+using Distributions: Distribution, Normal, Uniform
+using Statistics: mean, std
 using ..Models
 using ..OrnsteinUhlenbeck
 using INT
 using ComponentArrays
 using DifferentiationInterface
+
 
 export one_timescale_model, OneTimescaleModel
 
@@ -334,9 +336,9 @@ For ADVI method:
 - For ADVI: Uses Automatic Differentiation Variational Inference via Turing.jl
 - Parameter dictionary can be customized for each method (see get_param_dict_abc())
 """
-function Models.fit(model::OneTimescaleModel, param_dict=nothing)
+function Models.fit(model::OneTimescaleModel, param_dict::Dict=Dict())
     if model.fit_method == :abc
-        if isnothing(param_dict)
+        if isempty(param_dict)
             param_dict = get_param_dict_abc()
         end
 

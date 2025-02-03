@@ -1,6 +1,6 @@
 module Models
 
-using Distributions
+using Distributions: Distribution
 
 export AbstractTimescaleModel, BaseModel, check_inputs, check_acwtypes, fit, check_model_inputs
 
@@ -126,7 +126,7 @@ For ABC fitting method:
 - `weights`: Importance weights for the samples
 - `distances`: Distances between simulated and observed summary statistics
 """
-function fit(model::AbstractTimescaleModel, param_dict=nothing) end
+function fit(model::AbstractTimescaleModel, param_dict::Dict=Dict()) end
 
 # Combined generation and reduction step
 """
