@@ -1,6 +1,6 @@
 # Model-Free Timescale Estimation
 
-Performed via the function `acw` in INT.jl. 
+Performed via the function `acw` in INT.jl. The `acw` function calculates ACF or PSD depending on the acwtypes you specify. If there is no missing data (indicated by `NaN` or `missing`), `acw` calculates ACF as the inverse fourier transform of the power spectrum, using `comp_ac_fft` internally. Otherwise it calculates ACF as correlations between a time-series and its lag-shifted variants, using `comp_ac_time_missing`. For PSD, it uses periodogram method (`comp_psd`) in the case of no missing data and Lomb-Scargle method (`comp_psd_lombscargle`) in the case of missing data. 
 
 ```julia
 acwresults = acw(data, fs; acwtypes=[:acw0, :acw50, :acweuler, :tau, :knee], 
@@ -81,9 +81,9 @@ result = acw(data, fs; dims=2, average_over_trials=true, trial_dims=3)
 
 #### Returns
 
-* `acwresults`: An `ACWResults` object. It has the fields `fs`, `acw_results`, `acwtypes`, `n_lags`, `freqlims`, `acf`, `psd`, `freqs`, `lags`, `x_dim`. You can access these fields as `acwresults.acw_results`. 
+* `acwresults`: An `ACWResults` object. It has the fields `fs`, `acw_results`, `acwtypes`, `n_lags`, `freqlims`, `acf`, `psd`, `freqs`, `lags`, `x_dim`. You can access these fields as `acwresults.field`. The field `acw_results` contains the ACW results indicated by the input argument `acwtypes` in the same order you specify. Each element of `acw_results` is an array of the same size of your data minus the dimension of time, which will be dropped. See below for details. 
 
-The reason to not return the results directly but return the `ACWResults` object is 1) give access to ACF and PSDs where the calculations are performed, 2) make plotting easy. You can simply type `plot(acwresults)` to plot ACF and PSDs. 
+The reason to not return the results directly but return the `ACWResults` object is 1) give access to ACF and PSDs  where the calculations are performed as well as `n_lags` and `freqlims` if the user is using defaults, 2) make plotting easy. You can simply type `acwplot(acwresults)` to plot ACF and PSDs. 
 
 Your primary interest should be the field `acwresults.acw_results`. This is a vector of arrays. Easiest way to explain this is via an example: 
 
@@ -108,5 +108,45 @@ size(acw_0) # should be (2, 10)
 size(tau) # should be (2, 10)
 ```
 
+Other fields:
+
+* `fs`: Sampling rate. Floating point number. 
+
+* `acwtypes`: The ACW types you specified. 
+
+* `n_lags`: The number of lags used to fit exponential decay function to the autocorrelation function. See above in the input arguments for details. An integer.
+
+* `freqlims`: Frequency limits to fit a lorentzian to the power spectrum. See above in the input arguments for details. A tuple of floating point numbers. 
+
+* `acf`: Autocorrelation function(s). Has the same size of your data with the time dimension replaced by lag dimension with `n_lags` elements. 
+
+* `psd`: Power spectrum/spectra. Has the same size of your data with the time dimension replaced by frequency dimension with `freqlims` as lowest and highest frequencies. 
+
+* `freqs`: Frequencies corresponding to PSD. 
+
+* `lags`: Lags corresponding to ACF. 
+
+* `x_dim`: The dimension corresponding to lags and frequencies. Used internally in plotting. 
+
 ## Plotting
+
+The function `acwplot` can plot power spectra and autocorrelation functions. Currently it supports only two dimensions (for example, subjects x time or trials x time). 
+
+```julia
+p = acwplot(acwresults; only_acf=false, only_psd=false, show=true)
+```
+
+#### Mandatory Arguments
+
+* `acwresults`: `ACWResults` type obtained by running the function `acw`. 
+
+#### Optional Arguments
+
+* `only_acf` / `only_psd`: Plot only the ACF or only the PSD. Boolean. 
+
+* `show`: Whether to show the plot or only return the variable that contains the plot. 
+
+#### Returns
+
+* `p`: The plot for further modification using the [Plots](https://docs.juliaplots.org/stable/) library. 
 
