@@ -2,7 +2,7 @@ module Models
 
 using Distributions
 
-export AbstractTimescaleModel, BaseModel, check_inputs, check_acwtypes, solve, check_model_inputs
+export AbstractTimescaleModel, BaseModel, check_inputs, check_acwtypes, fit, check_model_inputs
 
 """
     AbstractTimescaleModel
@@ -107,7 +107,7 @@ function distance_function end
 function rescale_theta end
 
 """
-    solve(model::AbstractTimescaleModel, param_dict=nothing)
+    fit(model::AbstractTimescaleModel, param_dict=nothing)
 
 Fit the timescale model using the specified fitting method.
 
@@ -126,7 +126,7 @@ For ABC fitting method:
 - `weights`: Importance weights for the samples
 - `distances`: Distances between simulated and observed summary statistics
 """
-function solve(model::AbstractTimescaleModel, param_dict=nothing) end
+function fit(model::AbstractTimescaleModel, param_dict=nothing) end
 
 # Combined generation and reduction step
 """

@@ -174,7 +174,7 @@ using DifferentiationInterface
         param_dict[:distance_max] = 100.0
         param_dict[:target_epsilon] = 1e-1
 
-        results = Models.solve(model, param_dict)
+        results = Models.fit(model, param_dict)
 
         # Test posterior properties
         @test results.MAP[1] isa Float64
@@ -284,7 +284,7 @@ end
         param_dict[:autodiff] = AutoForwardDiff()
 
         # Test with default parameters
-        adviresults = Models.solve(model, param_dict)
+        adviresults = Models.fit(model, param_dict)
         samples = adviresults.samples
         map_estimate = adviresults.MAP
         posterior = adviresults.variational_posterior
@@ -317,7 +317,7 @@ end
         param_dict[:n_elbo_samples] = 3
         param_dict[:autodiff] = AutoForwardDiff()
 
-        adviresults_acf = Models.solve(model_acf, param_dict)
+        adviresults_acf = Models.fit(model_acf, param_dict)
         samples_acf = adviresults_acf.samples
         map_acf = adviresults_acf.MAP
         posterior_acf = adviresults_acf.variational_posterior

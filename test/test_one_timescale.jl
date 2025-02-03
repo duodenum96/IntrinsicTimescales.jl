@@ -170,7 +170,7 @@ using .ABC
             param_dict[:max_iter] = 10000
             param_dict[:target_epsilon] = 1e-2
             
-            results = Models.solve(model, param_dict)
+            results = Models.fit(model, param_dict)
             
             # Test posterior properties
             @test results.MAP[1] isa Float64
@@ -201,7 +201,7 @@ using .ABC
             param_dict[:N] = 10000
             param_dict[:distance_max] = 500.0
             
-            results = Models.solve(model, param_dict)
+            results = Models.fit(model, param_dict)
             
             # Test posterior properties
             @test results.MAP[1] ≈ true_tau atol=10.0
@@ -238,7 +238,7 @@ using .ABC
         #     param_dict[:N] = 10000
         #     param_dict[:distance_max] = 500.0
             
-        #     posterior_samples, posterior_MAP, abc_record = Models.solve(model, param_dict)
+        #     posterior_samples, posterior_MAP, abc_record = Models.fit(model, param_dict)
             
         #     # Test posterior properties
         #     @test size(posterior_samples, 2) == 1
@@ -289,7 +289,7 @@ using .ABC
         )
 
         # Test with default parameters
-        result = INT.solve(model)
+        result = INT.fit(model)
         samples = result.samples
         map_estimate = result.MAP
         posterior = result.variational_posterior
@@ -306,7 +306,7 @@ using .ABC
         param_dict[:n_elbo_samples] = 10
         param_dict[:autodiff] = AutoForwardDiff()
         
-        result2 = INT.solve(model, param_dict)
+        result2 = INT.fit(model, param_dict)
         samples2 = result2.samples
         map_estimate2 = result2.MAP
         posterior2 = result2.variational_posterior

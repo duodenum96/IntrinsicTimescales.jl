@@ -313,7 +313,7 @@ function Models.distance_function(model::OneTimescaleWithMissingModel, sum_stats
 end
 
 """
-    Models.solve(model::OneTimescaleWithMissingModel, param_dict=nothing)
+    Models.fit(model::OneTimescaleWithMissingModel, param_dict=nothing)
 
 Perform inference using the specified fitting method.
 
@@ -335,7 +335,7 @@ For ADVI method:
 - For ADVI: Uses Automatic Differentiation Variational Inference via Turing.jl
 - Parameter dictionary can be customized for each method (see get_param_dict_abc())
 """
-function Models.solve(model::OneTimescaleWithMissingModel, param_dict=nothing)
+function Models.fit(model::OneTimescaleWithMissingModel, param_dict=nothing)
     if model.fit_method == :abc
         if isnothing(param_dict)
             param_dict = get_param_dict_abc()

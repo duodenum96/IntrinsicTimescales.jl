@@ -167,7 +167,7 @@ using NaNStatistics
             param_dict[:max_iter] = 10000
             param_dict[:target_epsilon] = 1e-1
             
-            results = Models.solve(model, param_dict)
+            results = Models.fit(model, param_dict)
             
 
             # Test posterior properties
@@ -266,7 +266,7 @@ end
         param_dict[:n_elbo_samples] = 5
 
         # Test with default parameters
-        results = Models.solve(model, param_dict)
+        results = Models.fit(model, param_dict)
         samples = results.samples
         map_estimate = results.MAP
         posterior = results.variational_posterior
@@ -288,7 +288,7 @@ end
     #         prior=[Normal(0.3, 0.2)]
     #     )
         
-    #     results = Models.solve(model_psd)
+    #     results = Models.fit(model_psd)
         
     #     # Both methods should give reasonable results
     #     @test abs(map_acf[1] - true_tau) < 0.2

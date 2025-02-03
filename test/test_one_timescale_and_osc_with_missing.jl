@@ -133,7 +133,7 @@ using NaNStatistics
         param_dict[:distance_max] = 100.0
         param_dict[:target_epsilon] = 1e-1
         
-        results = Models.solve(model, param_dict)
+        results = Models.fit(model, param_dict)
         samples = results.final_theta
         map_estimate = results.MAP
         
@@ -342,7 +342,7 @@ end
         param_dict[:n_elbo_samples] = 3
         param_dict[:autodiff] = AutoForwardDiff()
 
-        results = Models.solve(model, param_dict)
+        results = Models.fit(model, param_dict)
         samples = results.samples
         map_estimate = results.MAP
         variational_posterior = results.variational_posterior
