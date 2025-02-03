@@ -375,10 +375,11 @@ function Models.fit(model::OneTimescaleWithMissingModel, param_dict::Dict=Dict()
 
 
     elseif model.fit_method == :advi
-        if isnothing(param_dict)
+        if isempty(param_dict)
             param_dict = get_param_dict_advi()
         end
         
+
 
         result = fit_vi(model; 
             n_samples=param_dict[:n_samples],

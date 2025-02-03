@@ -373,7 +373,7 @@ function Models.fit(model::OneTimescaleModel, param_dict::Dict=Dict())
     return abc_record
 
     elseif model.fit_method == :advi
-        if isnothing(param_dict)
+        if isempty(param_dict)
             param_dict = get_param_dict_advi()
         end
         
