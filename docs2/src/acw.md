@@ -1,4 +1,4 @@
-# Model-Free Timescale Estimation
+# [Model-Free Timescale Estimation](@id acw)\
 
 Performed via the function `acw` in INT.jl. The `acw` function calculates ACF or PSD depending on the acwtypes you specify. If there is no missing data (indicated by `NaN` or `missing`), `acw` calculates ACF as the inverse fourier transform of the power spectrum, using `comp_ac_fft` internally. Otherwise it calculates ACF as correlations between a time-series and its lag-shifted variants, using `comp_ac_time_missing`. For PSD, it uses periodogram method (`comp_psd`) in the case of no missing data and Lomb-Scargle method (`comp_psd_lombscargle`) in the case of missing data. 
 
@@ -79,7 +79,7 @@ result = acw(data, fs; dims=2, average_over_trials=true, trial_dims=3)
 
 * `trial_dims`: Dimension of trials to average over. See above (`average_over_trials`) for explanation. An integer.
 
-#### Returns
+### Returns
 
 * `acwresults`: An `ACWResults` object. It has the fields `fs`, `acw_results`, `acwtypes`, `n_lags`, `freqlims`, `acf`, `psd`, `freqs`, `lags`, `x_dim`. You can access these fields as `acwresults.field`. The field `acw_results` contains the ACW results indicated by the input argument `acwtypes` in the same order you specify. Each element of `acw_results` is an array of the same size of your data minus the dimension of time, which will be dropped. See below for details. 
 
