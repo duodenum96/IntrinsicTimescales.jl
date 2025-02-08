@@ -143,12 +143,12 @@ function one_timescale_and_osc_model(data, time, fit_method;
                                      distance_method=nothing,
                                      dt=time[2] - time[1],
                                      T=time[end],
-                                     numTrials=size(data, 1),
                                      data_mean=mean(data),
                                      data_sd=std(data),
                                      freqlims=nothing,
                                      freq_idx=nothing,
                                      dims=ndims(data),
+                                     numTrials=size(data, setdiff([1, 2], dims)), 
                                      distance_combined=false,
                                      weights=[0.5, 0.5],
                                      data_tau=nothing, data_osc=nothing)

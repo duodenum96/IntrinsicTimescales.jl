@@ -124,11 +124,12 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
                              data_sum_stats=nothing,
                              lags_freqs=nothing, prior=nothing, n_lags=nothing,
                              distance_method=nothing,
-                             dt=time[2] - time[1], T=time[end], numTrials=size(data, 1),
+                             dt=time[2] - time[1], T=time[end],
                              data_mean=mean(data),
                              data_sd=std(data), freqlims=nothing, freq_idx=nothing,
-                             dims=ndims(data), distance_combined=false,
+                             dims=ndims(data), numTrials=size(data, setdiff([1, 2], dims)), distance_combined=false,
                              weights=[0.5, 0.5], data_tau=nothing, u0=nothing)
+
 
     data, dims = check_model_inputs(data, time, fit_method, summary_method, prior, distance_method)
 

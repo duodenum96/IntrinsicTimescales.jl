@@ -1,7 +1,7 @@
 """
     INT
 
-A Julia package for Bayesian inference of timescales in time series data.
+A Julia package for estimation of timescales from time series data.
 
 # Features
 - Standard techniques for INT calculation: ACW-50, ACW-0, FOOOF
