@@ -127,7 +127,7 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
                              dt=time[2] - time[1], T=time[end],
                              data_mean=mean(data),
                              data_sd=std(data), freqlims=nothing, freq_idx=nothing,
-                             dims=ndims(data), numTrials=size(data, setdiff([1, 2], dims)), distance_combined=false,
+                             dims=ndims(data), numTrials=size(data, setdiff([1, 2], dims)[1]), distance_combined=false,
                              weights=[0.5, 0.5], data_tau=nothing, u0=nothing)
 
 
