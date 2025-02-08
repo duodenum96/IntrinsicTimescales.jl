@@ -1,10 +1,16 @@
-# [Simulation Based Timescale Estimation](@id sim)
+# [One Timescale Model](@id one_timescale)
 
-There are four main functions in INT.jl to perform simulation based timescale estimation: `one_timescale_model`, `one_timescale_and_osc_model`, `one_timescale_with_missing_model`, `one_timescale_and_osc_with_missing_model`. For each model, one can choose between `:abc` or `:advi` as the inference method and `:acf` or `:psd` as the summary method. All models have similar syntax with differences in implementation. I will detail the usage of `one_timescale_model`. For the other models, I won't go into as much detail but point out the fundamental differences from `one_timescale_model`. For more details, refer to the [Practice] section. 
+The generative model:
 
-## `one_timescale_model`
+```math
+\frac{dx}{dt} = -\frac{x}{\tau} + \xi(t)
+```
 
-### ACF Summary
+with timescale ``\tau``. ``\xi(t)`` is white noise with unit variance. 
+
+Can be used with either ACF or PSD as the summary method. 
+
+## ACF Summary
 ```julia
 function one_timescale_model(data, time, fit_method; summary_method=:acf,
                              prior=nothing, n_lags=nothing,
@@ -64,7 +70,7 @@ If `true`, the distance is a weighted sum of RMSE between ACFs and RMSE between 
 
 The first number is the weight for RMSE between ACFs and the second number is the weight for RMSE between exponential decay fits to ACFs. The default is `[0.5, 0.5]`. Used only if `distance_combined` is `true`. 
 
-### PSD Summary
+## PSD Summary
 
 ```julia
 function one_timescale_model(data, time, fit_method; summary_method=:psd,
@@ -105,6 +111,6 @@ The first number is the lower frequency limit and the second number is the upper
 
 The first number is the weight for RMSE between PSDs and the second number is the weight for RMSE between INT estimates. 
 
-### Returns
+## Returns
 
 * `model`: A `OneTimescaleModel` object. Can be used as an input to `fit` function to estimate INT and `posterior_predictive` function to plot posterior predictive check. 
