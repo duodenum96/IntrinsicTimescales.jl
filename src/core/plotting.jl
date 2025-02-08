@@ -145,7 +145,8 @@ function posterior_predictive(container::ABCResults, model::Models.AbstractTimes
 end
 
 """
-    plot(container::ADVIResult, model::Models.AbstractTimescaleModel; show::Bool=true)
+    posterior_predictive(container::ADVIResult, model::Models.AbstractTimescaleModel; show::Bool=true)
+
 
 Plot posterior predictive check for ADVI results. Shows the data summary statistics (ACF or PSD)
 with posterior predictive samples overlaid.
@@ -159,9 +160,10 @@ with posterior predictive samples overlaid.
 # Returns
 - Plot object
 """
-function plot(container::ADVIResult, model::Models.AbstractTimescaleModel; 
+function posterior_predictive(container::ADVIResult, model::Models.AbstractTimescaleModel; 
              show::Bool=true, n_samples::Int=100)
     
+
     # Randomly sample from posterior
     sample_indices = rand(1:size(container.samples, 2), n_samples)
     theta_samples = container.samples[:, sample_indices]'  # Transpose to match ABC format
