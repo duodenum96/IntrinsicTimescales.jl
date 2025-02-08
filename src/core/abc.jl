@@ -748,7 +748,7 @@ function get_param_dict_abc()
     return Dict(:epsilon_0 => 1.0,
                 :max_iter => 10000,
                 :min_accepted => 100,
-                :steps => 10,
+                :steps => 30,
                 :sample_only => false,
 
                 # Acceptance rate parameters

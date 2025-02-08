@@ -109,7 +109,7 @@ end
 function get_param_dict_advi()
     return Dict(
         :n_samples => 4000,
-        :n_iterations => 10,
+        :n_iterations => 50,
         :n_elbo_samples => 20,
         :autodiff => AutoForwardDiff()
     )
