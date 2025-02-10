@@ -370,7 +370,7 @@ For ABC method:
 - `abc_record`: Full record of ABC iterations
 
 For ADVI method:
-- `ADVIResult`: Container with samples, MAP estimates, variances, and full chain
+- `ADVIResults`: Container with samples, MAP estimates, variances, and full chain
 
 # Notes
 - For ABC: Uses Population Monte Carlo ABC with adaptive epsilon selection

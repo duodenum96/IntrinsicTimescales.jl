@@ -5,10 +5,10 @@ using Statistics
 using INT
 using ..Models
 
-export fit_vi, ADVIResult, get_param_dict_advi
+export fit_vi, ADVIResults, get_param_dict_advi
 
 """
-    ADVIResult{T<:Real}
+    ADVIResults{T<:Real}
 
 Container for ADVI (Automatic Differentiation Variational Inference) results.
 
@@ -18,7 +18,7 @@ Container for ADVI (Automatic Differentiation Variational Inference) results.
 - `variances::AbstractVector{T}`: Posterior variances for each parameter
 - `chain`: Turing chain object containing full inference results
 """
-struct ADVIResult{T<:Real}
+struct ADVIResults{T<:Real}
     samples::AbstractArray{T}
     MAP::AbstractVector{T}
     variational_posterior::Any
@@ -79,7 +79,7 @@ Perform variational inference using ADVI (Automatic Differentiation Variational 
 - `optimizer=AutoForwardDiff()`: Optimization algorithm for ADVI
 
 # Returns
-- `ADVIResult`: Container with inference results including:
+- `ADVIResults`: Container with inference results including:
   - Posterior samples
   - MAP estimates
   - Parameter variances
@@ -103,9 +103,23 @@ function fit_vi(model; n_samples=4000, n_iterations=10, n_elbo_samples=20,
     # Compute MAP and variances
     MAP = find_MAP(samples_matrix')
     
-    return ADVIResult(samples_matrix, MAP, chain)
+    return ADVIResults(samples_matrix, MAP, chain)
 end
 
+
+
+"""
+    get_param_dict_advi()
+
+Get default parameter dictionary for ADVI (Automatic Differentiation Variational Inference) algorithm.
+
+# Returns
+Dictionary containing default values for ADVI parameters including:
+- `n_samples`: Number of posterior samples to draw (default: 4000)
+- `n_iterations`: Number of ADVI iterations (default: 50) 
+- `n_elbo_samples`: Number of samples for ELBO estimation (default: 20)
+- `autodiff`: Automatic differentiation backend (default: AutoForwardDiff())
+"""
 function get_param_dict_advi()
     return Dict(
         :n_samples => 4000,

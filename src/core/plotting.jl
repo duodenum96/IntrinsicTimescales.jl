@@ -145,14 +145,14 @@ function posterior_predictive(container::ABCResults, model::Models.AbstractTimes
 end
 
 """
-    posterior_predictive(container::ADVIResult, model::Models.AbstractTimescaleModel; show::Bool=true)
+    posterior_predictive(container::ADVIResults, model::Models.AbstractTimescaleModel; show::Bool=true)
 
 
 Plot posterior predictive check for ADVI results. Shows the data summary statistics (ACF or PSD)
 with posterior predictive samples overlaid.
 
 # Arguments
-- `container::ADVIResult`: Container with ADVI results
+- `container::ADVIResults`: Container with ADVI results
 - `model::Models.AbstractTimescaleModel`: Model used for inference
 - `show::Bool=true`: Whether to display the plot
 - `n_samples::Int=100`: Number of posterior samples to use for prediction
@@ -160,7 +160,7 @@ with posterior predictive samples overlaid.
 # Returns
 - Plot object
 """
-function posterior_predictive(container::ADVIResult, model::Models.AbstractTimescaleModel; 
+function posterior_predictive(container::ADVIResults, model::Models.AbstractTimescaleModel; 
              show::Bool=true, n_samples::Int=100)
     
 
