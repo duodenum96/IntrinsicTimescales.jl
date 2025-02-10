@@ -1,4 +1,4 @@
-# [One Timescale Model](@id one_timescale)
+# [One Timescale Model (`one_timescale_model`)](@id one_timescale)
 
 The generative model:
 
@@ -24,7 +24,7 @@ Simple usage:
 ```julia
 model = one_timescale_model(data, time, :abc, summary_method=:acf)
 results = fit(model)
-int = results.MAP[1]
+int = results.MAP[1] # maximum a posteriori estimate
 ```
 
 #### Mandatory arguments: 

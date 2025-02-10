@@ -7,8 +7,12 @@ makedocs(sitename="INT.jl",
          #  # modules = [INT],
          #  checkdocs=:exports,
          pages=["Model-Free Timescale Estimation" => "acw.md",
-             "Simulation Based Timescale Estimation" => ["simbasedinference.md",
-                 "One Timescale Model" => "one_timescale.md"],
+             "Simulation Based Timescale Estimation" => ["Overview" => "simbasedinference.md",
+                 "One Timescale Model" => "one_timescale.md",
+                 "One Timescale Model with Missing Data" => "one_timescale_with_missing.md",
+                 "One Timescale Model with Oscillations" => "one_timescale_and_osc.md",
+                 "One Timescale Model with Oscillations and Missing Data" => "one_timescale_and_osc_with_missing.md"
+             ],
              "API" => "index.md"])
 
 # Documenter can also automatically deploy documentation to gh-pages.
