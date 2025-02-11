@@ -67,9 +67,9 @@ Questions and contributions are welcome. Use the [issues section of our github p
 <!-- [![Build Status](https://travis-ci.com/duodenum96/INT.jl.svg?branch=master)](https://travis-ci.com/duodenum96/INT.jl) -->
 <!-- NOTE: Codecov.io badge now depends on the token, copy from their site after setting up -->
 <!-- Documentation -- uncomment or delete as needed -->
-<!--
+
 [![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://duodenum96.github.io/.jl/stable)
 [![Documentation](https://img.shields.io/badge/docs-master-blue.svg)](https://duodenum96.github.io/.jl/dev)
--->
+
 <!-- Aqua badge, see test/runtests.jl -->
 <!-- [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl) -->
