@@ -18,6 +18,8 @@ jobs:
           version: ${{ matrix.julia-version }}
       - name: Pkg.add("CompatHelper")
         run: julia -e 'using Pkg; Pkg.add("CompatHelper")'
+      - name: Check installed packages
+        run: julia -e 'using Pkg; println(Pkg.status())'
       - name: CompatHelper.main()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
