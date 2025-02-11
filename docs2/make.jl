@@ -3,9 +3,7 @@ using Documenter
 using INT
 
 makedocs(sitename="INT.jl",
-         #  format=Documenter.HTML(),
-         #  # modules = [INT],
-         #  checkdocs=:exports,
+         format=Documenter.HTML(),
          pages=["Getting Started" => "home.md",
          "Practice" => "practice/practice.md",
          "Theory" => "theory/theory.md",
@@ -27,9 +25,4 @@ makedocs(sitename="INT.jl",
 # for more information.
 deploydocs(
     repo = "github.com/duodenum96/INT.jl.git",
-    target = "build",
-    deps = nothing,
-    make = nothing,
-    devbranch = "main",
-    devurl = "dev"
 )
