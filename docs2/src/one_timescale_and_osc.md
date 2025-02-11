@@ -5,7 +5,9 @@ Uses the same syntax as [`one_timescale_model`](one_timescale.md). We refer the 
 The generative model: 
 
 ```math
-\frac{dy}{dt} = -\frac{y}{\tau} + \xi(t)
+\frac{dy}{dt} = -\frac{y}{\tau} + \xi(t) \\
+\\
+\\
 x(t) = \sqrt{a}y(t) + \sqrt{1-a} sin(2 \pi f t + \phi)
 ```
 
@@ -31,4 +33,4 @@ If the user does not specify a prior or sets `prior="informed_prior"`, INT.jl ge
 
 Similarly, the argument `combine_distance=true` not only calculates the RMSE between PSDs or ACFs, but also combines that distance with the RMSE between timescale and frequency estimates between the model and data. 
 
-The other arguments are the same as `one_timescale_model`. We refer the reader to [that section of the documentation](@one_timescale.md) for details. 
+The other arguments are the same as `one_timescale_model`. We refer the reader to [that section of the documentation](one_timescale.md) for details. 

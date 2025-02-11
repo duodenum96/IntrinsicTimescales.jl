@@ -4,7 +4,7 @@ In simulation based methods, your data is assumed to come from a generative mode
 
 All methods assume that your data has one dimension for trials and one dimension for time points. From each trial, INT.jl calculates one summary statistic (ACF or PSD) and averages them across trials to get a less noisy estimate. The simulations from the generative model have the same data structure (same number of data points, trials and time resolution) as your data. The goal of the simulation based methods is minimizing the distance between the ACF or PSD of your model and data. Then the parameter corresponding to INT in your model is hopefully the real INT. 
 
-## Implementation
+## Model Types
 
 There are four main functions in INT.jl to perform simulation based timescale estimation: [`one_timescale_model`](one_timescale.md), [`one_timescale_and_osc_model`](one_timescale_and_osc.md), [`one_timescale_with_missing_model`](one_timescale_with_missing.md), [`one_timescale_and_osc_with_missing_model`](one_timescale_and_osc_with_missing.md). For each model, one can choose between `:abc` or `:advi` as the inference method and `:acf` or `:psd` as the summary method. All models have the same syntax with differences in implementation. The detailed usage is documented in [`one_timescale_model`](one_timescale.md) - other model pages focus on specific differences. 
 
@@ -47,7 +47,7 @@ param_dict["convergence_window"] = 10
 result = fit(model, param_dict)
 int_map = result.MAP[1] # Maximum a posteriori 
 ```
-The parameters are detailed in [ABC Parameters](abc_parameters.md) section.
+The parameters are detailed in [Parameters for Approximate Bayesian Computation](fit_parameters.md) section.
 
 ## Fitting Methods - ADVI
 
@@ -68,7 +68,7 @@ param_dict["n_iterations"] = 20
 fit(model, param_dict)
 ```
 
-See [ADVI Parameters](advi_parameters.md) section for details on parameters.
+See [Parameters for Automatic Differentiation Variational Inference](fit_parameters.md) section for details on parameters.
 
 ## Notes on Summary Statistics
 
