@@ -2,7 +2,7 @@
 
 INT.jl is a software package for estimating Intrinsic Neural Timescales (INTs) from time-series data. It uses model-free methods (ACW-50, ACW-0, fitting an exponential decay function etc.) and simulation-based methods (ABC, ADVI) to estimate INTs.
 
-The documentation is available [here](https://duodenum96.github.io/INT.jl/docs/).
+The documentation is available [here](https://duodenum96.github.io/INT.jl/dev/home/).
 
 ## Installation
 
@@ -44,7 +44,7 @@ model = one_timescale_model(data, time, :advi)
 result = solve(model)
 ```
 
-These functions are highly customizable, see the [documentation](https://duodenum96.github.io/INT.jl/docs/) for details. 
+These functions are highly customizable, see the [documentation](https://duodenum96.github.io/INT.jl/dev/home/) for details. 
 
 ## Getting Help and Making Contributions
 
@@ -52,7 +52,7 @@ Questions and contributions are welcome. Use the [issues section of our github p
 
 ## Want to learn more?
 
-[Kindly read the fine manual (RTFM).](https://duodenum96.github.io/INT.jl/docs/)
+[Kindly read the fine manual (RTFM).](https://duodenum96.github.io/INT.jl/dev/home/)
 
 
 <!-- Tidyverse lifecycle badges, see https://www.tidyverse.org/lifecycle/ Uncomment or delete as needed. -->
@@ -68,8 +68,8 @@ Questions and contributions are welcome. Use the [issues section of our github p
 <!-- NOTE: Codecov.io badge now depends on the token, copy from their site after setting up -->
 <!-- Documentation -- uncomment or delete as needed -->
 
-[![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://duodenum96.github.io/.jl/stable)
-[![Documentation](https://img.shields.io/badge/docs-master-blue.svg)](https://duodenum96.github.io/.jl/dev)
+[![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://duodenum96.github.io/INT.jl/stable)
+[![Documentation](https://img.shields.io/badge/docs-master-blue.svg)](https://duodenum96.github.io/INT.jl/dev)
 
 <!-- Aqua badge, see test/runtests.jl -->
 <!-- [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl) -->
