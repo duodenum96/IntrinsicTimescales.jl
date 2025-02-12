@@ -13,7 +13,7 @@ This package is written in Julia. If you do not have Julia installed, you can in
 
 ```julia
 using Pkg
-Pkg.add("INT")
+Pkg.add("IntrinsicTimescales")
 ```
 Soon, there will also be a Python wrapper called [INTpy](https://github.com/duodenum96/INTpy), which will allow you to use IntrinsicTimescales.jl from Python. 
 
