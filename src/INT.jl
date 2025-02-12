@@ -31,7 +31,6 @@ A Julia package for estimation of timescales from time series data.
 """
 module INT
 
-using Revise
 using Reexport
 
 include("core/model.jl")

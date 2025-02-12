@@ -4,7 +4,6 @@ using INT
 using Statistics
 using StatsBase
 using LinearAlgebra
-using Revise
 
 @testset "ABC Module" begin
     @testset "Basic ABC" begin
