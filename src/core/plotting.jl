@@ -1,7 +1,7 @@
 module Plotting
 
 using Plots
-using INT
+using IntrinsicTimescales
 
 export plot, posterior_predictive
 

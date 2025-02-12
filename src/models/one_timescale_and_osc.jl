@@ -7,8 +7,8 @@ using Distributions: Distribution, Normal, Uniform
 using Statistics
 using ..Models
 using ..OrnsteinUhlenbeck
-using INT.Utils
-using INT
+using IntrinsicTimescales.Utils
+using IntrinsicTimescales
 using DifferentiationInterface
 
 export one_timescale_and_osc_model, OneTimescaleAndOscModel

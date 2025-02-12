@@ -1,20 +1,20 @@
-# INT.jl Documentation
+# IntrinsicTimescales.jl Documentation
 
-Welcome to the documentation of INT.jl. INT.jl is a software package for estimating Intrinsic Neural Timescales (INTs) from time-series data. It uses model-free methods (ACW-50, ACW-0, fitting an exponential decay function etc.) and simulation-based methods (ABC, ADVI) to estimate INTs.
+Welcome to the documentation of IntrinsicTimescales.jl. IntrinsicTimescales.jl is a software package for estimating Intrinsic Neural Timescales (INTs) from time-series data. It uses model-free methods (ACW-50, ACW-0, fitting an exponential decay function etc.) and simulation-based methods (ABC, ADVI) to estimate INTs.
 
 ## Installation
 
-This package is written in Julia. If you do not have Julia installed, you can install it from [here](https://julialang.org/downloads/). Once you have Julia installed, you can install INT.jl by running the following command in the Julia REPL:
+This package is written in Julia. If you do not have Julia installed, you can install it from [here](https://julialang.org/downloads/). Once you have Julia installed, you can install IntrinsicTimescales.jl by running the following command in the Julia REPL:
 
 ```julia
 using Pkg
-Pkg.add("INT")
+Pkg.add("IntrinsicTimescales")
 ```
-Soon, there will also be a Python wrapper called [INTpy](https://github.com/duodenum96/INTpy), which will allow you to use INT.jl from Python. 
+Soon, there will also be a Python wrapper called [INTpy](https://github.com/duodenum96/INTpy), which will allow you to use IntrinsicTimescales.jl from Python. 
 
 ## Quickstart
 
-INT.jl uses two ways to estimate INTs: model-free methods and simulation-based inference. Model-free methods include ACW-50, ACW-0, ACW-e, decay rate of an exponential fit to ACF and knee freqency of a lorentzian fit to PSD. Simulation-based methods are based on [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3) paper and do parameter estimation by assuming the data came from an Ornstein-Uhlenbeck process. For estimation, in addition to the aABC method used in [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3), we also present ADVI. 
+IntrinsicTimescales.jl uses two ways to estimate INTs: model-free methods and simulation-based inference. Model-free methods include ACW-50, ACW-0, ACW-e, decay rate of an exponential fit to ACF and knee freqency of a lorentzian fit to PSD. Simulation-based methods are based on [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3) paper and do parameter estimation by assuming the data came from an Ornstein-Uhlenbeck process. For estimation, in addition to the aABC method used in [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3), we also present ADVI. 
 
 For model-free methods, simply use 
 
@@ -52,7 +52,7 @@ The remaining two parts are to understand the motivation to use various methods 
 
 ## Getting Help and Making Contributions
 
-Questions and contributions are welcome. Use the [issues section of our github page](https://github.com/duodenum96/INT.jl/issues) to report bugs, make feature requests, ask questions or tackle the issues by making pull requests. 
+Questions and contributions are welcome. Use the [issues section of our github page](https://github.com/duodenum96/IntrinsicTimescales.jl/issues) to report bugs, make feature requests, ask questions or tackle the issues by making pull requests. 
 
 ## About
 

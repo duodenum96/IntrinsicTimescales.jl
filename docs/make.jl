@@ -1,11 +1,11 @@
 push!(LOAD_PATH, "../src/")
 using Documenter
-using INT
+using IntrinsicTimescales
 
-makedocs(sitename="INT.jl",
+makedocs(sitename="IntrinsicTimescales.jl",
          format=Documenter.HTML(),
          pages=["Getting Started" => "home.md",
-         "Practice" => "practice/practice.md",
+         "Practice" => "practice/practice_intro.md",
          "Theory" => "theory/theory.md",
          "Implementation" => Any[
             "Model-Free Timescale Estimation" => "acw.md",
@@ -24,5 +24,5 @@ makedocs(sitename="INT.jl",
 # See "Hosting Documentation" and deploydocs() in the Documenter manual
 # for more information.
 deploydocs(
-    repo = "github.com/duodenum96/INT.jl.git",
+    repo = "github.com/duodenum96/IntrinsicTimescales.jl.git",
 )

@@ -1,6 +1,6 @@
 using Test
-using INT.ACW
-using INT
+using IntrinsicTimescales.ACW
+using IntrinsicTimescales
 using Random
 
 @testset "ACW Module Tests" begin

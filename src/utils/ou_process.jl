@@ -10,7 +10,7 @@ module OrnsteinUhlenbeck
 using Random
 using Distributions: Distribution
 using Statistics
-using INT
+using IntrinsicTimescales
 using ..Models
 using NonlinearSolve
 import DifferentialEquations as deq

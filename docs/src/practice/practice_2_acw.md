@@ -27,7 +27,7 @@ their INTs using ACW-50 versus ACW-0. To quickly get many simulations with the s
 I will set num_trials to 1000. 
 
 ```julia
-using INT # import INT package
+using IntrinsicTimescales # import INT package
 using Random 
 using Plots # to plot the results
 Random.seed!(1) # for replicability

@@ -61,7 +61,7 @@ do the operation I'll write below. I am doing this below explicitly and in detai
 exactly what we are doing when we compute these things. 
 
 ```julia
-using INT # import INT package
+using IntrinsicTimescales # import INT package
 using Random 
 using Plots # to plot the results
 Random.seed!(1) # for replicability
