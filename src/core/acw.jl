@@ -11,7 +11,7 @@ Module providing autocorrelation width (ACW) calculations for time series analys
 module ACW
 
 using IntrinsicTimescales
-using NaNStatistics
+using NaNStatistics, Statistics
 
 export acw, ACWResults
 
