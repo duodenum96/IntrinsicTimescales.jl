@@ -3,7 +3,7 @@ module Plotting
 using Plots
 using IntrinsicTimescales
 
-export plot, posterior_predictive
+export acwplot, posterior_predictive
 
 colorpalette = palette(:Catppuccin_mocha)[[4, 5, 7, 9, 3, 10, 13]]
 
@@ -35,10 +35,12 @@ function acwplot(acwresults::ACWResults; only_acf::Bool=false, only_psd::Bool=fa
 
     # Plot ACF if available and requested
     if !only_psd && !isnothing(acwresults.acf)
-        plot!(p[current_plot], acwresults.lags, acwresults.acf, 
-              label="ACF", color=colorpalette[1],
+        plot!(p[current_plot], acwresults.lags, acwresults.acf', 
+              palette=colorpalette,
               xlabel="Lag (s)", ylabel="Autocorrelation",
-              title="Autocorrelation Function")
+              title="Autocorrelation Function", label="")
+        plot!(p[current_plot], acwresults.lags, mean(acwresults.acf, dims=1)', 
+              color=:black, linewidth=2, label="")
         current_plot += 1
     end
 
