@@ -64,7 +64,7 @@ Compute various autocorrelation width measures for time series data.
 - `return_acf::Bool=true`: Whether to return the ACF
 - `return_psd::Bool=true`: Whether to return the PSD
 - `average_over_trials::Bool=false`: Whether to average the ACF or PSD over trials
-- `trial_dims::Int=1`: Dimension along which to average the ACF or PSD over trials (Dimension of trials)
+- `trial_dims::Int=setdiff([1, 2], dims)[1]`: Dimension along which to average the ACF or PSD over trials (Dimension of trials)
 
 # Returns
 - Vector of computed ACW measures, ordered according to input acwtypes
@@ -82,7 +82,7 @@ Compute various autocorrelation width measures for time series data.
 """
 function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
              dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
-             trial_dims=1)
+             trial_dims::Int=setdiff([1, 2], dims)[1])
 
     missingmask = ismissing.(data)
     if any(missingmask)
@@ -247,7 +247,7 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
     if n_acw == 1
         return ACWResults(fs, result[1], acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
     else
-        return ACWResults(fs, result, acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
+        return ACWResults(fs, map(identity, result), acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
     end
 end
 

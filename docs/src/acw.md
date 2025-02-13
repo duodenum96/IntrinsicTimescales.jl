@@ -6,7 +6,7 @@ Performed via the function `acw` in IntrinsicTimescales.jl. The `acw` function c
 acwresults = acw(data, fs; acwtypes=[:acw0, :acw50, :acweuler, :tau, :knee], 
                 n_lags=nothing, freqlims=nothing, dims=ndims(data), 
                 return_acf=true, return_psd=true, 
-                average_over_trials=false, trial_dims=1)
+                average_over_trials=false, trial_dims=setdiff([1, 2], dims)[1])
 ```
 
 Simple usage:
