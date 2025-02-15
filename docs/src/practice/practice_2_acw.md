@@ -214,6 +214,8 @@ println(UnequalVarianceTTest(acw50_1, acw50_2))
 println(UnequalVarianceTTest(acw0_1, acw0_2))
 ```
 
+![](assets/practice_2_3.svg)
+
 Note that our wrong estimates for ACW-50 reduced to 0! ACW-0 is still slightly noisy but much better now. You can also check out the t-test results, both ACWs returned a significant difference. This approach offers a way to see how many subjects you need to get a significant difference if your hypothesis is right. You can copy-paste the script above to play around with it when designing experiments and figuring out the number of subjects you need for different effect sizes. 
 
 This was a long tutorial. Take a deep breath, make a coffee for yourself, go for a walk and come back for the next one. There is still work to do: we need to figure out how to calculate exactly how wrong are we. Under certain assumptions, we can actually do this. But we need some theoretical tools. In the [next section], We'll develop those theoretical tools and they will motivate us to calculate ACW in different ways.  

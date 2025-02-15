@@ -2,7 +2,7 @@
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "1565fb63fa89fda0093c16768d735a80ad9c6f5f"
+project_hash = "711071a8d7fa5b89f26d540ba4f77b50364cd8a0"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "fb97701c117c8162e84dfcf80215caa904aef44f"
@@ -1312,6 +1312,12 @@ git-tree-sha1 = "2bd56245074fab4015b9174f24ceba8293209053"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.27"
 
+[[deps.HypothesisTests]]
+deps = ["Combinatorics", "Distributions", "LinearAlgebra", "Printf", "Random", "Rmath", "Roots", "Statistics", "StatsAPI", "StatsBase"]
+git-tree-sha1 = "6c3ce99fdbaf680aa6716f4b919c19e902d67c9c"
+uuid = "09f84164-cd44-5f33-b23f-e6b0d136a0d5"
+version = "0.11.3"
+
 [[deps.IOCapture]]
 deps = ["Logging", "Random"]
 git-tree-sha1 = "b6d6bfdd7ce25b0f9b2f6b3dd56b2673a66c8770"
@@ -1392,9 +1398,9 @@ weakdeps = ["Random", "RecipesBase", "Statistics"]
 
 [[deps.IntrinsicTimescales]]
 deps = ["AbstractFFTs", "BenchmarkTools", "ComponentArrays", "DSP", "DifferentialEquations", "DifferentiationInterface", "DifferentiationInterfaceTest", "Distributions", "Documenter", "DocumenterTools", "FFTW", "FastTransformsForwardDiff", "ForwardDiff", "JET", "KernelDensity", "LinearAlgebra", "LogExpFunctions", "Logging", "LombScargle", "Missings", "NaNStatistics", "NonlinearSolve", "PkgSkeleton", "Plots", "Preferences", "ProgressMeter", "Random", "Reexport", "SciMLBase", "SciMLSensitivity", "SciMLStructures", "StaticArrays", "Statistics", "StatsBase", "Test", "Turing"]
-git-tree-sha1 = "3cb5c2a008a47b6c2cc3ddb8fae8a8a658b14710"
+git-tree-sha1 = "bfa4d5a8b117efcff4a76f7a0fa119e4bc5c2cf8"
 repo-rev = "master"
-repo-url = "C:\\Users\\duodenum\\.julia\\dev\\BayesianINT"
+repo-url = "https://github.com/duodenum96/IntrinsicTimescales.jl"
 uuid = "10d2f5c9-08bb-4a99-a156-10b2ac3b4091"
 version = "0.1.0"
 
