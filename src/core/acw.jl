@@ -195,10 +195,7 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         if iscomplete
             psd, freqs = comp_psd(data, fs, dims=dims)
         else
-            if isnothing(time)
-                raise(ArgumentError("Time vector is required for Lomb-Scargle method in the case of missing data.\n" * 
-                        "Call the function as `acw(data, fs; time=time)`"))
-            end
+            time = dt:dt:(size(data, dims)*dt)
             psd, freqs = comp_psd_lombscargle(time, data, nanmask, dt; dims=dims)
         end
 
