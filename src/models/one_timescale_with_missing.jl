@@ -15,7 +15,7 @@ using Statistics: mean, std
 using ..Models
 using ..OrnsteinUhlenbeck
 using NaNStatistics
-using INT
+using IntrinsicTimescales
 using DifferentiationInterface
 
 export OneTimescaleWithMissingModel, one_timescale_with_missing_model

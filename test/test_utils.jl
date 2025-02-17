@@ -1,8 +1,8 @@
 using Test
-using INT.Utils
+using IntrinsicTimescales.Utils
 using Random
-using INT.OrnsteinUhlenbeck
-using INT.SummaryStats
+using IntrinsicTimescales.OrnsteinUhlenbeck
+using IntrinsicTimescales.SummaryStats
 
 @testset "find_knee_frequency tests" begin
     # Test 1: Perfect Lorentzian

@@ -3,7 +3,7 @@ module TwoTimescaleModels
 
 using ..Models
 using Distributions
-using INT
+using IntrinsicTimescales
 
 export TwoTimescaleModel
 

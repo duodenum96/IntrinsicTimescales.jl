@@ -1,16 +1,15 @@
 using Test
 using Distributions
-using INT
+using IntrinsicTimescales
 using Statistics
-using INT
-using INT.Models
-using INT.OrnsteinUhlenbeck
+using IntrinsicTimescales
+using IntrinsicTimescales.Models
+using IntrinsicTimescales.OrnsteinUhlenbeck
 using LinearAlgebra
 BLAS.set_num_threads(20)
 # using Plots
 
 @testset "OU Parameter Inference" begin
-    # Figure 3a of Zeraati et al. paper
     # Generate synthetic data with known parameters (units are in ms)
     true_tau = 20.0
     true_D = 3.0

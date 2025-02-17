@@ -1,20 +1,20 @@
-# INT.jl Documentation
+# IntrinsicTimescales.jl Documentation
 
-Welcome to the documentation of INT.jl. INT.jl is a software package for estimating Intrinsic Neural Timescales (INTs) from time-series data. It uses model-free methods (ACW-50, ACW-0, fitting an exponential decay function etc.) and simulation-based methods (ABC, ADVI) to estimate INTs.
+Welcome to the documentation of IntrinsicTimescales.jl. IntrinsicTimescales.jl is a software package for estimating Intrinsic Neural Timescales (INTs) from time-series data. It uses model-free methods (ACW-50, ACW-0, fitting an exponential decay function etc.) and simulation-based methods (ABC, ADVI) to estimate INTs.
 
 ## Installation
 
-This package is written in Julia. If you do not have Julia installed, you can install it from [here](https://julialang.org/downloads/). Once you have Julia installed, you can install INT.jl by running the following command in the Julia REPL:
+This package is written in Julia. If you do not have Julia installed, you can install it from [here](https://julialang.org/downloads/). Once you have Julia installed, you can install IntrinsicTimescales.jl by running the following command in the Julia REPL:
 
 ```julia
 using Pkg
-Pkg.add("INT")
+Pkg.add("IntrinsicTimescales")
 ```
-Soon, there will also be a Python wrapper called [INTpy](https://github.com/duodenum96/INTpy), which will allow you to use INT.jl from Python. 
+Soon, there will also be a Python wrapper called [INTpy](https://github.com/duodenum96/INTpy), which will allow you to use IntrinsicTimescales.jl from Python. 
 
 ## Quickstart
 
-INT.jl uses two ways to estimate INTs: model-free methods and simulation-based inference. Model-free methods include ACW-50, ACW-0, ACW-e, decay rate of an exponential fit to ACF and knee freqency of a lorentzian fit to PSD. Simulation-based methods are based on [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3) paper and do parameter estimation by assuming the data came from an Ornstein-Uhlenbeck process. For estimation, in addition to the aABC method used in [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3), we also present ADVI. 
+IntrinsicTimescales.jl uses two ways to estimate INTs: model-free methods and simulation-based inference. Model-free methods include ACW-50, ACW-0, ACW-e, decay rate of an exponential fit to ACF and knee freqency of a lorentzian fit to PSD. Simulation-based methods are based on [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3) paper and do parameter estimation by assuming the data came from an Ornstein-Uhlenbeck process. For estimation, in addition to the aABC method used in [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3), we also present ADVI. 
 
 For model-free methods, simply use 
 
@@ -48,11 +48,11 @@ These functions are highly customizable, see the page [Simulation Based Timescal
 
 This documentation is divided in four parts. The fourth part [API](index.md) is an exhaustive list of functions and their signatures in the package. It is boring. A better place to start is the third part, Implementation. This part documents [model-free](acw.md) and [simulation-based](simbasedinference.md) methods that are used in the package, with the full function signatures. If you are already familiar with calculating INTs and just want to start using the package, this is the right place. 
 
-The remaining two parts are to understand the motivation to use various methods for calculating INTs and the motivation to calculate INTs (i.e., practice and theory). The first part is [Practice](practice/practice.md). It is usually easier to understand something after you do it, therefore, I placed the practice section before theory. In [Practice](practice/practice.md), we carefully build our way towards estimating INTs by starting from the autocorrelation function and slowly proceeding to more and more advanced methods. The second part is [Theory](theory/theory.md). This part delves into the history of INT research, what it means in the brain and what it is good for with a particular emphasis on theoretical research, summarizing the cutting edge in this frontier. It is especially useful for researchers working on INT itself. 
+The remaining two parts are to understand the motivation to use various methods for calculating INTs and the motivation to calculate INTs (i.e., practice and theory). The first part is [Practice](practice/practice_intro.md). It is usually easier to understand something after you do it, therefore, I placed the practice section before theory. In [Practice](practice/practice_intro.md), we carefully build our way towards estimating INTs by starting from the autocorrelation function and slowly proceeding to more and more advanced methods. The second part is [Theory](theory/theory.md). This part delves into the history of INT research, what it means in the brain and what it is good for with a particular emphasis on theoretical research, summarizing the cutting edge in this frontier. It is especially useful for researchers working on INT itself. 
 
 ## Getting Help and Making Contributions
 
-Questions and contributions are welcome. Use the [issues section of our github page](https://github.com/duodenum96/INT.jl/issues) to report bugs, make feature requests, ask questions or tackle the issues by making pull requests. 
+Questions and contributions are welcome. Use the [issues section of our github page](https://github.com/duodenum96/IntrinsicTimescales.jl/issues) to report bugs, make feature requests, ask questions or tackle the issues by making pull requests. 
 
 ## About
 

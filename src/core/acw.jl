@@ -10,8 +10,9 @@ Module providing autocorrelation width (ACW) calculations for time series analys
 """
 module ACW
 
-using INT
-using NaNStatistics
+using Revise
+using IntrinsicTimescales
+using NaNStatistics, Statistics
 
 export acw, ACWResults
 
@@ -34,7 +35,7 @@ Structure holding ACW analysis inputs and results.
 """
 struct ACWResults
     fs::Real
-    acw_results::Union{AbstractArray{<:Real}, Vector{AbstractArray{<:Real}}}
+    acw_results
     acwtypes::Union{Vector{<:Symbol}, Symbol} # Types of ACW: ACW-50, ACW-0, ACW-euler, tau, knee frequency
     n_lags::Union{Int, Nothing}
     freqlims::Union{Tuple{Real, Real}, Nothing}
@@ -63,7 +64,7 @@ Compute various autocorrelation width measures for time series data.
 - `return_acf::Bool=true`: Whether to return the ACF
 - `return_psd::Bool=true`: Whether to return the PSD
 - `average_over_trials::Bool=false`: Whether to average the ACF or PSD over trials
-- `trial_dims::Int=1`: Dimension along which to average the ACF or PSD over trials (Dimension of trials)
+- `trial_dims::Int=setdiff([1, 2], dims)[1]`: Dimension along which to average the ACF or PSD over trials (Dimension of trials)
 
 # Returns
 - Vector of computed ACW measures, ordered according to input acwtypes
@@ -81,7 +82,7 @@ Compute various autocorrelation width measures for time series data.
 """
 function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
              dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
-             trial_dims=1)
+             trial_dims::Int=setdiff([1, 2], dims)[1])
 
     missingmask = ismissing.(data)
     if any(missingmask)
@@ -104,7 +105,7 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         error("No ACW types specified. Possible ACW types: $(possible_acwtypes)")
     end
     # Check if any requested acwtype is not in possible_acwtypes
-    result = Vector{AbstractArray{<:Real}}(undef, n_acw)
+    result = Vector(undef, n_acw)
     acwtypes = check_acwtypes(acwtypes, possible_acwtypes)
 
     nanmask = isnan.(data)
@@ -132,18 +133,30 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         if any(in.(:acw0, [acwtypes]))
             acw0_idx = findfirst(acwtypes .== :acw0)
             acw0_result = acw0(lags, acf; dims=dims)
-            result[acw0_idx] = acw0_result
+            if (acw0_result isa Vector) && (length(acw0_result) == 1)
+                result[acw0_idx] = acw0_result[1]
+            else
+                result[acw0_idx] = acw0_result
+            end
         end
 
         if any(in.(:acw50, [acwtypes]))
             acw50_idx = findfirst(acwtypes .== :acw50)
             acw50_result = acw50(lags, acf; dims=dims)
-            result[acw50_idx] = acw50_result
+            if (acw50_result isa Vector) && (length(acw50_result) == 1)
+                result[acw50_idx] = acw50_result[1]
+            else
+                result[acw50_idx] = acw50_result
+            end
         end
         if any(in.(:acweuler, [acwtypes]))
             acweuler_idx = findfirst(acwtypes .== :acweuler)
             acweuler_result = acweuler(lags, acf; dims=dims)
-            result[acweuler_idx] = acweuler_result
+            if (acweuler_result isa Vector) && (length(acweuler_result) == 1)
+                result[acweuler_idx] = acweuler_result[1]
+            else
+                result[acweuler_idx] = acweuler_result
+            end
         end
 
         if isnothing(n_lags)
@@ -161,7 +174,11 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         if any(in.(:tau, [acwtypes]))
             tau_idx = findfirst(acwtypes .== :tau)
             tau_result = fit_expdecay(collect(lags), acf; dims=dims)
-            result[tau_idx] = tau_result
+            if (tau_result isa Vector) && (length(tau_result) == 1)
+                result[tau_idx] = tau_result[1]
+            else
+                result[tau_idx] = tau_result
+            end
         end
 
         if data isa Vector
@@ -178,18 +195,23 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         if iscomplete
             psd, freqs = comp_psd(data, fs, dims=dims)
         else
-            if isnothing(time)
-                raise(ArgumentError("Time vector is required for Lomb-Scargle method in the case of missing data.\n" * 
-                        "Call the function as `acw(data, fs; time=time)`"))
-            end
+            time = dt:dt:(size(data, dims)*dt)
             psd, freqs = comp_psd_lombscargle(time, data, nanmask, dt; dims=dims)
+        end
+
+        if average_over_trials
+            psd = mean(psd, dims=trial_dims)
         end
 
         if isnothing(freqlims)
             freqlims = (freqs[1], freqs[end])
         end
         knee_result = tau_from_knee(find_knee_frequency(psd, freqs; dims=dims, min_freq=freqlims[1], max_freq=freqlims[2]))
-        result[knee_idx] = knee_result
+        if (knee_result isa Vector) && (length(knee_result) == 1)
+            result[knee_idx] = knee_result[1]
+        else
+            result[knee_idx] = knee_result
+        end
 
         if data isa Vector
             psd = psd[:]
@@ -222,7 +244,7 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
     if n_acw == 1
         return ACWResults(fs, result[1], acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
     else
-        return ACWResults(fs, result, acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
+        return ACWResults(fs, map(identity, result), acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
     end
 end
 
