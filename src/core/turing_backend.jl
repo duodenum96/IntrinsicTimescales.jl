@@ -2,7 +2,7 @@ module TuringBackend
 
 using Turing
 using Statistics
-using INT
+using IntrinsicTimescales
 using ..Models
 
 export fit_vi, ADVIResults, get_param_dict_advi

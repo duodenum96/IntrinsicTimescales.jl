@@ -1,5 +1,4 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-INT = "10d2f5c9-08bb-4a99-a156-10b2ac3b4091"
-LiveServer = "16fef848-5104-11e9-1b77-fb7a48bbb589"
-Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+HypothesisTests = "09f84164-cd44-5f33-b23f-e6b0d136a0d5"
+IntrinsicTimescales = "10d2f5c9-08bb-4a99-a156-10b2ac3b4091"
