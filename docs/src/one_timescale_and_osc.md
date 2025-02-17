@@ -16,7 +16,7 @@ where $f$ is the frequency, $a$ is the weight of the Ornstein-Uhlenbeck (OU) pro
 If the user wishes to set the priors, they need to specify a prior for each of the parameters. The ordering is 1) the prior for timescale, 2) the prior for frequency second and 3) the prior for the coefficient. An example:
 
 ```julia
-using Distributions, INT
+using Distributions, IntrinsicTimescales
 priors = [
         Normal(0.1, 0.1),    # a prior for a 0.1 second timescale with an uncertainty of 0.1
         Normal(10.0, 5.0),   # 10 Hz frequency with uncertainty of 5 Hz
@@ -29,7 +29,7 @@ freq = results.MAP[2] # for frequency
 coef = results.MAP[3] # for coefficient
 ```
 
-If the user does not specify a prior or sets `prior="informed_prior"`, INT.jl generates priors from data. The prior for the coefficient in this case is `Uniform(0.0, 1.0)`. For `summary_method=:acf`, the timescale prior is an exponential decay fit to the ACF from data whereas `summary_method=:psd` fits a Lorentzian function to the PSD from data, obtains the knee frequency and estimates the timescale from it as in `one_timescale_model`. The prior for the frequency is obtained with first fitting a Lorentzian to the PSD, then subtracting the lorentzian to eliminate aperiodic component as in [FOOOF] and finally obtains the peak frequency with [`find_oscillation_peak`](@ref). 
+If the user does not specify a prior or sets `prior="informed_prior"`, IntrinsicTimescales.jl generates priors from data. The prior for the coefficient in this case is `Uniform(0.0, 1.0)`. For `summary_method=:acf`, the timescale prior is an exponential decay fit to the ACF from data whereas `summary_method=:psd` fits a Lorentzian function to the PSD from data, obtains the knee frequency and estimates the timescale from it as in `one_timescale_model`. The prior for the frequency is obtained with first fitting a Lorentzian to the PSD, then subtracting the lorentzian to eliminate aperiodic component as in [FOOOF] and finally obtains the peak frequency with [`find_oscillation_peak`](@ref). 
 
 Similarly, the argument `combine_distance=true` not only calculates the RMSE between PSDs or ACFs, but also combines that distance with the RMSE between timescale and frequency estimates between the model and data. 
 

@@ -3,7 +3,7 @@ module OptimizationTau
 using Optimization
 using Optim
 using ForwardDiff
-using INT
+using IntrinsicTimescales
 
 # This thing is not needed.  
 

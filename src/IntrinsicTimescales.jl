@@ -1,5 +1,5 @@
 """
-    INT
+    IntrinsicTimescales
 
 A Julia package for estimation of timescales from time series data.
 
@@ -29,9 +29,8 @@ A Julia package for estimation of timescales from time series data.
 - `OneTimescaleAndOscWithMissing`: Single timescale and oscillations with missing data
 - `Plotting`: Plotting functions for results
 """
-module INT
+module IntrinsicTimescales
 
-using Revise
 using Reexport
 
 include("core/model.jl")

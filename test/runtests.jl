@@ -1,7 +1,7 @@
-using INT
+using IntrinsicTimescales
 using Test
 
-@testset "INT.jl" begin
+@testset "IntrinsicTimescales.jl" begin
     # Include all test files
     include("test_summary_stats.jl")
     include("test_distances.jl")
