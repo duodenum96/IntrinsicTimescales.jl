@@ -31,7 +31,7 @@ int = results.MAP[1] # maximum a posteriori estimate
 
 * `data`: Your time-series data as a vector or 2-dimensional array. 
 
-If it is n-dimensional, by default, the dimension of time is assumed to be the last dimension. If this is not the case, you can set it via `dims` argument, similar to [`acw`](acw.md) function. The other dimension should correspond to trials. INT.jl calculates one ACF from each trial and averages them to get a less noisy ACF estimate. If the user wants to calculate one INT per trial, they can run a for-loop over trials. 
+If it is n-dimensional, by default, the dimension of time is assumed to be the last dimension. If this is not the case, you can set it via `dims` argument, similar to [`acw`](acw.md) function. The other dimension should correspond to trials. IntrinsicTimescales.jl calculates one ACF from each trial and averages them to get a less noisy ACF estimate. If the user wants to calculate one INT per trial, they can run a for-loop over trials. 
 
 * `time`: Time points corresponding to the data. 
 
@@ -45,7 +45,7 @@ If `:acf`, calculates the autocorrelation function using `comp_ac_fft` internall
 
 * `prior`: Prior distribution for the parameters. `"informed_prior"` or a Distribution object from [Distributions.jl](https://juliastats.org/Distributions.jl/stable/). 
 
-If the user does not specify a prior, or specifies `"informed_prior"`, INT.jl uses a normal distribution with mean determined by fitting an exponential decay to the autocorrelation function using `fit_expdecay` and standard deviation of 20. Currently we recommend explicitly specifying a prior distribution to improve the accuracy of the inference. 
+If the user does not specify a prior, or specifies `"informed_prior"`, IntrinsicTimescales.jl uses a normal distribution with mean determined by fitting an exponential decay to the autocorrelation function using `fit_expdecay` and standard deviation of 20. Currently we recommend explicitly specifying a prior distribution to improve the accuracy of the inference. 
 
 An example for custom prior distribution:
 

@@ -2,7 +2,7 @@
 using Test
 using Statistics
 using Distributions
-using INT
+using IntrinsicTimescales
 
 @testset "OU Process Generation" begin
         tau = 0.5

@@ -14,8 +14,8 @@ using Distributions: Distribution, Normal, Uniform
 using Statistics
 using ..Models
 using ..OrnsteinUhlenbeck
-using INT.Utils
-using INT
+using IntrinsicTimescales.Utils
+using IntrinsicTimescales
 using NaNStatistics
 using DifferentiationInterface
 
