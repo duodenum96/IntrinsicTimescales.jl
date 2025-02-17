@@ -1,12 +1,12 @@
 # [Model-Free Timescale Estimation](@id acw)
 
-Performed via the function `acw` in INT.jl. The `acw` function calculates ACF or PSD depending on the acwtypes you specify. If there is no missing data (indicated by `NaN` or `missing`), `acw` calculates ACF as the inverse fourier transform of the power spectrum, using `comp_ac_fft` internally. Otherwise it calculates ACF as correlations between a time-series and its lag-shifted variants, using `comp_ac_time_missing`. For PSD, it uses periodogram method (`comp_psd`) in the case of no missing data and Lomb-Scargle method (`comp_psd_lombscargle`) in the case of missing data. 
+Performed via the function `acw` in IntrinsicTimescales.jl. The `acw` function calculates ACF or PSD depending on the acwtypes you specify. If there is no missing data (indicated by `NaN` or `missing`), `acw` calculates ACF as the inverse fourier transform of the power spectrum, using `comp_ac_fft` internally. Otherwise it calculates ACF as correlations between a time-series and its lag-shifted variants, using `comp_ac_time_missing`. For PSD, it uses periodogram method (`comp_psd`) in the case of no missing data and Lomb-Scargle method (`comp_psd_lombscargle`) in the case of missing data. 
 
 ```julia
 acwresults = acw(data, fs; acwtypes=[:acw0, :acw50, :acweuler, :tau, :knee], 
                 n_lags=nothing, freqlims=nothing, dims=ndims(data), 
                 return_acf=true, return_psd=true, 
-                average_over_trials=false, trial_dims=1)
+                average_over_trials=false, trial_dims=setdiff([1, 2], dims)[1])
 ```
 
 Simple usage:

@@ -10,7 +10,7 @@ using Distributions: Distribution, Normal, Uniform
 using Statistics: mean, std
 using ..Models
 using ..OrnsteinUhlenbeck
-using INT
+using IntrinsicTimescales
 using ComponentArrays
 using DifferentiationInterface
 

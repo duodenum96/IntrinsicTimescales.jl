@@ -1,9 +1,9 @@
 using Test
 using Statistics
 using Distributions
-using INT
-using INT.OneTimescaleAndOsc
-using INT.Models
+using IntrinsicTimescales
+using IntrinsicTimescales.OneTimescaleAndOsc
+using IntrinsicTimescales.Models
 using DifferentiationInterface
 
 @testset "OneTimescaleAndOsc Model Tests" begin

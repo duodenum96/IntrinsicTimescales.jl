@@ -1,9 +1,9 @@
 using Test
 using Statistics
 using Distributions
-using INT
-using INT.OneTimescale
-using INT.Models
+using IntrinsicTimescales
+using IntrinsicTimescales.OneTimescale
+using IntrinsicTimescales.Models
 using DifferentiationInterface
 using .ABC
 
@@ -289,7 +289,7 @@ using .ABC
         )
 
         # Test with default parameters
-        result = INT.fit(model)
+        result = IntrinsicTimescales.fit(model)
         samples = result.samples
         map_estimate = result.MAP
         posterior = result.variational_posterior
@@ -306,7 +306,7 @@ using .ABC
         param_dict[:n_elbo_samples] = 10
         param_dict[:autodiff] = AutoForwardDiff()
         
-        result2 = INT.fit(model, param_dict)
+        result2 = IntrinsicTimescales.fit(model, param_dict)
         samples2 = result2.samples
         map_estimate2 = result2.MAP
         posterior2 = result2.variational_posterior
