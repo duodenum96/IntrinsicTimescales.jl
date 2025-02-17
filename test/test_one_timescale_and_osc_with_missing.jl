@@ -1,10 +1,10 @@
 using Test
 using Statistics
 using Distributions
-using INT
-using INT.OrnsteinUhlenbeck
-using INT.OneTimescaleAndOscWithMissing
-using INT.Models
+using IntrinsicTimescales
+using IntrinsicTimescales.OrnsteinUhlenbeck
+using IntrinsicTimescales.OneTimescaleAndOscWithMissing
+using IntrinsicTimescales.Models
 using NaNStatistics
 
 @testset "OneTimescaleAndOscWithMissing Model Tests" begin
@@ -177,8 +177,8 @@ using NaNStatistics
         )
         
         # Test effect of different parameters
-        theta_base = [20.0, 0.01, 0.5]
-        theta_higher_freq = [20.0, 0.1, 0.5]
+        theta_base = [10.0, 0.01, 0.5]
+        theta_higher_freq = [10.0, 0.05, 0.5]
         
         data_base = Models.generate_data(model, theta_base)
         data_higher_freq = Models.generate_data(model, theta_higher_freq)
@@ -200,8 +200,8 @@ using NaNStatistics
         residual_higher = stats_higher .- lorentzian_higher
         
         # Find peak frequencies
-        peak_freq_base = find_oscillation_peak(residual_base, model.lags_freqs)
-        peak_freq_higher = find_oscillation_peak(residual_higher, model.lags_freqs)
+        peak_freq_base = find_oscillation_peak(residual_base, model.lags_freqs, min_freq=model.lags_freqs[1], max_freq=model.lags_freqs[end])
+        peak_freq_higher = find_oscillation_peak(residual_higher, model.lags_freqs, min_freq=model.lags_freqs[1], max_freq=model.lags_freqs[end])
         
         # Test that higher frequency parameter leads to higher peak frequency
         @test peak_freq_higher > peak_freq_base
