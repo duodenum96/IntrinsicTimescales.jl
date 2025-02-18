@@ -2,6 +2,7 @@ module Plotting
 
 using Plots
 using IntrinsicTimescales
+using Statistics
 
 export acwplot, posterior_predictive
 

@@ -146,7 +146,7 @@ function generate_ou_with_oscillation(theta::Vector{T},
                                       duration::Real,
                                       num_trials::Integer,
                                       data_mean::Real,
-                                      data_var::Real) where T <: Real
+                                      data_sd::Real) where T <: Real
     # Extract parameters
     tau = theta[1]
     freq = theta[2]
@@ -154,13 +154,15 @@ function generate_ou_with_oscillation(theta::Vector{T},
 
     # Make sure coeff is bounded between 0 and 1
     if coeff < 0.0
+        @warn "A coefficient lower than 0 is given. Rounding it to 0. "
         coeff = 1e-4
     elseif coeff > 1.0
+        @warn "A coefficient greater than 1 is given. Rounding it to 1. "
         coeff = 1.0 - 1e-4
     end
 
     # Generate OU process and oscillation
-    ou, sol = generate_ou_process_sciml(tau, data_var, dt, duration, num_trials, false)
+    ou, sol = generate_ou_process_sciml(tau, data_sd, dt, duration, num_trials, false)
     if sol.retcode != deq.ReturnCode.Success
         ou = NaN * ones(num_trials, Int(duration / dt))
     end
@@ -176,7 +178,7 @@ function generate_ou_with_oscillation(theta::Vector{T},
     data = (data .- mean(data, dims=2)) ./ std(data, dims=2)
 
     # Scale to match target mean and variance
-    data_scaled = data_var * data .+ data_mean
+    data_scaled = data_sd * data .+ data_mean
 
     return data_scaled
 end
