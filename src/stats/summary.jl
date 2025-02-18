@@ -205,7 +205,7 @@ function comp_psd_adfriendly(x::Vector{<:Real}, fs::Real; demean::Bool=true)
     psd = abs2.(x_fft[1:div(n2,2)+1]) .* scale
     
     # Compute frequency vector (only positive frequencies)
-    freqs = fftfreq(n2, fs)[1:div(n2,2)+1]
+    freqs = fftfreq(n2, fs)[1:div(n2,2)]
     
     # Return only positive frequencies, excluding DC (zero frequency)
     return psd[2:end], freqs[2:end]
