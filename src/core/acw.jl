@@ -206,7 +206,7 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         if isnothing(freqlims)
             freqlims = (freqs[1], freqs[end])
         end
-        knee_result = tau_from_knee(find_knee_frequency(psd, freqs; dims=dims, min_freq=freqlims[1], max_freq=freqlims[2]))
+        knee_result = tau_from_knee(fooof_fit(psd, freqs; dims=dims, min_freq=freqlims[1], max_freq=freqlims[2], oscillation_peak=false))
         if (knee_result isa Vector) && (length(knee_result) == 1)
             result[knee_idx] = knee_result[1]
         else
