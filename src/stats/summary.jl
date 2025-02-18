@@ -202,7 +202,7 @@ function comp_psd_adfriendly(x::Vector{<:Real}, fs::Real; demean::Bool=true)
     
     # Compute FFT and get power
     x_fft = fft(x_padded)
-    psd = abs2.(x_fft[1:div(n2,2)+1]) .* scale
+    psd = abs2.(x_fft[1:div(n2,2)]) .* scale
     
     # Compute frequency vector (only positive frequencies)
     freqs = fftfreq(n2, fs)[1:div(n2,2)]
