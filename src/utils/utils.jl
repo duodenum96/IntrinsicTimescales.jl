@@ -84,8 +84,8 @@ end
 
 acw50_analytical(tau) = -tau * log(0.5)
 tau_from_acw50(acw50) = -acw50 / log(0.5)
-tau_from_knee(knee) = 1 ./ (2 .* pi .* knee)
-knee_from_tau(tau) = 1 ./ (2 .* pi .* tau)
+tau_from_knee(knee) = 1.0 ./ (2.0 .* pi .* knee)
+knee_from_tau(tau) = 1.0 ./ (2.0 .* pi .* tau)
 
 """
     acw50(lags, acf; dims=ndims(acf))
@@ -187,7 +187,7 @@ end
 
 # Define the residual function for NonlinearLeastSquares
 function residual_lorentzian!(du, u, p)
-    du .= mean(sqrt.(abs2.(lorentzian(p[1], u) .- p[2])))
+    du .= mean(sqrt.(abs2.(log.(1.0 .+ lorentzian(p[1], u)) .- log.(1.0 .+ p[2]))))
     return nothing
 end
 
