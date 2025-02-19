@@ -9,9 +9,8 @@ using Random
     t = 0:1/fs:10  # 10 seconds of data
     freq = 5.0  # 5 Hz oscillation
     tau = 0.5   # 0.5s decay time
-    signal = exp.(-t/tau)
-    noise = 0.1 * randn(length(t))
-    data = signal + noise
+    data = generate_ou_process(tau, 1.0, 1/fs, 10.0, 1)[:]
+    
 
     @testset "Basic ACW Container" begin
         container = ACWResults(fs, [0.0], :acw0, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
@@ -236,9 +235,8 @@ using Random
             gap_missing[301:500] .= NaN  # 2-second gap
             
             # Test knee frequency estimation with missing data
-            for test_data in [random_missing, gap_missing]
-                estimated_tau = acw(test_data, fs, acwtypes=:knee, freqlims=(0.1, 10.0)).acw_results
-                
+            for test_data in [clean_data, random_missing, gap_missing]
+                estimated_tau = acw(test_data, fs, acwtypes=:knee, freqlims=(0.1, 10.0), oscillation_peak=false).acw_results
                 # Test if estimated tau is within reasonable range
                 # Allow larger tolerance due to missing data
                 @test isapprox(estimated_tau, tau, rtol=1.0) # much worse than clean data but eh

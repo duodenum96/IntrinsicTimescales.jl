@@ -306,7 +306,8 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
                   min_freq::T=freqs[1],
                   max_freq::T=freqs[end],
                   oscillation_peak::Bool=true,
-                  max_peaks::Int=3) where {T <: Real}
+                  max_peaks::Int=3,
+                  return_only_knee::Bool=false) where {T <: Real}
     freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
     fit_psd = psd[freq_mask]
     fit_freqs = freqs[freq_mask]
@@ -358,7 +359,11 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
 
     # Return final knee frequency and all peak parameters
     peak_params = [(p[2], p[1], p[3]) for p in peaks]  # center_freq, amplitude, std_dev
-    return final_knee, peak_params
+    if return_only_knee
+        return final_knee
+    else
+        return final_knee, peak_params
+    end
 end
 
 function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T}; 
@@ -366,12 +371,13 @@ function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T};
                   min_freq::T=freqs[1],
                   max_freq::T=freqs[end],
                   oscillation_peak::Bool=true,
-                  max_peaks::Int=3) where {T <: Real}
+                  max_peaks::Int=3,
+                  return_only_knee::Bool=false) where {T <: Real}
     f = x -> fooof_fit(vec(x), freqs, 
                       min_freq=min_freq, max_freq=max_freq,
                       oscillation_peak=oscillation_peak,
-                      max_peaks=max_peaks)
-    dropdims(mapslices(f, psd, dims=dims), dims=dims)
+                      max_peaks=max_peaks, return_only_knee=return_only_knee)
+    return dropdims(mapslices(f, psd, dims=dims), dims=dims)
 end
 
 """

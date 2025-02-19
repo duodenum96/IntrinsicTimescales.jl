@@ -49,7 +49,9 @@ end
 possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
 
 """
-    acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, dims=ndims(data))
+    acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
+        dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
+        trial_dims::Int=setdiff([1, 2], dims)[1], max_peaks::Int=1)
 
 Compute various autocorrelation width measures for time series data.
 
@@ -65,6 +67,8 @@ Compute various autocorrelation width measures for time series data.
 - `return_psd::Bool=true`: Whether to return the PSD
 - `average_over_trials::Bool=false`: Whether to average the ACF or PSD over trials
 - `trial_dims::Int=setdiff([1, 2], dims)[1]`: Dimension along which to average the ACF or PSD over trials (Dimension of trials)
+- `max_peaks::Int=1`: Maximum number of oscillatory peaks to fit in spectral analysis
+- `oscillation_peak::Bool=true`: Whether to fit an oscillation peak in the spectral analysis
 
 # Returns
 - Vector of computed ACW measures, ordered according to input acwtypes
@@ -82,7 +86,7 @@ Compute various autocorrelation width measures for time series data.
 """
 function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
              dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
-             trial_dims::Int=setdiff([1, 2], dims)[1])
+             trial_dims::Int=setdiff([1, 2], dims)[1], max_peaks::Int=1, oscillation_peak::Bool=true)
 
     missingmask = ismissing.(data)
     if any(missingmask)
@@ -206,7 +210,9 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         if isnothing(freqlims)
             freqlims = (freqs[1], freqs[end])
         end
-        knee_result = tau_from_knee(fooof_fit(psd, freqs; dims=dims, min_freq=freqlims[1], max_freq=freqlims[2], oscillation_peak=false))
+        knee_result = tau_from_knee(fooof_fit(psd, freqs; dims=dims, min_freq=freqlims[1], 
+                                             max_freq=freqlims[2], oscillation_peak=oscillation_peak, 
+                                             max_peaks=max_peaks, return_only_knee=true))
         if (knee_result isa Vector) && (length(knee_result) == 1)
             result[knee_idx] = knee_result[1]
         else
