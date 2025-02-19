@@ -67,7 +67,8 @@ Compare this with the definition of Fourier transform above. We denote the Fouri
 Remember our initial starting point: covariance = non-normalized correlation. We are seeing how much our data correlates with a certain frequency. But there is still an annoying part: the complex term with the funny ``i`` number in it. Correlation or covariance values need to be real numbers, not imaginary. To resolve this dilemma, we can calculate the magnitude of complex numbers. This would take care of the complex part and give us a real number. In your computer, this is defined as the ``abs`` function, corresponding to absolute value. In general:
 
 ```math
-z = a + ib\\
+z = a + ib \\
+
 abs(z) = |z|=\sqrt{a^2+b^2}
 ```
 
@@ -106,9 +107,12 @@ It is not a coincidence that both autocorrelation and power spectrum are defined
 How can we utilize this information to get the timescale? Let's assume that our ACF is an exponential decay and calculate its Fourier transform. This is not an easy integral, I won't explain how to do it here (a.k.a. I will use the technique of integration by trust me bro). A nice explanation is given [here](https://mathworld.wolfram.com/FourierTransformExponentialFunction.html). 
 
 ```math
-\textrm{ACF}(l) = e^{-\frac{l}{\tau}}\\
+\textrm{ACF}(l) = e^{-\frac{l}{\tau}} \\
+
 \tilde{\textrm{ACF}}(\omega) = \textrm{PSD}(\omega) = \frac{A}{k^2 + \omega^2} \\
+
 k = \frac{1}{2 \pi \tau} \\
+
 \tau = \frac{1}{2 \pi k}
 ```
 

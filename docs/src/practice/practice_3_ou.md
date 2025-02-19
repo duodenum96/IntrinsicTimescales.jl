@@ -32,10 +32,15 @@ We need to solve this for ``l``. Remember that the inverse of an exponential is 
 
 ```math
 \log{e^{-\frac{l}{\tau}}} = \log{0.5} \\
+
 -\frac{l}{\tau} = \log{0.5} \\ 
+
 l = -\tau \log{0.5} \\
+
 l = -\tau \log{2^{-1}} \\
+
 l = \tau \log{2} \\
+
 \textrm{ACW-50} = \tau \log{2}
 ```
 
@@ -77,8 +82,11 @@ This theoretical knowledge motivates two more ACW types. The first one is the la
 
 ```math
 e^{-\frac{l}{\tau}} = \frac{1}{e} \\
+
 \log{e^{-\frac{l}{\tau}}} = \log{\frac{1}{e}} \\
+
 -\frac{l}{\tau} = -1 \\
+
 l = \tau
 ```
 
