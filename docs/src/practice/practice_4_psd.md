@@ -86,6 +86,9 @@ p1 = plot(freqs, psd', scale=:log10)
 xlims!(p1, (0.0, 50.0)) # limit to frequencies between 1 and 50 Hz
 p2 = plot(freqs, psd_osc', scale=:log10)
 xlims!(p2, (0.0, 50.0))
+p3 = plot(freqs, mean(psd', dims=2), scale=:log10)
+plot!(freqs, mean(psd_osc', dims=2), scale=:log10)
+xlims!(p2, (0.0, 50.0))
 plot(p1, p2)
 ```
 
@@ -107,14 +110,14 @@ k = \frac{1}{2 \pi \tau} \\
 Some interesting remarks. Consider very low frequencies: ``\omega \ll k``. When ``\omega`` is small, then ``\omega^2`` will be much smaller compared to ``k^2`` (think of if 2 is smaller than 3, then ``2^2=4`` is much smaller than ``3^2=9``). Then we can ignore the `\omega` term and our PSD reduces to ``\frac{A}{k^2}`` which is just a constant. Now consider big frequencies: ``\omega \gg k``. Since ``\omega`` is big, ``\omega^2`` is now much bigger than ``k`` and we can ignore ``k``. Then the power spectrum is ``\frac{A}{\omega^2}``. This is the so-called _scale-free_ power spectrum with a power-law exponent (PLE) of 2. If we take the logarithm, ``\log{\frac{A}{\omega^2}} \sim -2\omega`` meaning on the log-scale, we should see a straight line with a slope of 2. Right in between, there is a transition from a flat PSD to PLE=2 PSD. This is where ``k`` is approximately equal to ``\omega``. Alternatively, the frequency between the flat part and the PLE=2 part is the _knee frequency_ and also corresponds to your timescale up to a multiplicative constant. 
 
 In IntrinsicTimescales.jl, you can use `:knee` in the acwtypes argument of [`acw`](@ref) to calculate the INT from the knee frequency. In the code below, I'll show this and plot the PSDs on the log scale to visually show the knee frequency. 
-
+****
 ```julia
-acwresults_osc = acw(data_osc, fs; acwtypes=:knee)
-acwresults = acw(data, fs; acwtypes=:knee)
+acwresults_osc = acw(data_osc, fs; acwtypes=:knee, average_over_trials=true)
+acwresults = acw(data, fs; acwtypes=:knee, average_over_trials=true)
 println(mean(acwresults_osc.acw_results))
-# 0.016
+# 0.0795
 println(mean(acwresults.acw_results))
-# 0.06919780134430231
+# 0.0757
 p1 = acwplot(acwresults_osc)
 title!(p1, "ACF with oscillatory component")
 p2 = acwplot(acwresults)
@@ -122,4 +125,4 @@ title!(p2, "ACF")
 plot!(p1, p2)
 ```
 
-We're almost there. In the final chapter, we will cover Bayesian estimation of INTs and finish the
+We're almost there. In the final chapter, we will cover Bayesian estimation of INTs and finish the Practice part of the documentation. 
