@@ -31,11 +31,11 @@ e^{-\frac{l}{\tau}} = 0.5
 We need to solve this for ``l``. Remember that the inverse of an exponential is a logarithm. Taking the logarithm of both sides:
 
 ```math
-\log{e^{-\frac{l}{\tau}}} = \log{0.5}
--\frac{l}{\tau} = \log{0.5}
-l = -\tau \log{0.5}
-l = -\tau \log{2^{-1}}
-l = \tau \log{2}
+\log{e^{-\frac{l}{\tau}}} = \log{0.5} \\
+-\frac{l}{\tau} = \log{0.5} \\ 
+l = -\tau \log{0.5} \\
+l = -\tau \log{2^{-1}} \\
+l = \tau \log{2} \\
 \textrm{ACW-50} = \tau \log{2}
 ```
 
@@ -76,9 +76,9 @@ The good thing is even though we are underestimating the INT, the ACF of the lon
 This theoretical knowledge motivates two more ACW types. The first one is the lag where ACF crosses ``1/e``. In IntrinsicTimescales.jl, this is called `acweuler` (or ACW-e) but I'm not sure if there is a generic name for it in the literature. The math: 
 
 ```math
-e^{-\frac{l}{\tau}} = \frac{1}{e}
-\log{e^{-\frac{l}{\tau}}} = \log{\frac{1}{e}}
--\frac{l}{\tau} = -1
+e^{-\frac{l}{\tau}} = \frac{1}{e} \\
+\log{e^{-\frac{l}{\tau}}} = \log{\frac{1}{e}} \\
+-\frac{l}{\tau} = -1 \\
 l = \tau
 ```
 
