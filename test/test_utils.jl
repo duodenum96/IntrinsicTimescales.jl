@@ -295,3 +295,35 @@ end
     end
 end
 
+@testset "ACW Area Under Curve tests" begin
+    @testset "Basic AUC calculation" begin
+        # Test with simple triangular ACF
+        lags = [0.0, 1.0, 2.0]
+        acf = [1.0, 0.5, 0.0]
+        auc = acw_romberg(lags, acf)
+        @test isapprox(auc, 1.0, rtol=0.01)  # Triangle area = 1
+        
+        # Test with constant ACF
+        lags = collect(0.0:0.5:2.0)
+        acf = ones(length(lags))
+        auc = acw_romberg(lags, acf)
+        @test isapprox(auc, 2.0, rtol=0.01)  # Rectangle area = 1.0 * 2.0 = 2.0
+    end
+    
+    @testset "Multi-dimensional AUC" begin
+        lags = collect(0.0:0.5:2.0)
+        
+        # 2D case - multiple trials
+        acf_2d = ones(length(lags), 3)  # 3 identical trials
+        auc_2d = acw_romberg(lags, acf_2d, dims=1)
+        @test length(auc_2d) == 3
+        @test all(x -> isapprox(x, 2.0, rtol=0.01), auc_2d)
+        
+        # 3D case - multiple experiments
+        acf_3d = ones(length(lags), 3, 2)  # 3×2 identical experiments
+        auc_3d = acw_romberg(lags, acf_3d, dims=1)
+        @test size(auc_3d) == (3, 2)
+        @test all(x -> isapprox(x, 2.0, rtol=0.01), auc_3d)
+    end
+end
+

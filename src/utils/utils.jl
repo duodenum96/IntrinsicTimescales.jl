@@ -15,9 +15,10 @@ module Utils
 using Statistics
 using NonlinearSolve
 using Logging
+using Romberg
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
-       acw50, acw50_analytical, acw0, acweuler, tau_from_acw50, tau_from_knee, knee_from_tau
+       acw50, acw50_analytical, acw0, acweuler, tau_from_acw50, tau_from_knee, knee_from_tau, acw_romberg
 
 """
     expdecay(tau, lags)
@@ -168,6 +169,32 @@ function acweuler(lags::AbstractVector{T}, acf::AbstractArray{S}; dims::Int=ndim
     f = x -> acweuler(lags, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
+
+
+"""
+    acw_romberg(lags, acf)
+
+Calculate the area under the curve of ACF using Romberg integration.
+
+# Arguments
+- `dt::Real`: Time step
+- `acf::AbstractVector`: Array of autocorrelation values
+
+# Returns
+- AUC of ACF
+
+# Notes
+- Returns only the integral value, discarding the error estimate
+"""
+function acw_romberg(dt::Real, acf::AbstractVector{S}) where {S <: Real}
+    return romberg(dt, acf)[1]
+end
+
+function acw_romberg(dt::Real, acf::AbstractArray{S}; dims::Int=ndims(acf)) where {S <: Real}
+    f = x -> acw_romberg(dt, vec(x))
+    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+end
+
 
 """
     lorentzian(f, u)

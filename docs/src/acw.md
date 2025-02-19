@@ -3,7 +3,7 @@
 Performed via the function `acw` in IntrinsicTimescales.jl. The `acw` function calculates ACF or PSD depending on the acwtypes you specify. If there is no missing data (indicated by `NaN` or `missing`), `acw` calculates ACF as the inverse fourier transform of the power spectrum, using `comp_ac_fft` internally. Otherwise it calculates ACF as correlations between a time-series and its lag-shifted variants, using `comp_ac_time_missing`. For PSD, it uses periodogram method (`comp_psd`) in the case of no missing data and Lomb-Scargle method (`comp_psd_lombscargle`) in the case of missing data. 
 
 ```julia
-acwresults = acw(data, fs; acwtypes=[:acw0, :acw50, :acweuler, :tau, :knee], 
+acwresults = acw(data, fs; acwtypes=[:acw0, :acw50, :acweuler, :auc, :tau, :knee], 
                 n_lags=nothing, freqlims=nothing, dims=ndims(data), 
                 return_acf=true, return_psd=true, 
                 average_over_trials=false, trial_dims=setdiff([1, 2], dims)[1],
@@ -53,6 +53,8 @@ Supported ACW types:
 `:acweuler`: The lag where autocorrelation function crosses ``1/e``. Corresponds to the inverse decay rate of an exponential decay function. 
 
 `:tau`: Fit an exponential decay function ``e^{\frac{t}{\tau}}`` to the autocorrelation function and extract ``\tau``, which is the inverse decay rate. 
+
+`:auc`: Calculate the area under the autocorrelation function from lag 0 to the lag where autocorrelation function crosses 0. 
 
 `:knee`: Fit a lorentzian function ``\frac{A}{1 + (f/a)^2}`` to the power spectrum using an iterative FOOOF-style approach. By Wiener-Khinchine theorem, this is the power spectrum of a time-series with an autocorrelation function of exponential decay form. The parameter ``a`` corresponds to the knee frequency. ``\tau`` and ``a`` has the relationship ``\tau = \frac{1}{2 \pi a}``. The `:knee` method uses this relationship to estimate ``\tau`` from the knee frequency. In practice, first, an initial lorentzian fit is performed. Then, any oscillatory peaks are identified and fitted with gaussian functions. These gaussians are subtracted from the original power spectrum to ensure the remaining PSD is closer to a Lorentzian, and a final Lorentzian is fit to this "cleaned" spectrum. You can set the maximum number of oscillatory peaks to fit with the `max_peaks` argument. The argument `oscillation_peak` is used to specify whether to fit the oscillatory peaks or not. If set to `false`, just fit a Lorentzian and return the timescale estimated from the knee frequency. 
 

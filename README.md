@@ -19,13 +19,13 @@ Soon, there will also be a Python wrapper called [INTpy](https://github.com/duod
 
 ## Quickstart
 
-IntrinsicTimescales.jl uses two ways to estimate INTs: model-free methods and simulation-based inference. Model-free methods include ACW-50, ACW-0, ACW-e, decay rate of an exponential fit to ACF and knee freqency of a lorentzian fit to PSD. Simulation-based methods are based on [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3) paper and do parameter estimation by assuming the data came from an Ornstein-Uhlenbeck process. For estimation, in addition to the aABC method used in [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3), we also present ADVI. Additionally, we adapt the aABC method with adaptive choice of epsilon. See documentation for details.
+IntrinsicTimescales.jl uses two ways to estimate INTs: model-free methods and simulation-based inference. Model-free methods include ACW-50, ACW-0, ACW-e, area under the curve (AUC), decay rate of an exponential fit to ACF and knee freqency of a lorentzian fit to PSD. Simulation-based methods are based on [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3) paper and do parameter estimation by assuming the data came from an Ornstein-Uhlenbeck process. For estimation, in addition to the adaptive approximate Bayesian computation (aABC) method used in [Zeraati et al. (2022)](https://www.nature.com/articles/s43588-022-00214-3), we also present automatic differentiation variational inference (ADVI). Additionally, we adapt the aABC method with adaptive choice of epsilon. See documentation for details.
 
 For model-free methods, simply use the `acw` function.
 
 ```julia
 using IntrinsicTimescales
-acwresults = acw(data, fs; acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]), dims=ndims(data))
+acwresults = acw(data, fs; acwtypes = [:acw0, :acw50, :acweuler, :auc, :tau, :knee]), dims=ndims(data))
 # or even simpler:
 acwresults = acw(data, fs)
 ```

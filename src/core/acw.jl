@@ -46,7 +46,7 @@ struct ACWResults
     x_dim::Union{Int, Nothing}
 end
 
-possible_acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]
+possible_acwtypes = [:acw0, :acw50, :acweuler, :auc, :tau, :knee]
 
 """
     acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
@@ -103,7 +103,7 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
     end
 
     dt = 1.0 / fs
-    acf_acwtypes = [:acw0, :acw50, :acweuler, :tau]
+    acf_acwtypes = [:acw0, :acw50, :acweuler, :auc, :tau]
     n_acw = length(acwtypes)
     if n_acw == 0
         error("No ACW types specified. Possible ACW types: $(possible_acwtypes)")
@@ -160,6 +160,15 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
                 result[acweuler_idx] = acweuler_result[1]
             else
                 result[acweuler_idx] = acweuler_result
+            end
+        end
+        if any(in.(:auc, [acwtypes]))
+            auc_idx = findfirst(acwtypes .== :auc)
+            auc_result = acw_romberg(dt, selectdim(acf, dims, 1:floor(Int, acw0_sample[1])); dims=dims)
+            if (auc_result isa Vector) && (length(auc_result) == 1)
+                result[auc_idx] = auc_result[1]
+            else
+                result[auc_idx] = auc_result
             end
         end
 
