@@ -131,6 +131,51 @@ vline!(p, [acwresults_1.lags], linewidth=3, color=:black, label="")
 
 The autocorrelation is dropping below 0.5 before even 2 seconds pass. And because our time resolution was two seconds, most of the autocorrelation functions drop below 0.5 even before we can calculate ACW-50. 
 
+There is one more method in case ACW-50 is not working well. Let's consider the case above: we want to be able to distinguish the processes but we don't have the time resolution to use ACW-50. We can use ACW-0 but the later lags are more noisy. Wouldn't it be great if we had a method that assigns higher weights to earlier lags and lower weight to less reliable later lags? Turns out there is one such method. We can calculate the area under the curve (AUC) of the ACF. Since later lags have less correlation, their contribution to the area under the curve will be less. In IntrinsicTimescales.jl, we can use `:auc` to calculate the AUC of ACF before ACF touches 0. Under the hood, this method uses [Romberg.jl](https://github.com/fgasdia/Romberg.jl) to use Romberg's method. This method is [orders of magnitude more accurate](https://young.physics.ucsc.edu/115/romberg.pdf) than trapezoid (as in np.trapz or MATLAB trapz) and Simpson's methods (as in scipy.integrate.simpson). Let's repeat the above experiment to compare ACW-0 and AUC methods:
+
+```julia
+timescale_1 = 1.0
+timescale_2 = 3.0
+sd = 1.0 
+dt = 2.0 # Time interval between two time points
+duration = 300.0 # 5 minutes of data
+num_trials = 1000 # Number of trials
+
+data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
+data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
+
+fs = 1 / dt # sampling rate
+acwresults_1 = acw(data_1, fs, acwtypes=[:auc, :acw0]) 
+acwresults_2 = acw(data_2, fs, acwtypes=[:auc, :acw0])
+auc_1 = acwresults_1.acw_results[1]
+acw0_1 = acwresults_1.acw_results[2]
+auc_2 = acwresults_2.acw_results[1]
+acw0_2 = acwresults_2.acw_results[2]
+
+bad_auc_timescale = mean(auc_2 .<= auc_1) * 100
+bad_acw0_timescale = mean(acw0_2 .<= acw0_1) * 100
+
+# Plot histograms
+p1 = histogram(auc_1, alpha=0.5, label="timescale 1 = $(timescale_1)")
+histogram!(p1, auc_2, alpha=0.5, label="timescale 2 = $(timescale_2)")
+vline!(p1, [median(auc_1), median(auc_2)], linewidth=3, color=:black, label="") 
+title!(p1, "AUC\n")
+annotate!(p1, 3, 100, 
+    (@sprintf("Proportion of \"wrong\" timescale \nestimates: %.2f%% \n", bad_auc_timescale)), textfont=font(24), :left)
+# ACW-0
+p2 = histogram(acw0_1, alpha=0.5, label="timescale 1 = $(timescale_1)")
+histogram!(p2, acw0_2, alpha=0.5, label="timescale 2 = $(timescale_2)")
+
+vline!(p2, [median(acw0_1), median(acw0_2)], linewidth=3, color=:black, label="")
+title!(p2, "ACW-0\n")
+annotate!(p2, 20, 300, 
+    (@sprintf("Proportion of \"wrong\" timescale \nestimates: %.2f%% \n", bad_acw0_timescale)), textfont=font(24), :left)
+plot(p1, p2, size=(1600, 800))
+```
+![](assets/practice_2_auc.svg)
+
+We've reduced the "wrong" estimates to 1.20%, quite impressive! 
+
 It seems different modalities and temporal resolutions call for different ways to calculate ACW. But even with the _better_ estimator, we can still be off 1/5th of the time. Can we do better? Remember the coin flipping experiment from [the previous section]. We said that if we repeat the experiment again and again and take average across experiments, our estimates get better. Let's do this in the context of ACW-50. In the code below, I will first make 1000 simulations, then from each one of them, I'll calculate one autocorrelation function. Then I'll cumulatively average those autocorrelation functions, i.e. I'll average the first two ACFs, the first three, the first four... Then I'll calculate ACW-50 and ACW-0 from each step. Let's see if they are converging. 
 
 ```julia
