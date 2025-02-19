@@ -1,4 +1,5 @@
-# Ornstein-Uhlenbeck Process as a Generative Model for ACF (Or Mommy, Where Do the ACFs Come From?)
+# Ornstein-Uhlenbeck Process as a Generative Model for ACF 
+### (Or Mommy, Where Do the ACFs Come From?)
 
 Despite popular belief, ACFs aren't delivered by storks. So far, we just assumed that they exist and calculated ACW metrics from them. This is where we start building a more comprehensive theory. I will keep the math to a minimum and whenever I explain math, I will supplement it with code so that you can play with to get some intuition. 
 
