@@ -20,6 +20,8 @@ plot(lags, acf_short, label="Short Timescale ACF")
 plot!(lags, acf_long, label="Long Timescale ACF")
 ```
 
+![](assets/practice_3_1.svg)
+
 Compare this with the ACFs we plotted in the previous tutorials. An exponential decay function is an abstraction of the ACF. In the equation above, we represent the lags with ``l`` and timescale with ``\tau``. As expected, as I increase ``\tau`` (`tau`), the ACF decays slower. You can eyeball the ACW-50. We can do better than eyeballing. Let's do high-school math to get the ACW-50. Remember the definition: ACW-50 is the lag where ACF crosses 0.5:
 
 ```math
@@ -64,6 +66,8 @@ p2 = plot(lags, acf_long, label="Analytical ACF", title="Long Timescale")
 plot!(p2, lags, acf_numerical_long, label="Numerical ACF")
 plot(p1, p2, size=(800,400))
 ```
+
+![](assets/practice_3_2.svg)
 
 Note that the numerical ACF estimate decays consistenly faster than the analytical ground truth. The difference between the numerical estimate and analytical one increases as timescale increases. This is a limitation of finite data. As long as your data is finite and has a sampling rate that is not infinitesimally small, you will underestimate the INT. We will address this problem in the [final tutorial of Practice]. 
 
