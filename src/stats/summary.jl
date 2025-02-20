@@ -405,10 +405,9 @@ Compute autocorrelation for data with missing values.
 - Array of autocorrelation values
 
 # Notes
-- Handles missing data using "conservative" approach
-- Sets NaN values to zero after mean adjustment
-- Returns NaN for lags with insufficient valid pairs
-- Based on statsmodels.tsa.stattools implementation
+- Handles missing data using missing="conservative" approach of 
+statsmodels.tsa.stattools.acf. See https://www.statsmodels.org/dev/generated/statsmodels.tsa.stattools.acf.html 
+for details. 
 """
 function comp_ac_time_missing(data::AbstractVector{T}; n_lags::Integer=length(data)) where {T <: Real}
     lags = collect(0:(n_lags-1))
