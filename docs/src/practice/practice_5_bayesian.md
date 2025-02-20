@@ -143,7 +143,7 @@ Adaptive ABC improves on this basic approach using a number of techniques:
 
 This procedure is called adaptive since we are tuning epsilon and priors adaptively. I'm just scratching the surface here, read the papers and [Simulation Based Timescale Estimation](../simbasedinference.md) part of the documentation to get a better picture. 
 
-Without further ado, here is the code. We look into the documentation I linked above and pick the relevant models for our case: [`one_timescale_model`](../one_timescale.md) and [`one_timescale_with_missing_model`](../one_timescale_with_missing.md) for full data and data with missing values respectively. Then we use the default settings to fit these guys. You can see how to change the default settings [here](../abc_parameters.md). We also need to specify a vector of time points. This was an early decision which was not particularly wise. Note to self, I need to change these functions to accept just the sampling rate and they should work fine. Nonetheless, getting a time vector is quite easy. If the duration between two time points is `dt` (`=1/fs`), then the time vector is simply `dt:dt:duration` where duration is how long your data is. We also need to tell the function that we are going to use ABC method. This is the third argument which can be set as `:abc`. Finally we should also specify priors. If you don't specify any priors the algorithm will automatically make an informed guess for you but specifying the priors can make your inference much easier. To specify priors, we'll use the [Distributions.jl](https://juliastats.org/Distributions.jl/stable/) package. 
+Without further ado, here is the code. We look into the documentation I linked above and pick the relevant models for our case: [`one_timescale_model`](../one_timescale.md) and [`one_timescale_with_missing_model`](../one_timescale_with_missing.md) for full data and data with missing values respectively. Then we use the default settings to fit these guys. You can see how to change the default settings [here](../fit_parameters.md). We also need to specify a vector of time points. This was an early decision which was not particularly wise. Note to self, I need to change these functions to accept just the sampling rate and they should work fine. Nonetheless, getting a time vector is quite easy. If the duration between two time points is `dt` (`=1/fs`), then the time vector is simply `dt:dt:duration` where duration is how long your data is. We also need to tell the function that we are going to use ABC method. This is the third argument which can be set as `:abc`. Finally we should also specify priors. If you don't specify any priors the algorithm will automatically make an informed guess for you but specifying the priors can make your inference much easier. To specify priors, we'll use the [Distributions.jl](https://juliastats.org/Distributions.jl/stable/) package. 
 
 ```julia
 using Distributions
@@ -209,9 +209,119 @@ p2 = posterior_predictive(results_missing, model_missing)
 plot(p1, p2, size=(800, 400))
 ```
 
-![](assets/practice_5_1.svg)
+![](assets/practice_5_2.svg)
 
 Posterior predictive looks fine. Our work with ABC is done. Let's check out ADVI. 
 
 ## Automatic Differentiation Variational Inference (ADVI)
 
+I'll keep the theory brief here. For details, see [Fabian Dablander's brilliant blog post](https://fabiandablander.com/r/Variational-Inference.html). If you want to learn more, go read it. It will be well worth your time. 
+
+Let's remember the Bayes theorem:
+
+```math
+p(\theta | x) = \frac{p(x | \theta) p(\theta)}{p(x)}
+```
+
+We said that denominator isn't particularly interesting and we can rewrite it based on the knowledge that the total probability should add up to 1. If we integrate over all possible values in the numerator and put what we get at denominator, then we force the total probability to be 1. (As an intuitive demonstration to see why this is true, run the following code. This kind of normalization enforces a sum to be equal to 1.):
+
+```julia
+x = randn(10000)
+x_total = sum(x)
+sum(x ./ x_total)
+```
+
+Back to our case:
+
+```math
+p(x) = \int{p(x | \theta) p(\theta) d\theta} \\
+
+p(\theta | x) = \frac{p(x | \theta) p(\theta)}{\int{p(x | \theta) p(\theta) d\theta}}
+```
+
+We have this nasty integral downstairs. There is no easy way to calculate it and get the posterior. Instead, we can be more humble and say that we don't want the posterior per se but a distribution that approximates the posterior. Precisely, we want a distribution that has minimal _Kullback-Leibler Divergence_ (KL divergence or KLD) to the actual posterior. Minimizing or maximizing something as opposed to calculating that thing is called _variational inference_. KLD is a way to quantify the distance between two probability distributions. You can't calculate something like a root-mean squared distance on probabilities, KLD is your best bet. Let's write down KLD for two arbitrary probability distributions ``p(x)`` and ``q(x)``
+
+```math
+\textrm{KL}(p(x)||q(x)) = \int{p(x)\log{(\frac{p(x)}{q(x)})}} dx = \int{ p(x) \left( \log{(p(x))} - \log{(q(x))} \right)dx} \\
+
+= \langle \log{(p(x))} - \log{(q(x))} \rangle
+```
+
+The first equality is the definition of KLD. The second equality comes from the properties of the logarithm. The crucial insight is hidden in the last equality. Here, angular brackets ``\langle \rangle`` denote averaging. Keep in mind that ``\int{p(x) f(x) dx} = \langle f(x) \rangle``. So effectively we are calculating the average difference of the logarithms of two probability distributions. Why logarithms? The probabilities are confined between 0 and 1. This makes calculations annoying. Representing them in logarithms maps them to the world of continuous numbers where addition, subtraction etc. are more natural. This is the intuition behind the KLD. 
+
+Our goal is to find a distribution such that it minimizes the KLD between that distribution and the actual posterior. I'll denote a distribution by ``q(\theta)``. The ``q(\theta)`` that minimizes KLD is ``q^*(\theta)``. 
+
+```math
+q^*(\theta) = \underset{q(\theta)}{\textrm{argmin}}\; \textrm{KL}(q(\theta)||p(\theta|x)) = \int{q(\theta) \log{\frac{q(\theta)}{p(\theta|x)}} d \theta} = \left\langle \log{\frac{q(\theta)}{p(\theta|x)}}  \right\rangle
+```
+
+Let's massage this expression a little. First, I'll explicitly write down what's inside the logarithm, then I'll break it apart to digestible pieces and finally I'll rewrite the posterior using Bayes theorem:
+
+```math
+\left\langle \log{\frac{q(\theta)}{p(\theta|x)}}  \right\rangle \\
+
+= \langle \log{q(\theta)} - \log{p(\theta|x)} \rangle \\
+
+= \langle \log{q(\theta)} \rangle - \langle \log{p(\theta|x)} \rangle \\
+```
+
+Now using the Bayes theorem on ``p(\theta|x)``
+
+```math
+\langle \log{q(\theta)} \rangle - \left \langle \log{\frac{p(x|\theta)p(\theta)}{p(x)}}
+    \right \rangle \\
+
+= \langle \log{(q(\theta))} \rangle - \bigg ( 
+    \langle \log{(p(x|\theta))} \rangle + \langle \log{(p(\theta))} \rangle - \langle \log{(p(x)) \rangle}
+    \bigg) \\
+
+= \langle \log{(q(\theta))} \rangle - \langle \log{(p(x|\theta))} \rangle - \langle \log{(p(\theta))} \rangle + \langle \log{(p(x))} \rangle
+```
+
+This is quite messy but I haven't done anything other than high school algebra. If it looks scary, take a piece of pen and paper and write down every line in the derivation above. 
+
+We're still not quite there because we encountered the annoying ``p(x)`` again which we still don't know what to do about. But let's consider the alternative approach, see if we can find a way around doing the integrals of ``p(x)``. There is a quantity called _evidence lower bound_ (ELBO). It is defined as: 
+
+```math
+\textrm{ELBO}(q(\theta)) = -(\textrm{KL}(q(\theta)||p(\theta|x))-\log{p(x)})
+```
+
+Plugging in the mess above for KLD:
+
+```math
+\textrm{ELBO}(q(\theta)) = \\
+-\bigg(\langle \log{(q(\theta))} \rangle - \langle \log{(p(x|\theta))} \rangle - \langle \log{(p(\theta))} \rangle + \langle \log{(p(x))} \rangle-\log{p(x)}\bigg)
+```
+
+We have some hope now. Note that ``p(x)`` does not depend on ``\theta``. The averaging we are doing is an average over ``\theta``. This means we can write ``\langle p(x) \rangle`` as ``p(x)`` (the average value of a constant is the same constant). Then finally ``p(x)``s above cancel and we get
+
+```math
+\textrm{ELBO}(q(\theta)) = -\bigg(\langle \log{(q(\theta))} \rangle - \langle \log{(p(x|\theta))} \rangle - \langle \log{(p(\theta))} \rangle \bigg)
+```
+
+What to do with this thing? We want to minimize the KLD. Maximizing ELBO will automatically minimize KLD for us since ELBO depends on ``-\textrm{KL}``. Then we can ignore ``p(x)`` and treat maximizing ELBO as an optimization problem where we can use standard techniques inspired by gradient descent in machine learning. I'm cutting the math short here, for more details seriously read [Dablander's blog post](https://fabiandablander.com/r/Variational-Inference.html). I've never seen a clearer explanation of variational inference before. 
+
+In order to use gradient-descent like methods, we need to be able to take derivatives. This is well-known for machine learning or training neural networks. But how do you take the derivative of doing a simulation and calculating its ACF or PSD? This is where [Julia's scientific machine learning (SciML)](https://sciml.ai/) environment comes into play. If we can write our functions in a way that is nice for [automatic differentiation](https://book.sciml.ai/notes/08-Forward-Mode_Automatic_Differentiation_(AD)_via_High_Dimensional_Algebras/), then [ForwardDiff.jl](https://juliadiff.org/ForwardDiff.jl/stable/) takes the derivatives for us. For models with a small number of parameters (like the Ornstein-Uhlenbeck process we have), forward-differentiation is much more effective than backward-differentiation (or backpropogation) used in training neural networks with hundreds of thousands of parameters. I am aware that I already made this tutorial way longer than I intended to so I'll cut the explanations here, refer to the links above to enter the rabbit hole that I've been in for the last couple of months. The name _automatic differentiation variational inference_ (ADVI) comes from the fact that we are using automatic differentiation to perform variational inference. 
+
+In practice, IntrinsicTimescales.jl uses [Turing.jl](https://turinglang.org/) to perform ADVI. Without further ado, here is the actual code to get the INTs. The syntax is the same as ABC, we'll just change `fit_method`. 
+
+```julia
+Random.seed!(666)
+fit_method = :advi
+model_full_advi = one_timescale_model(data, time, fit_method; prior=prior)
+model_missing_advi = one_timescale_with_missing_model(data, time, fit_method; prior=prior)
+results_full_advi = IntrinsicTimescales.fit(model_full)
+results_missing_advi = IntrinsicTimescales.fit(model_missing)
+```
+
+Similat to the fitting in ABC method, fitting in ADVI is also customizable via the parameters in [`get_param_dict_advi`](../fit_parameters.md). If the fitting fails, you can increase the parameters `:n_elbo_samples` (how many samples to take to estimate ELBO) and `:n_iterations` (how many ADVI iterations to perform) to get better estimates. 
+
+Finally we can also do posterior predictive check with the result objects from ADVI. 
+
+```julia
+p1 = posterior_predictive(results_full_advi, model_full_advi)
+p2 = posterior_predictive(results_missing_advi, model_missing_advi)
+plot(p1, p2, size=(800, 400))
+```
+
+That's all. Hope you enjoyed this as much as I did. This was the most fun thing I've ever done during my PhD. 
