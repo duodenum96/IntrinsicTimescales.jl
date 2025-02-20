@@ -9,7 +9,9 @@ makedocs(sitename="IntrinsicTimescales.jl",
          "practice/practice_1_acf.md",
          "practice/practice_2_acw.md",
          "practice/practice_3_ou.md",
-         "practice/practice_4_psd.md"],
+         "practice/practice_4_psd.md",
+         "practice/practice_5_bayesian.md"
+         ],
          "Theory" => "theory/theory.md",
          "Implementation" => Any[
             "Model-Free Timescale Estimation" => "acw.md",
