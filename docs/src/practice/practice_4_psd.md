@@ -142,3 +142,52 @@ plot(p1, p2, size=(800, 500))
 ![](assets/practice_4_3.svg)
 
 We're almost there. In the final chapter, we will cover Bayesian estimation of INTs and finish the Practice part of the documentation. 
+
+#### Bonus: Why does complex numbers in Fourier transform relate to phase?
+
+I felt guilty after waving my hands too much when trying to convince you that we really need complex numbers to get the phase information. For the curious, here is a proper explanation. 
+
+Consider the cosine wave ``g(t)=A \cos{(ft+\phi)}`` with amplitude ``A``, frequency ``f`` and phase shift ``\phi``. We'll take the Fourier transform of this guy. Let's start with writing it as in exponential form because dealing with trigonometric functions is annoying. Using Euler's formula:
+
+```math
+\textrm{Euler's Formula}: e^{ix} = \cos{x} + i \sin{x} \\
+
+A \cos{(ft+\phi)} = \frac{A}{2}(e^{i(ft+\phi)}+e^{-i(ft+\phi)}) \\
+```
+
+Now let's take the Fourier transform on the exponential notation. 
+
+```math
+\tilde{g}(\omega) = \int_{-\infty}^{\infty}{g(t)e^{-i\omega t}dt} \\
+
+= \frac{A}{2} ( \int_{-\infty}^{\infty}{e^{i(ft+\phi)}e^{-i\omega t}dt} + 
+\int_{-\infty}^{\infty}{e^{-i(ft+\phi)}e^{-i\omega t}dt} ) \\
+
+= \frac{A}{2} (e^{i \phi} \int_{-\infty}^{\infty}{e^{t(if-i\omega)}dt} + 
+e^{-i \phi} \int_{-\infty}^{\infty}{e^{t(-if-i\omega)}dt}) \\
+```
+
+Integrating complex functions is a messy business but it suffices to know that the integral of a complex exponential is a delta function. [See this stackexchange answer for a really nice explanation](https://math.stackexchange.com/a/2340306). If my intuition is right (no guarantees), this is related to the orthogonality of Fourier components. Writing down the solution to the integrals above:
+
+```math
+\tilde{g}(\omega) = \frac{A}{2}(2 \pi \delta{(\omega-f)}e^{i \phi}+2 \pi \delta{(\omega+f)}e^{-i \phi}) \\
+
+= A \pi (\delta{(\omega-f)}e^{i \phi}+\delta{(\omega+f)}e^{-i \phi})
+```
+
+What this tells us is that in the Fourier domain, there is one peak at the frequency ``f`` (from ``\delta{(\omega-f)}``) and another peak at the negative frequency ``-f`` (from ``\delta{(\omega+f)}``). Negative frequencies are not particularly interesting because if your signal is real valued, then the negative and positive parts of the Fourier domain will be symmetrical. The phase information is also encoded in ``e^{i \phi}`` and ``e^{-i \phi}``. Now let's try to do the same without using complex exponentials. I used the notation ``\tilde{g}`` for Fourier transform. I'll use ``\hat{g}`` here to denote that this isn't exactly the Fourier transform but something we cooked up. As a matter of fact, we didn't cook this up, [Joseph Fourier used to do his transforms with real functions](https://en.wikipedia.org/wiki/Sine_and_cosine_transforms). We are going back in time and using the old technique. 
+
+```math
+\hat{g}(\omega) = \int_{-\infty}^{\infty}{\cos{(ft+\phi)} \cos{(\omega t)}} dt
+```
+
+This is a very difficult integral. For me, the definition of very difficult is Mathematica can't solve it. To simplify, let's use Euler's formula:
+
+```math
+\cos{(ft+\phi)} \cos{(\omega t)} = \left( \frac{1}{2}(e^{i(ft+\phi)}+e^{-i(ft+\phi)}) \right)
+\left( \frac{1}{2} (e^{i \omega t} + e^{-i \omega t}) \right) \\
+
+= \frac{1}{4} \left(e^{-i (f t+\phi )-i t \omega}+e^{i t \omega-i (f t+\phi )}+e^{i (f t+\phi )-i t \omega}+e^{i (f t+\phi )+i t \omega} \right)
+```
+
+And we went back to the complex exponentials. It seems there is no escape from them. Might as well start directly with a complex exponential and save us the trouble. And now I can sleep with peacefully. 
