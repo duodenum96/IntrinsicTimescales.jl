@@ -215,6 +215,8 @@ Posterior predictive looks fine. Our work with ABC is done. Let's check out ADVI
 
 ## Automatic Differentiation Variational Inference (ADVI)
 
+Note: ADVI functionality is currently experimental. Proceed with caution. 
+
 I'll keep the theory brief here. For details, see [Fabian Dablander's brilliant blog post](https://fabiandablander.com/r/Variational-Inference.html). If you want to learn more, go read it. It will be well worth your time. 
 
 Let's remember the Bayes theorem:

@@ -51,6 +51,8 @@ The parameters are detailed in [Parameters for Approximate Bayesian Computation]
 
 ## Fitting Methods - ADVI
 
+Note: ADVI functionality is experimental. Proceed with caution. 
+
 Automatic Differentiation Variational Inference (ADVI) approximates the posterior using variational methods. Instead of using MCMC directly, ADVI uses gradient descent to find the optimal parameters that minimize the Kullback-Leibler divergence between the variational posterior and the true posterior. IntrinsicTimescales.jl uses the [`Turing.jl`](https://turing.ml/stable/) package to perform ADVI. For more details, refer to [Turing documentation](https://turing.ml/v0.22/docs/for-developers/variational_inference) or [Kucukelbir et al, 2017](https://arxiv.org/abs/1603.00788). 
 
 IntrinsicTimescales.jl states the probabilistic problem as the likelihood of each data point in the summary statistic of the data coming from a Gaussian distribution with mean generative model's summary statistic and some uncertainty around it. More clearly:

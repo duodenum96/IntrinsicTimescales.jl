@@ -114,7 +114,6 @@ plot(p1, p2, size=(1600, 800))
 ```
 ![](assets/practice_2_2.svg)
 
-
 Half the time, we got the wrong result with ACW-50! To diagnose the problem, let's plot the autocorrelation functions. This is where the other information stored in the output of [`acw`](../acw.md) comes useful. We'll use the function `acwplot` to plot the ACFs. This function plots the ACFs and returns a plot object which we can modify later. We'll put vertical lines at the lags where we compute autocorrelation. Note that the lags are also stored in the output of `acw`. To not plot 1000 ACFs for each trial, let's resimulate data with a reasonable number of trials. 
 
 ```julia
@@ -272,4 +271,4 @@ println(UnequalVarianceTTest(acw0_1, acw0_2))
 
 Note that our wrong estimates for ACW-50 reduced to 0! ACW-0 is still slightly noisy but much better now. You can also check out the t-test results, both ACWs returned a significant difference. This approach offers a way to see how many subjects you need to get a significant difference if your hypothesis is right. You can copy-paste the script above to play around with it when designing experiments and figuring out the number of subjects you need for different effect sizes. 
 
-This was a long tutorial. Take a deep breath, make a coffee for yourself, go for a walk and come back for the next one. There is still work to do: we need to figure out how to calculate exactly how wrong are we. Under certain assumptions, we can actually do this. But we need some theoretical tools. In the [next section], We'll develop those theoretical tools and they will motivate us to calculate ACW in different ways.  
+This was a long tutorial. Take a deep breath, make a coffee for yourself, go for a walk and come back for the next one. There is still work to do: we need to figure out how to calculate exactly how wrong are we. Under certain assumptions, we can actually do this. But we need some theoretical tools. In the [next section](practice_3_ou.md), We'll develop those theoretical tools and they will motivate us to calculate ACW in different ways.  

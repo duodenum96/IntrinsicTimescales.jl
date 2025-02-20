@@ -238,6 +238,11 @@ Validate inputs for timescale model construction.
 """
 function check_model_inputs(data, time, fit_method, summary_method, prior, distance_method,
                             dims=ndims(data))
+
+    if fit_method == :advi
+        @warn "ADVI functionality is experimental. Proceed with caution."
+    end
+
     if data isa AbstractVector
         data = reshape(data, (1, length(data)))
         dims = ndims(data)

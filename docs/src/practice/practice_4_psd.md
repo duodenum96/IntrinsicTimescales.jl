@@ -42,7 +42,7 @@ We need to find a way to decouple the oscillation from the OU process. There is 
 \tilde{f}(\omega) = \int_{-\infty}^{\infty}f(t)e^{-i\omega t} dt=\int_{-\infty}^{\infty}f(t)(\cos{\omega t} - i \sin{\omega t}) dt
 ```
 
-The first equality is the definition of the Fourier transform. The second equality comes from [Euler's formula](https://en.wikipedia.org/wiki/Euler%27s_formula). The term ``\cos{\omega t} +i \sin{\omega t}`` is a cosine wave with frequency ``\omega`` and its complex counterpart ``i \sin{\omega t}``. The complex part is there to carry the [phase information](https://math.stackexchange.com/questions/275115/why-do-fourier-transforms-use-complex-numbers). Compare this with the formula for covariance of two zero-mean signals ``x(t)`` and ``y(t)``. Remember that covariance is a correlation that is not normalized between -1 and 1. I will also ignore dividing it by the number of elements in your vector (as in averaging). 
+The first equality is the definition of the Fourier transform. The second equality comes from [Euler's formula](https://en.wikipedia.org/wiki/Euler%27s_formula). The term ``\cos{\omega t} +i \sin{\omega t}`` is a cosine wave with frequency ``\omega`` and its complex counterpart ``i \sin{\omega t}``. The complex part is there to carry the [phase information](https://math.stackexchange.com/questions/275115/why-do-fourier-transforms-use-complex-numbers) elegantly. Compare this with the formula for covariance of two zero-mean signals ``x(t)`` and ``y(t)``. Remember that covariance is a correlation that is not normalized between -1 and 1. I will also ignore dividing it by the number of elements in your vector (as in averaging). 
 
 ```math
 \textrm{cov}(x, y) = \sum_t{x_ty_t}
@@ -120,7 +120,7 @@ k = \frac{1}{2 \pi \tau} \\
 
 Some interesting remarks. Consider very low frequencies: ``\omega \ll k``. When ``\omega`` is small, then ``\omega^2`` will be much smaller compared to ``k^2`` (think of if 2 is smaller than 3, then ``2^2=4`` is much smaller than ``3^2=9``). Then we can ignore the `\omega` term and our PSD reduces to ``\frac{A}{k^2}`` which is just a constant. Now consider big frequencies: ``\omega \gg k``. Since ``\omega`` is big, ``\omega^2`` is now much bigger than ``k`` and we can ignore ``k``. Then the power spectrum is ``\frac{A}{\omega^2}``. This is the so-called _scale-free_ power spectrum with a power-law exponent (PLE) of 2. If we take the logarithm, ``\log{\frac{A}{\omega^2}} \sim -2\omega`` meaning on the log-scale, we should see a straight line with a slope of 2. Right in between, there is a transition from a flat PSD to PLE=2 PSD. This is where ``k`` is approximately equal to ``\omega``. Alternatively, the frequency between the flat part and the PLE=2 part is the _knee frequency_ and also corresponds to your timescale up to a multiplicative constant. 
 
-In IntrinsicTimescales.jl, you can use `:knee` in the acwtypes argument of [`acw`](@ref) to calculate the INT from the knee frequency. In the code below, I'll show this and plot the PSDs on the log scale to visually show the knee frequency. The function `knee_from_tau` converts the timescale to the knee frequency. 
+In IntrinsicTimescales.jl, you can use `:knee` in the acwtypes argument of [`acw`](../acw.md) to calculate the INT from the knee frequency. In the code below, I'll show this and plot the PSDs on the log scale to visually show the knee frequency. The function `knee_from_tau` converts the timescale to the knee frequency. 
 
 ```julia
 

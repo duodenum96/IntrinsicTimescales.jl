@@ -3,7 +3,7 @@
 [![build](https://github.com/duodenum96/.jl/workflows/CI/badge.svg)](https://github.com/duodenum96/IntrinsicTimescales.jl/actions?query=workflow%3ACI)
 # IntrinsicTimescales.jl
 
-IntrinsicTimescales.jl is a software package for estimating Intrinsic Neural Timescales (INTs) from time-series data. It uses model-free methods (ACW-50, ACW-0, fitting an exponential decay function etc.) and simulation-based methods (ABC, ADVI) to estimate INTs.
+IntrinsicTimescales.jl is a software package for estimating Intrinsic Neural Timescales (INTs) from time-series data. It uses model-free methods (ACW-50, ACW-0, fitting an exponential decay function etc.) and simulation-based methods (adaptive approximate Bayesian computation: aABC, automatic differentiation variational inference: ADVI) to estimate INTs.
 
 The documentation is available [here](https://duodenum96.github.io/IntrinsicTimescales.jl/dev/home/).
 
