@@ -431,7 +431,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
             return abc_results(output_record[1:i_step])
         end
     end
-
+    @warn "Results did not converge. Please check your results carefully."
     return abc_results(output_record)
 end
 
@@ -754,7 +754,7 @@ function get_param_dict_abc()
                 # Acceptance rate parameters
                 :minAccRate => 0.01,
                 :target_acc_rate => 0.01,
-                :target_epsilon => 5e-3,
+                :target_epsilon => 1e-4,
 
                 # Display parameters
                 :show_progress => true,
@@ -781,7 +781,7 @@ function get_param_dict_abc()
 
                                  
                  # Early stopping parameters
-                :convergence_window => 3,
+                :convergence_window => 5,
                 :theta_rtol => 1e-2,
                 :theta_atol => 1e-3,
 
