@@ -1,7 +1,7 @@
 name = "IntrinsicTimescales"
 uuid = "10d2f5c9-08bb-4a99-a156-10b2ac3b4091"
 authors = ["duodenum96 <catalyasir@gmail.com>"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 AbstractFFTs = "621f4979-c628-5d54-868e-fcf4e3e8185c"
