@@ -131,7 +131,7 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
                              weights=[0.5, 0.5], data_tau=nothing, u0=nothing)
 
 
-    data, dims = check_model_inputs(data, time, fit_method, summary_method, prior, distance_method)
+    data, dims, prior = check_model_inputs(data, time, fit_method, summary_method, prior, distance_method)
 
     # case 1: acf and abc or advi
     if summary_method == :acf

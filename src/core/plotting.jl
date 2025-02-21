@@ -2,6 +2,7 @@ module Plotting
 
 using Plots
 using IntrinsicTimescales
+using Statistics
 
 export acwplot, posterior_predictive
 
@@ -46,7 +47,7 @@ function acwplot(acwresults::ACWResults; only_acf::Bool=false, only_psd::Bool=fa
 
     # Plot PSD if available and requested
     if !only_acf && !isnothing(acwresults.psd)
-        plot!(p[current_plot], acwresults.freqs, acwresults.psd, 
+        plot!(p[current_plot], acwresults.freqs, acwresults.psd', 
               label="PSD", color=colorpalette[2],
               xlabel="Frequency (Hz)", ylabel="Power",
               title="Power Spectral Density",

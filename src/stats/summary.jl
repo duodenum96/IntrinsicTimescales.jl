@@ -202,10 +202,10 @@ function comp_psd_adfriendly(x::Vector{<:Real}, fs::Real; demean::Bool=true)
     
     # Compute FFT and get power
     x_fft = fft(x_padded)
-    psd = abs2.(x_fft[1:div(n2,2)+1]) .* scale
+    psd = abs2.(x_fft[1:div(n2,2)]) .* scale
     
     # Compute frequency vector (only positive frequencies)
-    freqs = fftfreq(n2, fs)[1:div(n2,2)+1]
+    freqs = fftfreq(n2, fs)[1:div(n2,2)]
     
     # Return only positive frequencies, excluding DC (zero frequency)
     return psd[2:end], freqs[2:end]
@@ -405,10 +405,9 @@ Compute autocorrelation for data with missing values.
 - Array of autocorrelation values
 
 # Notes
-- Handles missing data using "conservative" approach
-- Sets NaN values to zero after mean adjustment
-- Returns NaN for lags with insufficient valid pairs
-- Based on statsmodels.tsa.stattools implementation
+- Handles missing data using missing="conservative" approach of 
+statsmodels.tsa.stattools.acf. See https://www.statsmodels.org/dev/generated/statsmodels.tsa.stattools.acf.html 
+for details. 
 """
 function comp_ac_time_missing(data::AbstractVector{T}; n_lags::Integer=length(data)) where {T <: Real}
     lags = collect(0:(n_lags-1))
