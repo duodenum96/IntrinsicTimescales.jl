@@ -16,7 +16,7 @@ affiliations:
       name: Mind, Brain Imaging and Neuroethics Research Unit, University of Ottawa, Ontario, ON, Canada.
     - index: 2
       name: University of Ottawa Institute of Mental Health Research, Ottawa, ON, Canada.
-data: 21 February 2025
+date: 21 February 2025
 bibliography: paper.bib
 ---
 
