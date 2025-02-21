@@ -87,8 +87,7 @@ using IntrinsicTimescales.SummaryStats
         detected_knee = find_knee_frequency(psd, freqs, min_freq = freqs[1], max_freq = freqs[end])[2]
         # Theoretically, tau = 1 / 2pi * f_knee
         @test isapprox(true_tau, (1 / (2π * detected_knee)), rtol=2)
-    end
-    
+    end  
 end
 
 @testset "Exponential decay fitting tests" begin
@@ -212,39 +211,119 @@ end
     end
 
     @testset "fooof_fit with different dimensions" begin
-        freqs = collect(0.0:0.1:100.0) / 1000.0
+        Random.seed!(666)
+        freqs = collect(0.1:0.1:100.0) / 1000.0
         f_knee = 5.0 / 1000.0
-        f_peak = 30.0 / 1000.0
+        f_peak1 = 30.0 / 1000.0
+        f_peak2 = 15.0 / 1000.0
         amp = 100.0
         
-        # Create PSD with both knee and peak
+        # Create PSD with both knee and two peaks
         base_psd = lorentzian(freqs, [amp, f_knee])
-        peak_psd = @. 50 * exp(-(((freqs - f_peak)/(2/1000))^2))
-        perfect_psd = base_psd + peak_psd
+        peak1_psd = @. 50 * exp(-(((freqs - f_peak1)/(2/1000))^2))
+        peak2_psd = @. 30 * exp(-(((freqs - f_peak2)/(1.5/1000))^2))
+        perfect_psd = base_psd + peak1_psd + peak2_psd
         
         # 1D case
-        result_1d = fooof_fit(base_psd, freqs)
-        @test isapprox(result_1d[1], f_knee, rtol=0.2)
-        result_1d_osc = fooof_fit(perfect_psd, freqs, oscillation_peak=true)
-        @test isapprox(result_1d_osc[2], f_peak, rtol=0.2)
+        # Test without oscillation detection
+        result_1d = fooof_fit(base_psd, freqs, oscillation_peak=false)
+        @test isapprox(result_1d, f_knee, rtol=0.2)
+        
+        # Test with oscillation detection
+        result_1d_osc = fooof_fit(perfect_psd, freqs, oscillation_peak=true, max_peaks=2)
+        @test isapprox(result_1d_osc[1], f_knee, rtol=0.2)  # Check knee frequency
+        @test length(result_1d_osc[2]) == 2  # Should find both peaks
+        
+        # Check that peaks are found at correct frequencies
+        peak_freqs = sort([p[1] for p in result_1d_osc[2]])
+        @test isapprox(peak_freqs[1], f_peak2, rtol=0.2)
+        @test isapprox(peak_freqs[2], f_peak1, rtol=0.2)
+        
+        # Test max_peaks parameter
+        result_1d_single_peak = fooof_fit(perfect_psd, freqs, oscillation_peak=true, max_peaks=1)
+        @test length(result_1d_single_peak[2]) == 1
         
         # 2D case - multiple trials
-        psd_2d = repeat(base_psd', 3, 1)
-        psd_2d_osc = repeat(perfect_psd', 3, 1)
-        results_2d = fooof_fit(psd_2d, freqs, dims=2)
-        results_2d_osc = fooof_fit(psd_2d_osc, freqs, dims=2, oscillation_peak=true)
+        psd_2d = repeat(perfect_psd', 3, 1)
+        results_2d = fooof_fit(psd_2d, freqs, dims=2, oscillation_peak=true, max_peaks=2)
         @test length(results_2d) == 3
-        @test all(x -> isapprox(x[1], f_knee, rtol=0.2), results_2d)
-        @test all(x -> isapprox(x[2], f_peak, rtol=0.2), results_2d_osc)
+        for result in results_2d
+            @test isapprox(result[1], f_knee, rtol=0.2)
+            @test length(result[2]) == 2  # Should find both peaks in each trial
+            peak_freqs = sort([p[1] for p in result[2]])
+            @test isapprox(peak_freqs[1], f_peak2, rtol=0.2)
+            @test isapprox(peak_freqs[2], f_peak1, rtol=0.2)
+        end
         
         # 3D case - multiple experiments
-        psd_3d = repeat(base_psd, 1, 3, 2)
-        psd_3d_osc = repeat(perfect_psd, 1, 3, 2)
-        results_3d = fooof_fit(psd_3d, freqs, dims=1)
-        results_3d_osc = fooof_fit(psd_3d_osc, freqs, dims=1, oscillation_peak=true)
+        psd_3d = repeat(perfect_psd, 1, 3, 2)
+        results_3d = fooof_fit(psd_3d, freqs, dims=1, oscillation_peak=true, max_peaks=2)
         @test size(results_3d) == (3, 2)
-        @test all(x -> isapprox(x[1], f_knee, rtol=0.2), results_3d)
-        @test all(x -> isapprox(x[2], f_peak, rtol=0.2), results_3d_osc)
+        for result in results_3d
+            @test isapprox(result[1], f_knee, rtol=0.2)
+            @test length(result[2]) == 2  # Should find both peaks in each experiment
+            peak_freqs = sort([p[1] for p in result[2]])
+            @test isapprox(peak_freqs[1], f_peak2, rtol=0.2)
+            @test isapprox(peak_freqs[2], f_peak1, rtol=0.2)
+        end
+
+        @testset "Noisy PSD" begin
+            # Create noisy PSD with knee and peaks
+            Random.seed!(123)
+            base_psd = lorentzian(freqs, [amp, f_knee])
+            peak1_psd = @. 50 * exp(-(((freqs - f_peak1)/(2/1000))^2))
+            peak2_psd = @. 30 * exp(-(((freqs - f_peak2)/(1.5/1000))^2))
+            perfect_psd = base_psd + peak1_psd + peak2_psd
+            noise = randn(length(freqs)) * 5.0
+            noisy_psd = perfect_psd + noise
+            
+            # Test without oscillation detection
+            result_noisy = fooof_fit(noisy_psd, freqs, oscillation_peak=false)
+            @test isapprox(result_noisy, f_knee, rtol=0.1)
+            
+            # Test with oscillation detection
+            result_noisy_osc = fooof_fit(noisy_psd, freqs, oscillation_peak=true, max_peaks=2)
+            @test isapprox(result_noisy_osc[1], f_knee, rtol=0.1)  # Check knee frequency
+            @test length(result_noisy_osc[2]) == 2  # Should still find both peaks
+            
+            # Check that peaks are found at correct frequencies despite noise
+            peak_freqs = sort([p[1] for p in result_noisy_osc[2]])
+            @test isapprox(peak_freqs[1], f_peak2, rtol=0.1)
+            @test isapprox(peak_freqs[2], f_peak1, rtol=0.1)
+        end
+
+    end
+end
+
+@testset "ACW Area Under Curve tests" begin
+    @testset "Basic AUC calculation" begin
+        # Test with simple triangular ACF
+        lags = [0.0, 1.0, 2.0]
+        acf = [1.0, 0.5, 0.0]
+        auc = acw_romberg(lags, acf)
+        @test isapprox(auc, 1.0, rtol=0.01)  # Triangle area = 1
+        
+        # Test with constant ACF
+        lags = collect(0.0:0.5:2.0)
+        acf = ones(length(lags))
+        auc = acw_romberg(lags, acf)
+        @test isapprox(auc, 2.0, rtol=0.01)  # Rectangle area = 1.0 * 2.0 = 2.0
+    end
+    
+    @testset "Multi-dimensional AUC" begin
+        lags = collect(0.0:0.5:2.0)
+        
+        # 2D case - multiple trials
+        acf_2d = ones(length(lags), 3)  # 3 identical trials
+        auc_2d = acw_romberg(lags, acf_2d, dims=1)
+        @test length(auc_2d) == 3
+        @test all(x -> isapprox(x, 2.0, rtol=0.01), auc_2d)
+        
+        # 3D case - multiple experiments
+        acf_3d = ones(length(lags), 3, 2)  # 3×2 identical experiments
+        auc_3d = acw_romberg(lags, acf_3d, dims=1)
+        @test size(auc_3d) == (3, 2)
+        @test all(x -> isapprox(x, 2.0, rtol=0.01), auc_3d)
     end
 end
 

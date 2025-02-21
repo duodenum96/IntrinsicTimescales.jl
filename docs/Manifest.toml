@@ -1397,8 +1397,8 @@ weakdeps = ["Random", "RecipesBase", "Statistics"]
     IntervalSetsStatisticsExt = "Statistics"
 
 [[deps.IntrinsicTimescales]]
-deps = ["AbstractFFTs", "BenchmarkTools", "ComponentArrays", "DSP", "DifferentialEquations", "DifferentiationInterface", "DifferentiationInterfaceTest", "Distributions", "Documenter", "DocumenterTools", "FFTW", "FastTransformsForwardDiff", "ForwardDiff", "JET", "KernelDensity", "LinearAlgebra", "LogExpFunctions", "Logging", "LombScargle", "Missings", "NaNStatistics", "NonlinearSolve", "PkgSkeleton", "Plots", "Preferences", "ProgressMeter", "Random", "Reexport", "SciMLBase", "SciMLSensitivity", "SciMLStructures", "StaticArrays", "Statistics", "StatsBase", "Test", "Turing"]
-git-tree-sha1 = "bfa4d5a8b117efcff4a76f7a0fa119e4bc5c2cf8"
+deps = ["AbstractFFTs", "BenchmarkTools", "ComponentArrays", "DSP", "DifferentialEquations", "DifferentiationInterface", "DifferentiationInterfaceTest", "Distributions", "Documenter", "DocumenterTools", "FFTW", "FastTransformsForwardDiff", "ForwardDiff", "JET", "KernelDensity", "LinearAlgebra", "LogExpFunctions", "Logging", "LombScargle", "Missings", "NaNStatistics", "NonlinearSolve", "PkgSkeleton", "Plots", "Preferences", "ProgressMeter", "Random", "Reexport", "Revise", "SciMLBase", "SciMLSensitivity", "SciMLStructures", "StaticArrays", "Statistics", "StatsBase", "Test", "Turing"]
+git-tree-sha1 = "bb54b87c5db7a97d8873aed20c5f831772a40da3"
 repo-rev = "master"
 repo-url = "https://github.com/duodenum96/IntrinsicTimescales.jl"
 uuid = "10d2f5c9-08bb-4a99-a156-10b2ac3b4091"
@@ -2789,6 +2789,16 @@ deps = ["ChainRulesCore", "DiffResults", "DiffRules", "ForwardDiff", "FunctionWr
 git-tree-sha1 = "cc6cd622481ea366bb9067859446a8b01d92b468"
 uuid = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
 version = "1.15.3"
+
+[[deps.Revise]]
+deps = ["CodeTracking", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "REPL", "Requires", "UUIDs", "Unicode"]
+git-tree-sha1 = "9bb80533cb9769933954ea4ffbecb3025a783198"
+uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
+version = "3.7.2"
+weakdeps = ["Distributed"]
+
+    [deps.Revise.extensions]
+    DistributedExt = "Distributed"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]

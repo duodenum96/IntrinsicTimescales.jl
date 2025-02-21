@@ -1,4 +1,5 @@
-# Ornstein-Uhlenbeck Process as a Generative Model for ACF (Or Mommy, Where Do the ACFs Come From?)
+# Ornstein-Uhlenbeck Process as a Generative Model for ACF 
+### (Or Mommy, Where Do the ACFs Come From?)
 
 Despite popular belief, ACFs aren't delivered by storks. So far, we just assumed that they exist and calculated ACW metrics from them. This is where we start building a more comprehensive theory. I will keep the math to a minimum and whenever I explain math, I will supplement it with code so that you can play with to get some intuition. 
 
@@ -20,6 +21,8 @@ plot(lags, acf_short, label="Short Timescale ACF")
 plot!(lags, acf_long, label="Long Timescale ACF")
 ```
 
+![](assets/practice_3_1.svg)
+
 Compare this with the ACFs we plotted in the previous tutorials. An exponential decay function is an abstraction of the ACF. In the equation above, we represent the lags with ``l`` and timescale with ``\tau``. As expected, as I increase ``\tau`` (`tau`), the ACF decays slower. You can eyeball the ACW-50. We can do better than eyeballing. Let's do high-school math to get the ACW-50. Remember the definition: ACW-50 is the lag where ACF crosses 0.5:
 
 ```math
@@ -29,15 +32,20 @@ e^{-\frac{l}{\tau}} = 0.5
 We need to solve this for ``l``. Remember that the inverse of an exponential is a logarithm. Taking the logarithm of both sides:
 
 ```math
-\log{e^{-\frac{l}{\tau}}} = \log{0.5}
--\frac{l}{\tau} = \log{0.5}
-l = -\tau \log{0.5}
-l = -\tau \log{2^{-1}}
-l = \tau \log{2}
+\log{e^{-\frac{l}{\tau}}} = \log{0.5} \\
+
+-\frac{l}{\tau} = \log{0.5} \\ 
+
+l = -\tau \log{0.5} \\
+
+l = -\tau \log{2^{-1}} \\
+
+l = \tau \log{2} \\
+
 \textrm{ACW-50} = \tau \log{2}
 ```
 
-That's it! We effectively showed that ACW-50 is just the timescale or decay rate of the autocorrelation function up to a constant which is ``\log{2}``. This is good, but the data we have is not just an autocorrelation function. It is the whole time series. The next step is to figure out the generative model for the time-series which gives this autocorrelation function. I will explain the birds and bees of this in the [Theory] section but even pure practicioners need to know a minimum of theory to understand what they practice. The minimum of theory is the mysterious thing that I shied away from explaining properly, the Ornstein-Uhlenbeck (OU) process. The function [`generate_ou_process`](@ref) that we used again and again without explaining. No more. Here is the OU:
+That's it! We effectively showed that ACW-50 is just the timescale or decay rate of the autocorrelation function up to a constant which is ``\log{2}``. This is good, but the data we have is not just an autocorrelation function. It is the whole time series. The next step is to figure out the generative model for the time-series which gives this autocorrelation function. I will explain the birds and bees of this in the [Theory](../theory/theory.md) section but even pure practicioners need to know a minimum of theory to understand what they practice. The minimum of theory is the mysterious thing that I shied away from explaining properly, the Ornstein-Uhlenbeck (OU) process. The function [`generate_ou_process`](@ref) that we used again and again without explaining. No more. Here is the OU:
 
 ```math
 \frac{dx(t)}{dt} = -\frac{1}{\tau} x(t) + \xi (t)
@@ -45,7 +53,7 @@ That's it! We effectively showed that ACW-50 is just the timescale or decay rate
 
 This equation is called a differential equation. On the left hand side, you have a derivative (the ``\frac{d}{dt}`` term). ``t`` denotes time here. You have the rate of change of something (``x``) with respect to time. That is, how does ``x`` change when time changes. ``x`` is your dynamic variable or your observable: what you observe in data. To see how it changes, look at the right hand side. The first term is ``-\frac{1}{\tau} x(t)``. ``\tau`` is the timescale. This term ensures that your ``x`` always moves to 0. To see how, note that ``\tau`` is always positive. If you give a positive number to ``x``, the ``-`` sign will make sure that ``x`` decreases with time. If ``x`` reduces too much, becomes negative, then the ``-`` sign will again ensure that ``x`` increases to move it towards zero because if you put a ``-`` sign in front of a negative number, it becomes positive (as in ``-(-3) = +3``). The final term, ``\xi (t)`` ensures that your ``x`` doesn't get stuck at zero. This term is called white noise: it is a random number drawn from a Gaussian distribution. How does this all relate to timescales? Let's ask the question: how fast ``x`` approaches zero? Well, this is determined by ``\frac{1}{\tau}`` in front of it. Higher the ``\tau``, slower the approach because ``\frac{1}{\textrm{big number}}`` is a small number and vice versa. If you feel uncomfortable with the mathematics I present here, I invite you to pull up a pen and paper and plug in different numbers. It'll become clear. There is no better way to build intuition other than grinding your way through intuition and [forcing your way through its wooden doors with a battering ram](https://www.youtube.com/watch?v=PLxXC-V8wLs). 
 
-Back to `generate_ou_process`. What this function does is that it solves this equation. What does it mean to solve an equation? There are a number of ways to approach an equation of this type: one can take averages of both sides, calculate moments, use a Fokker-Planck approach, apply perturbation theory via Martin-Siggia-Rose-De Dominicis-Janssen path integral, apply Fourier analysis, use Ito or Stratonovich calculus. `generate_ou_process` takes a numerical approach: it assigns a random initial number as a starting condition and moves ``x`` forward in small steps according to the equation. Under the hood, it uses the amazing [DifferentialEquations.jl] library which is optimized to the bone, this is why it is fast. Since we solve the equation for ``x(t)``, the end result is a time-series. Under ideal conditions (that is, sufficiently enough data), if you calculate the autocorrelation function of this time-series, you will get an exponential decay function of the same type above. Let's test this with the tools that we are hopefully familiar with now:
+Back to `generate_ou_process`. What this function does is that it solves this equation. What does it mean to solve an equation? There are a number of ways to approach an equation of this type: one can take averages of both sides, calculate moments, use a Fokker-Planck approach, apply perturbation theory via Martin-Siggia-Rose-De Dominicis-Janssen path integral, apply Fourier analysis, use Ito or Stratonovich calculus. `generate_ou_process` takes a numerical approach: it assigns a random initial number as a starting condition and moves ``x`` forward in small steps according to the equation. Under the hood, it uses the amazing [DifferentialEquations.jl](https://docs.sciml.ai/DiffEqDocs/stable/) library which is optimized to the bone, this is why it is fast. Since we solve the equation for ``x(t)``, the end result is a time-series. Under ideal conditions (that is, sufficiently enough data), if you calculate the autocorrelation function of this time-series, you will get an exponential decay function of the same type above. Let's test this with the tools that we are hopefully familiar with now:
 
 ```julia
 using IntrinsicTimescales, Statistics
@@ -65,6 +73,8 @@ plot!(p2, lags, acf_numerical_long, label="Numerical ACF")
 plot(p1, p2, size=(800,400))
 ```
 
+![](assets/practice_3_2.svg)
+
 Note that the numerical ACF estimate decays consistenly faster than the analytical ground truth. The difference between the numerical estimate and analytical one increases as timescale increases. This is a limitation of finite data. As long as your data is finite and has a sampling rate that is not infinitesimally small, you will underestimate the INT. We will address this problem in the [final tutorial of Practice]. 
 
 The good thing is even though we are underestimating the INT, the ACF of the long timescale process still decays slower than the short timescale one. 
@@ -72,9 +82,12 @@ The good thing is even though we are underestimating the INT, the ACF of the lon
 This theoretical knowledge motivates two more ACW types. The first one is the lag where ACF crosses ``1/e``. In IntrinsicTimescales.jl, this is called `acweuler` (or ACW-e) but I'm not sure if there is a generic name for it in the literature. The math: 
 
 ```math
-e^{-\frac{l}{\tau}} = \frac{1}{e}
-\log{e^{-\frac{l}{\tau}}} = \log{\frac{1}{e}}
--\frac{l}{\tau} = -1
+e^{-\frac{l}{\tau}} = \frac{1}{e} \\
+
+\log{e^{-\frac{l}{\tau}}} = \log{\frac{1}{e}} \\
+
+-\frac{l}{\tau} = -1 \\
+
 l = \tau
 ```
 

@@ -1,6 +1,6 @@
 # IntrinsicTimescales.jl Documentation
 
-Welcome to the documentation of IntrinsicTimescales.jl. IntrinsicTimescales.jl is a software package for estimating Intrinsic Neural Timescales (INTs) from time-series data. It uses model-free methods (ACW-50, ACW-0, fitting an exponential decay function etc.) and simulation-based methods (ABC, ADVI) to estimate INTs.
+Welcome to the documentation of IntrinsicTimescales.jl. IntrinsicTimescales.jl is a software package for estimating Intrinsic Neural Timescales (INTs) from time-series data. It uses model-free methods (ACW-50, ACW-0, fitting an exponential decay function etc.) and simulation-based methods (adaptive approximate Bayesian computation: aABC, currently experimental automatic differentiation variational inference: ADVI) to estimate INTs.
 
 ## Installation
 
@@ -48,7 +48,7 @@ These functions are highly customizable, see the page [Simulation Based Timescal
 
 This documentation is divided in four parts. The fourth part [API](index.md) is an exhaustive list of functions and their signatures in the package. It is boring. A better place to start is the third part, Implementation. This part documents [model-free](acw.md) and [simulation-based](simbasedinference.md) methods that are used in the package, with the full function signatures. If you are already familiar with calculating INTs and just want to start using the package, this is the right place. 
 
-The remaining two parts are to understand the motivation to use various methods for calculating INTs and the motivation to calculate INTs (i.e., practice and theory). The first part is [Practice](practice/practice_intro.md). It is usually easier to understand something after you do it, therefore, I placed the practice section before theory. In [Practice](practice/practice_intro.md), we carefully build our way towards estimating INTs by starting from the autocorrelation function and slowly proceeding to more and more advanced methods. The second part is [Theory](theory/theory.md). This part delves into the history of INT research, what it means in the brain and what it is good for with a particular emphasis on theoretical research, summarizing the cutting edge in this frontier. It is especially useful for researchers working on INT itself. 
+The remaining two parts are to understand the motivation to use various methods for calculating INTs and the motivation to calculate INTs (i.e., practice and theory). The first part is [Practice](practice/practice_intro.md). It is usually easier to understand something after you do it, therefore, I placed the practice section before theory. In [Practice](practice/practice_intro.md), we carefully build our way towards estimating INTs by starting from the autocorrelation function and slowly proceeding to more and more advanced methods. The second part is [Theory](theory/theory.md). This part delves into the history of INT research, what it means in the brain and what it is good for with a particular emphasis on theoretical research, summarizing the cutting edge in this frontier. It is especially useful for researchers working on INT itself. Right now, it is in construction. I will deploy it as soon as it is ready. 
 
 ## Getting Help and Making Contributions
 

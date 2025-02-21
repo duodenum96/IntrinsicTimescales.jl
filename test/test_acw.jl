@@ -9,9 +9,8 @@ using Random
     t = 0:1/fs:10  # 10 seconds of data
     freq = 5.0  # 5 Hz oscillation
     tau = 0.5   # 0.5s decay time
-    signal = exp.(-t/tau)
-    noise = 0.1 * randn(length(t))
-    data = signal + noise
+    data = generate_ou_process(tau, 1.0, 1/fs, 10.0, 1)[:]
+    
 
     @testset "Basic ACW Container" begin
         container = ACWResults(fs, [0.0], :acw0, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
@@ -236,9 +235,8 @@ using Random
             gap_missing[301:500] .= NaN  # 2-second gap
             
             # Test knee frequency estimation with missing data
-            for test_data in [random_missing, gap_missing]
-                estimated_tau = acw(test_data, fs, acwtypes=:knee, freqlims=(0.1, 10.0)).acw_results
-                
+            for test_data in [clean_data, random_missing, gap_missing]
+                estimated_tau = acw(test_data, fs, acwtypes=:knee, freqlims=(0.1, 10.0), oscillation_peak=false).acw_results
                 # Test if estimated tau is within reasonable range
                 # Allow larger tolerance due to missing data
                 @test isapprox(estimated_tau, tau, rtol=1.0) # much worse than clean data but eh
@@ -257,6 +255,60 @@ using Random
             @test all(τ -> isapprox(τ, tau, rtol=1.0), result_2d)
         end
 
+    end
+
+    @testset "ACW Area Under Curve Integration" begin
+        # Test data setup
+        fs = 100.0
+        dt = 1/fs
+        duration = 10.0
+        tau = 0.5
+        
+        @testset "Basic AUC calculation" begin
+            # Generate OU process
+            data = generate_ou_process(tau, 1.0, dt, duration, 1)[:]
+            result = acw(data, fs, acwtypes=:auc).acw_results
+            @test length(result) == 1
+            @test !isnothing(result[1])
+            @test result[1] > 0  # AUC should be positive
+            @test result[1] < duration  # AUC should be less than total duration
+        end
+        
+        @testset "Multi-trial AUC" begin
+            # Generate multiple trials
+            Random.seed!(666)
+            num_trials = 3
+            data_2d = generate_ou_process(tau, 1.0, dt, duration, num_trials)
+            result = acw(data_2d, fs, acwtypes=:auc, dims=2).acw_results
+            @test length(result) == num_trials
+            @test all(x -> x > 0, result)  # All AUCs should be positive            
+        end
+        
+        @testset "AUC with missing data" begin
+            # Generate data with missing values
+            data = generate_ou_process(tau, 1.0, dt, duration, 1)[:]
+            missing_data = copy(data)
+            missing_data[rand(1:length(data), 100)] .= NaN  # Add random missing values
+            
+            result_clean = acw(data, fs, acwtypes=:auc).acw_results
+            result_missing = acw(missing_data, fs, acwtypes=:auc).acw_results
+            
+            # Results should be similar despite missing data
+            @test isapprox(result_missing[1], result_clean[1], rtol=0.2)
+        end
+        
+        @testset "Multiple ACW measures including AUC" begin
+            data = generate_ou_process(tau, 1.0, dt, duration, 1)[:]
+            result = acw(data, fs, acwtypes=[:acw50, :auc, :tau]).acw_results
+            
+            @test length(result) == 3
+            @test result[2] > 0  # AUC should be positive
+            @test result[2] < duration  # AUC should be less than duration
+            
+            # AUC should be related to other timescale measures
+            @test result[2] > result[1]  # AUC should be larger than ACW50
+            @test isapprox(result[2], result[3], rtol=1.0)  # AUC should be roughly similar to tau
+        end
     end
 
 end 

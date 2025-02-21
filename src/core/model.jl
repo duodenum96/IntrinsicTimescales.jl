@@ -2,7 +2,8 @@ module Models
 
 using Distributions: Distribution
 
-export AbstractTimescaleModel, BaseModel, check_inputs, check_acwtypes, fit, check_model_inputs
+export AbstractTimescaleModel, BaseModel, check_inputs, check_acwtypes, fit,
+       check_model_inputs
 
 """
     AbstractTimescaleModel
@@ -34,9 +35,9 @@ Base model structure for timescale inference using various methods.
 - `data_sd::Real`: Standard deviation of the input data
 """
 struct BaseModel <: AbstractTimescaleModel
-    data
-    time
-    data_sum_stats
+    data::Any
+    time::Any
+    data_sum_stats::Any
     fitmethod::Symbol # can be "abc", "advi", "acw"
     summary_method::Symbol # :psd or :acf
     lags_freqs::AbstractVector{<:Real} # :lags if summary method is acf, freqs otherwise
@@ -235,10 +236,20 @@ Validate inputs for timescale model construction.
 # Throws
 - `ArgumentError`: If any inputs are invalid or incompatible
 """
-function check_model_inputs(data, time, fit_method, summary_method, prior, distance_method, dims=ndims(data))
+function check_model_inputs(data, time, fit_method, summary_method, prior, distance_method,
+                            dims=ndims(data))
+
+    if fit_method == :advi
+        @warn "ADVI functionality is experimental. Proceed with caution."
+    end
+
     if data isa AbstractVector
         data = reshape(data, (1, length(data)))
         dims = ndims(data)
+    end
+
+    if !(prior isa AbstractVector) && !(prior == "informed_prior") && !(prior isa Nothing)
+        prior = [prior]
     end
 
     # If dims doesn't match ndims(data), permute dimensions to put time axis last
@@ -246,39 +257,38 @@ function check_model_inputs(data, time, fit_method, summary_method, prior, dista
         # Calculate permutation order
         other_dims = deleteat!(collect(1:ndims(data)), dims)
         perm = [other_dims..., dims]
-        
+
         # Permute dimensions
         data = permutedims(data, perm)
         dims = ndims(data)
     end
-    
+
     # Check data and time
     if length(time) != size(data, ndims(data))
         throw(ArgumentError("Time vector length must match data length"))
     end
-    
+
     if !issorted(time)
         throw(ArgumentError("Time vector must be monotonically increasing"))
     end
-    
+
     # Check fit method
     if !(fit_method in [:abc, :advi, :acw])
         throw(ArgumentError("fit_method must be :abc, :advi, or :acw"))
     end
-    
+
     # Check summary method
     if !(summary_method in [:acf, :psd])
         throw(ArgumentError("summary_method must be :acf or :psd"))
     end
-    
+
     # Check distance method
     if !isnothing(distance_method)
-
         if !(distance_method in [:linear, :logarithmic])
             throw(ArgumentError("distance_method must be :linear or :logarithmic"))
         end
     end
-    return data, dims
+    return data, dims, prior
 end
 
 end # module
