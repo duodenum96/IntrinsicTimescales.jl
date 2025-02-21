@@ -1,5 +1,5 @@
 ---
-title: 'IntrinsicTimescales.jl: A Julia package to estimate intrinsic (neural) timescales (INTs) from time-series data
+title: 'IntrinsicTimescales.jl: A Julia package to estimate intrinsic (neural) timescales (INTs) from time-series data'
 tags:
     - Julia
     - neuroscience
