@@ -63,4 +63,9 @@ IntrinsicTimescales.jl provides comprehensive documentation that includes detail
 
 IntrinsicTimescales.jl aims to become a standard tool in neuroscience research by providing robust, efficient, and well-documented methods for estimating intrinsic neural timescales across different experimental paradigms and data conditions.
 
+# Acknowledgements
+
+There are no acknowledgments to declare and no conflicts of interest 
+to disclose.
+
 # References
