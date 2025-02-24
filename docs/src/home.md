@@ -20,7 +20,7 @@ For model-free methods, simply use
 
 ```julia
 using INT
-acwresults = acw(data, fs; acwtypes = [:acw0, :acw50, :acweuler, :tau, :knee]), dims=ndims(data))
+acwresults = acw(data, fs; acwtypes = [:acw0, :acw50, :acweuler, :auc, :tau, :knee]), dims=ndims(data))
 # or even simpler:
 acwresults = acw(data, fs)
 ```
