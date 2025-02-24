@@ -40,7 +40,7 @@ IntrinsicTimescales.jl provides the following features:
   - ACW-e: Time to each 1/e in the ACF [@cusinato_intrinsic_2023]
   - AUC: Area under the curve of the ACF from lag-zero to the lag where ACF reaches 0 [@manea_intrinsic_2022; @wu_mapping_2025; @watanabe_atypical_2019; @raut_organization_2020]
   - tau: The inverse decay rate of an exponential decay function fitted to the ACF [@murray_hierarchy_2014; @catal_flexibility_2024]
-  - knee: Estimation of the inverse decay rate of exponential decay function by fitting a Lorentzian to the PSD. By Wiener-Khinchine theorem, the decay rate of an exponential decay function is proportional to the knee frequency of the PSD [@gao_neuronal_2020; @manea_neural_2024]
+  - knee: Estimation of the inverse decay rate of exponential decay function by fitting a Lorentzian to the PSD. By Wiener-Khinchine theorem, the decay rate of an exponential decay function is proportional to the knee frequency of the PSD [@gao_neuronal_2020; @manea_neural_2024]. Following the FOOOF package [@gao_neuronal_2020], we follow a 3-step procedure for estimating the knee frequency. First, a Lorentzian is fitted to the PSD. Secondly, the Lorentzian fit is subtracted and gaussians for oscillatory peaks are fitted to the residual PSD. Finally the gaussians are subtracted from base PSD and a Lorentzian is fitted one more time. 
 
 * Bayesian Parameter Estimation: These methods estimate the timescale as a parameter of a  generative model involving an Ornstein-Uhlenbeck process. Generative models support missing data and oscillatory artifacts. 
   - Adaptive Approximate Bayesian Computation (aABC) with population Monte Carlo [@beaumont_adaptive_2009; @zeraati_flexible_2022]
@@ -52,10 +52,14 @@ IntrinsicTimescales.jl provides the following features:
 * Visualization: 
   - IntrinsicTimescales.jl offers built-in plotting utilities for ACFs and PSDs. For Bayesian methods, plots of posterior predictive checks are available. 
 
+A diagram shows the major features of the package can be seen in [Figure 1](\autoref{fig:fig1}). Additionally, in order to facilitate usage in neuroscientific community, we are working on a Python frontend which will soon be accessible in [https://github.com/duodenum96/INTpy](https://github.com/duodenum96/INTpy). 
+
+![Figure 1: A diagram showing the features of the package. \* in \*_model denotes one of the models Generative Models. .\label{fig:fig1}](diagram.svg)
+
 # Documentation
 
 
-IntrinsicTimescales.jl provides comprehensive documentation that includes detailed API references and practical tutorials. The documentation is structured in three main sections: 1) Practice tutorials that build up understanding from basic concepts to advanced methods, 2) Implementation details for both model-free and Bayesian methods, and 3) Complete API reference. Each estimation method is thoroughly documented with mathematical formulations, example code and explanations of parameters. The documentation includes interactive examples demonstrating proper usage of the package's features, from basic timescale estimation to advanced Bayesian inference techniques. All documentation is hosted online and integrated with Julia's built-in help system.
+IntrinsicTimescales.jl provides comprehensive documentation that includes detailed API references and practical tutorials. The documentation is structured in three main sections: 1) Practice tutorials that build up understanding from basic concepts to advanced methods, 2) Implementation details for both model-free and Bayesian methods, and 3) Complete API reference. Each estimation method is thoroughly documented with mathematical formulations, example code and explanations of parameters. The documentation includes code examples demonstrating proper usage of the package's features, from basic timescale estimation to advanced Bayesian inference techniques. All documentation is hosted online and integrated with Julia's built-in help system.
 
 IntrinsicTimescales.jl aims to become a standard tool in neuroscience research by providing robust, efficient, and well-documented methods for estimating intrinsic neural timescales across different experimental paradigms and data conditions.
 
