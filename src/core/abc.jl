@@ -383,10 +383,11 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 
         current_theta = mean(output_record[i_step].theta_accepted, dims=1)
 
+
+        n_accept = output_record[i_step].n_accepted
+        n_tot = output_record[i_step].n_total
+        accept_rate = n_accept / n_tot
         if verbose
-            n_accept = output_record[i_step].n_accepted
-            n_tot = output_record[i_step].n_total
-            accept_rate = n_accept / n_tot
             println("Acceptance Rate = $(accept_rate)")
             println("Current theta = $(current_theta)")
             println("--------------------")
