@@ -6,8 +6,10 @@ using IntrinsicTimescales.OrnsteinUhlenbeck
 using IntrinsicTimescales.OneTimescaleWithMissing
 using IntrinsicTimescales.Models
 using NaNStatistics
+using Random
 
 @testset "OneTimescaleWithMissing Model Tests" begin
+    Random.seed!(123)
     # Setup test data and parameters
     dt = 0.01
     T = 100.0

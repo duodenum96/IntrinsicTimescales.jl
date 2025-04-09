@@ -4,6 +4,7 @@ using IntrinsicTimescales
 using Random
 
 @testset "ACW Module Tests" begin
+    Random.seed!(123)
     # Test data setup
     fs = 100.0  # 100 Hz sampling rate
     t = 0:1/fs:10  # 10 seconds of data

@@ -2,6 +2,7 @@
 using Statistics
 using Test
 using IntrinsicTimescales
+using Random
 
 # Helper function to find local maxima
 function findlocalmaxima(x)
@@ -15,6 +16,7 @@ function findlocalmaxima(x)
 end 
 
 @testset "Summary Statistics" begin
+    Random.seed!(123)
     @testset "Autocorrelation FFT" begin
         # Generate simple test signal
         t = 0:0.1:10

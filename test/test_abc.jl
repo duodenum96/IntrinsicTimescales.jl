@@ -4,8 +4,10 @@ using IntrinsicTimescales
 using Statistics
 using StatsBase
 using LinearAlgebra
+using Random
 
 @testset "ABC Module" begin
+    Random.seed!(123)
     @testset "Basic ABC" begin
         # Create simple test model
         prior = [Uniform(0.0, 10.0)]

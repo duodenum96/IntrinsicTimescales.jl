@@ -6,10 +6,12 @@ using IntrinsicTimescales
 using IntrinsicTimescales.Models
 using IntrinsicTimescales.OrnsteinUhlenbeck
 using LinearAlgebra
+using Random
 BLAS.set_num_threads(20)
 # using Plots
 
 @testset "OU Parameter Inference" begin
+    Random.seed!(123)
     # Generate synthetic data with known parameters (units are in ms)
     true_tau = 20.0
     true_D = 3.0

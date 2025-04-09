@@ -5,8 +5,10 @@ using IntrinsicTimescales
 using IntrinsicTimescales.OneTimescaleAndOsc
 using IntrinsicTimescales.Models
 using DifferentiationInterface
+using Random
 
 @testset "OneTimescaleAndOsc Model Tests" begin
+    Random.seed!(123)
     # Setup test data and parameters
     dt = 0.01
     T = 100.0

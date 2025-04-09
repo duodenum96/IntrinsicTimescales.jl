@@ -3,8 +3,10 @@ using Test
 using Statistics
 using Distributions
 using IntrinsicTimescales
+using Random
 
 @testset "OU Process Generation" begin
+        Random.seed!(123)
         tau = 0.5
         D = 2.0
         dt = 0.001
