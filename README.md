@@ -53,7 +53,11 @@ Questions and contributions are welcome. Use the [issues section of our github p
 
 ## Want to learn more?
 
-[Kindly read the fine manual (RTFM).](https://duodenum96.github.io/IntrinsicTimescales.jl/dev/home/)
+[Kindly read the fine manual.](https://duodenum96.github.io/IntrinsicTimescales.jl/dev/home/)
+
+## Roadmap
+
+The current roadmap of the package is [here](https://github.com/duodenum96/IntrinsicTimescales.jl/discussions/16). Feel free to make suggestions / contributions. 
 
 ## License
 
