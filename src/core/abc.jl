@@ -86,7 +86,7 @@ Draw new parameter values using the PMC proposal distribution.
 - Vector of proposed parameters
 """
 function draw_theta_pmc(model, theta_prev, weights, tau_squared; jitter::Float64=1e-5)
-    @inbounds theta_star = theta_prev[sb.sample(collect(1:length(theta_prev)),
+    theta_star = theta_prev[sb.sample(collect(1:size(theta_prev, 1)),
                                                 sb.pweights(weights)),
                                       :]
 
