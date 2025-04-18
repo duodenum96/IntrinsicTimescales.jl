@@ -237,7 +237,6 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
 
                  # Numerical stability parameters
                  jitter::Float64=1e-6,
-                 cov_scale::Float64=2.0,
 
                  # Epsilon selection parameters
                  distance_max::Float64=10.0,
@@ -295,7 +294,7 @@ function pmc_abc(model::Models.AbstractTimescaleModel;
                                      alpha_close_mult=alpha_close_mult)
 
             theta = result.theta_accepted
-            tau_squared = cov_scale * cov(theta; dims=1)
+            tau_squared = 2.0 * cov(theta; dims=1)
             # Add stabilization
             tau_squared += jitter * Matrix(I, size(tau_squared, 1), size(tau_squared, 2))
             weights = fill(1.0 / size(theta, 1), size(theta, 1))
@@ -763,7 +762,6 @@ function get_param_dict_abc()
 
                 # Numerical stability parameters
                 :jitter => 1e-6,
-                :cov_scale => 2.0,
 
                 # Epsilon selection parameters
                 :distance_max => 10.0,

@@ -396,7 +396,6 @@ function Models.fit(model::OneTimescaleAndOscWithMissingModel, param_dict::Dict=
                              show_progress=param_dict[:show_progress],
                              verbose=param_dict[:verbose],
                              jitter=param_dict[:jitter],
-                             cov_scale=param_dict[:cov_scale],
                              distance_max=param_dict[:distance_max],
                              quantile_lower=param_dict[:quantile_lower],
                              quantile_upper=param_dict[:quantile_upper],

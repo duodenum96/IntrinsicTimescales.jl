@@ -72,7 +72,6 @@ Parameters controlling epsilon selection:
 
 #### Numerical Stability Parameters
 - `jitter::Float64 = 1e-6`: Small value added to covariance diagonal for numerical stability
-- `cov_scale::Float64 = 2.0`: Scaling factor for covariance matrix to calculate `tau_squared` which is used to calculate the weights of posterior samples for calculating the new prior. 
 
 #### Display Parameters
 - `show_progress::Bool = true`: Whether to show progress bar
