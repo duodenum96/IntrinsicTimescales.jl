@@ -397,7 +397,7 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
 
     # Return early if oscillation peak not requested
     if !oscillation_peak
-        return knee
+        return fitted_parameters[2]
     end
 
     # 2) Iteratively find and fit Gaussian peaks
