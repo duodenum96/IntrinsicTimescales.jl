@@ -233,7 +233,7 @@ Compute Lorentzian function values that allow variable exponent (PLE).
 - Vector of Lorentzian values: amp/(1 + (f/knee)²)
 """
 function lorentzian_with_exponent(f, u)
-    return u[1] ./ (1 .+ (f.^ (-u[3]) ./ u[2]) )
+    return u[1] ./ (1 .+ (f.^ (u[3]) ./ u[2]) )
 end
 
 # Define the residual function for NonlinearLeastSquares
