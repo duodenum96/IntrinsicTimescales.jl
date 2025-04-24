@@ -233,7 +233,7 @@ using Random
             random_missing[rand(1:length(clean_data), 200)] .= NaN  # 20% missing randomly
             
             gap_missing = copy(clean_data)
-            gap_missing[301:500] .= NaN  # 2-second gap
+            gap_missing[301:400] .= NaN  # 2-second gap
             
             # Test knee frequency estimation with missing data
             for test_data in [clean_data, random_missing, gap_missing]
