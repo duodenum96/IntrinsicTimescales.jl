@@ -12,10 +12,13 @@ Module providing utility functions for time series analysis, including:
 """
 module Utils
 
+using Revise
 using Statistics
 using NonlinearSolve
 using Logging
 using Romberg
+using Optimization
+using OptimizationOptimJL
 
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
@@ -232,7 +235,7 @@ Compute Lorentzian function values that allow variable exponent (PLE).
 - Vector of Lorentzian values: amp/(1 + (f/knee)²)
 """
 function lorentzian_with_exponent(f, u)
-    return u[1] ./ (1 .+ ( (f ./ u[2]) .^ u[3] ) )
+    return u[1] ./ (1 .+ ((f ./ u[2]) .^ u[3]))
 end
 
 # Define the residual function for NonlinearLeastSquares
@@ -241,9 +244,18 @@ function residual_lorentzian!(du, u, p)
     return nothing
 end
 
+# Optimization.jl doesn't like in-place functions
+function residual_lorentzian_constrained!(u, p)
+    return mean(sqrt.(abs2.(lorentzian(p[1], u) .- p[2])))
+end
+
 function residual_lorentzian_with_exponent!(du, u, p)
     du .= mean(sqrt.(abs2.(lorentzian_with_exponent(p[1], u) .- p[2])))
     return nothing
+end
+
+function residual_lorentzian_with_exponent_constrained!(u, p)
+    return mean(sqrt.(abs2.(lorentzian_with_exponent(p[1], u) .- p[2])))
 end
 
 """
@@ -268,7 +280,7 @@ Estimate initial parameters for Lorentzian fitting.
 """
 function lorentzian_initial_guess(psd::AbstractVector{<:Real},
                                   freqs::AbstractVector{<:Real}; min_freq::Real=freqs[1],
-                                  max_freq::Real=freqs[end], 
+                                  max_freq::Real=freqs[end],
                                   allow_variable_exponent::Bool=false)
     # Initial parameter guess
     # u[1]: estimate amplitude from low frequency power
@@ -283,6 +295,7 @@ function lorentzian_initial_guess(psd::AbstractVector{<:Real},
     else
         knee_guess = freqs[knee_guess_idx]
     end
+
     if allow_variable_exponent
         u0 = [initial_amp, knee_guess, 2.0]
     else
@@ -303,7 +316,7 @@ Find knee frequency by fitting Lorentzian to power spectral density.
 - `dims::Int=ndims(psd)`: Dimension along which to compute
 - `min_freq::T=freqs[1]`: Minimum frequency to consider
 - `max_freq::T=freqs[end]`: Maximum frequency to consider
-# Keyword arguments
+- `constrained::Bool=false`: Whether to use constrained optimization
 - `allow_variable_exponent::Bool=false`: Whether to allow variable exponent (PLE)
 
 # Returns
@@ -318,23 +331,49 @@ returns [amplitude, knee_frequency, exponent].
 function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
                              min_freq::T=freqs[1],
                              max_freq::T=freqs[end],
-                             allow_variable_exponent::Bool=false) where {T <: Real}
+                             allow_variable_exponent::Bool=false,
+                             constrained::Bool=false) where {T <: Real}
     # Initial parameter guess
     u0 = lorentzian_initial_guess(psd, freqs; min_freq=min_freq, max_freq=max_freq,
                                   allow_variable_exponent=allow_variable_exponent)
 
-    # Set up and solve the nonlinear least squares problem
     if allow_variable_exponent
-        prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_lorentzian_with_exponent!,
-                                                              resid_prototype=zeros(3)), u0,
-                                            p=[freqs, psd])
+        if constrained
+            function_to_minimize = residual_lorentzian_with_exponent_constrained!
+            lb = [0.0, freqs[1], 0.0]
+            ub = [Inf, freqs[end], 5.0]
+        else
+            function_to_minimize = residual_lorentzian_with_exponent!
+            resid_prototype = zeros(3)
+        end
     else
-        prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_lorentzian!,
-                                                              resid_prototype=zeros(2)), u0,
+        if constrained
+            function_to_minimize = residual_lorentzian_constrained!
+            lb = [0.0, 0.0]
+            ub = [Inf, freqs[end]]
+        else
+            function_to_minimize = residual_lorentzian!
+            resid_prototype = zeros(2)
+        end
+    end
+
+    # Set up and solve the nonlinear least squares problem
+    if constrained
+        prob = OptimizationProblem(OptimizationFunction(function_to_minimize,
+                                                        Optimization.AutoForwardDiff()),
+                                   u0, [freqs, psd], 
+                                   lb=lb, ub=ub)
+    else
+        prob = NonlinearLeastSquaresProblem(NonlinearFunction(function_to_minimize,
+                                                              resid_prototype=resid_prototype), u0,
                                             p=[freqs, psd])
     end
 
-    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), abstol=5, verbose=false)
+    if constrained
+        sol = Optimization.solve(prob, Optimization.LBFGS())
+    else
+        sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.1, verbose=false)
+    end
     return sol.u
 end
 
@@ -342,10 +381,10 @@ function find_knee_frequency(psd::AbstractArray{T}, freqs::AbstractVector{T};
                              dims::Int=ndims(psd),
                              min_freq::T=freqs[1],
                              max_freq::T=freqs[end],
-                             allow_variable_exponent::Bool=false) where {T <: Real}
+                             allow_variable_exponent::Bool=false, constrained=false) where {T <: Real}
     f = x -> find_knee_frequency(vec(x), freqs; min_freq=min_freq, max_freq=max_freq,
-                                 allow_variable_exponent=allow_variable_exponent)
-    return dropdims(mapslices(f, psd, dims=dims), dims=dims)
+                                 allow_variable_exponent=allow_variable_exponent, constrained=constrained)
+    return mapslices(f, psd, dims=dims)
 end
 
 """
@@ -364,7 +403,7 @@ If allow_variable_exponent=true, the function will fit a Lorentzian with variabl
 - `oscillation_peak::Bool=true`: Whether to compute oscillation peaks
 - `max_peaks::Int=3`: Maximum number of oscillatory peaks to fit
 - `allow_variable_exponent::Bool=false`: Whether to allow variable exponent (PLE)
-
+- `constrained::Bool=false`: Whether to use constrained optimization
 # Returns
 If return_only_knee=false:
 - Tuple of (knee_frequency, oscillation_parameters)
@@ -385,15 +424,17 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
                    oscillation_peak::Bool=true,
                    max_peaks::Int=3,
                    return_only_knee::Bool=false,
-                   allow_variable_exponent::Bool=false) where {T <: Real}
+                   allow_variable_exponent::Bool=false,
+                   constrained::Bool=false) where {T <: Real}
     freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
     fit_psd = psd[freq_mask]
     fit_freqs = freqs[freq_mask]
 
     # 1) Initial Lorentzian fit
     fitted_parameters = find_knee_frequency(fit_psd, fit_freqs;
-                                    min_freq=min_freq, max_freq=max_freq,
-                                    allow_variable_exponent=allow_variable_exponent)
+                                            min_freq=min_freq, max_freq=max_freq,
+                                            allow_variable_exponent=allow_variable_exponent,
+                                            constrained=constrained)
 
     # Return early if oscillation peak not requested
     if !oscillation_peak
@@ -439,8 +480,9 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
 
     # 4) Final Lorentzian fit on cleaned PSD
     final_fitted_parameters = find_knee_frequency(cleaned_psd, fit_freqs;
-                                                min_freq=min_freq, max_freq=max_freq,
-                                                allow_variable_exponent=allow_variable_exponent)
+                                                  min_freq=min_freq, max_freq=max_freq,
+                                                  allow_variable_exponent=allow_variable_exponent,
+                                                  constrained=constrained)
 
     # Return final knee frequency and all peak parameters
     peak_params = [(p[2], p[1], p[3]) for p in peaks]  # center_freq, amplitude, std_dev
@@ -458,12 +500,14 @@ function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T};
                    oscillation_peak::Bool=true,
                    max_peaks::Int=3,
                    return_only_knee::Bool=false,
-                   allow_variable_exponent::Bool=false) where {T <: Real}
+                   allow_variable_exponent::Bool=false,
+                   constrained::Bool=false) where {T <: Real}
     f = x -> fooof_fit(vec(x), freqs,
                        min_freq=min_freq, max_freq=max_freq,
                        oscillation_peak=oscillation_peak,
                        max_peaks=max_peaks, return_only_knee=return_only_knee,
-                       allow_variable_exponent=allow_variable_exponent)
+                       allow_variable_exponent=allow_variable_exponent,
+                       constrained=constrained)
     return dropdims(mapslices(f, psd, dims=dims), dims=dims)
 end
 
