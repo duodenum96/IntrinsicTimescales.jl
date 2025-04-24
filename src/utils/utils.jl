@@ -12,13 +12,16 @@ Module providing utility functions for time series analysis, including:
 """
 module Utils
 
+using Revise
 using Statistics
 using NonlinearSolve
 using Logging
 using Romberg
+
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
-       acw50, acw50_analytical, acw0, acweuler, tau_from_acw50, tau_from_knee, knee_from_tau, acw_romberg
+       acw50, acw50_analytical, acw0, acweuler, tau_from_acw50, tau_from_knee,
+       knee_from_tau, acw_romberg
 
 """
     expdecay(tau, lags)
@@ -78,7 +81,8 @@ function fit_expdecay(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T 
     return sol.u[1]
 end
 
-function fit_expdecay(lags::AbstractVector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+function fit_expdecay(lags::AbstractVector{T}, acf::AbstractArray{T};
+                      dims::Int=ndims(acf)) where {T <: Real}
     f = x -> fit_expdecay(lags, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
@@ -105,11 +109,13 @@ Compute the ACW50 (autocorrelation width at 50%) along specified dimension.
 - Used for estimating characteristic timescales
 - Related to tau by: tau = -acw50/log(0.5)
 """
-function acw50(lags::AbstractVector{T}, acf::AbstractVector{T}; dims::Int=ndims(acf)) where {T <: Real}
+function acw50(lags::AbstractVector{T}, acf::AbstractVector{T};
+               dims::Int=ndims(acf)) where {T <: Real}
     lags[findfirst(acf .<= 0.5)]
 end
 
-function acw50(lags::AbstractVector{T}, acf::AbstractArray{T}; dims::Int=ndims(acf)) where {T <: Real}
+function acw50(lags::AbstractVector{T}, acf::AbstractArray{T};
+               dims::Int=ndims(acf)) where {T <: Real}
     f = x -> acw50(lags, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
@@ -140,7 +146,8 @@ function acw0(lags::AbstractVector{T}, acf::AbstractVector{S}) where {T <: Real,
     end
 end
 
-function acw0(lags::AbstractVector{T}, acf::AbstractArray{S}; dims::Int=ndims(acf)) where {T <: Real, S <: Real}
+function acw0(lags::AbstractVector{T}, acf::AbstractArray{S};
+              dims::Int=ndims(acf)) where {T <: Real, S <: Real}
     f = x -> acw0(lags, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
@@ -161,15 +168,16 @@ Compute the ACW at 1/e (≈ 0.368) along specified dimension.
 # Notes
 - For exponential decay, equals the timescale parameter tau
 """
-function acweuler(lags::AbstractVector{T}, acf::AbstractVector{S}) where {T <: Real, S <: Real}
-    lags[findfirst(acf .<= 1/ℯ)]
+function acweuler(lags::AbstractVector{T},
+                  acf::AbstractVector{S}) where {T <: Real, S <: Real}
+    lags[findfirst(acf .<= 1 / ℯ)]
 end
 
-function acweuler(lags::AbstractVector{T}, acf::AbstractArray{S}; dims::Int=ndims(acf)) where {T <: Real, S <: Real}
+function acweuler(lags::AbstractVector{T}, acf::AbstractArray{S};
+                  dims::Int=ndims(acf)) where {T <: Real, S <: Real}
     f = x -> acweuler(lags, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
-
 
 """
     acw_romberg(lags, acf)
@@ -190,11 +198,11 @@ function acw_romberg(dt::Real, acf::AbstractVector{S}) where {S <: Real}
     return romberg(dt, acf)[1]
 end
 
-function acw_romberg(dt::Real, acf::AbstractArray{S}; dims::Int=ndims(acf)) where {S <: Real}
+function acw_romberg(dt::Real, acf::AbstractArray{S};
+                     dims::Int=ndims(acf)) where {S <: Real}
     f = x -> acw_romberg(dt, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
-
 
 """
     lorentzian(f, u)
@@ -212,9 +220,30 @@ function lorentzian(f, u)
     return u[1] ./ (1 .+ (f ./ u[2]) .^ 2)
 end
 
+"""
+    lorentzian_with_exponent(f, u)
+
+Compute Lorentzian function values that allow variable exponent (PLE).
+
+# Arguments
+- `f::AbstractVector`: Frequency values
+- `u::Vector`: Parameters [amplitude, knee_frequency, exponent]
+
+# Returns
+- Vector of Lorentzian values: amp/(1 + (f/knee)²)
+"""
+function lorentzian_with_exponent(f, u)
+    return u[1] ./ (1 .+ (f ./ u[2]) .^ (-u[3]))
+end
+
 # Define the residual function for NonlinearLeastSquares
 function residual_lorentzian!(du, u, p)
     du .= mean(sqrt.(abs2.(lorentzian(p[1], u) .- p[2])))
+    return nothing
+end
+
+function residual_lorentzian_with_exponent!(du, u, p)
+    du .= mean(sqrt.(abs2.(lorentzian_with_exponent(p[1], u) .- p[2])))
     return nothing
 end
 
@@ -233,11 +262,15 @@ Estimate initial parameters for Lorentzian fitting.
 - Vector{Float64}: Initial guess for [amplitude, knee_frequency]
 
 # Notes
-- Estimates amplitude from maximum PSD value
-- Estimates knee frequency from half-power point
+- Estimates amplitude from average power of low frequencies. 
+- Estimates knee frequency from half-power point. 
+- If allow_variable_exponent=true, sets initial guess for exponent to 2.0. 
 - Used as starting point for nonlinear fitting
 """
-function lorentzian_initial_guess(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real}; min_freq::Real=freqs[1], max_freq::Real=freqs[end])
+function lorentzian_initial_guess(psd::AbstractVector{<:Real},
+                                  freqs::AbstractVector{<:Real}; min_freq::Real=freqs[1],
+                                  max_freq::Real=freqs[end], 
+                                  allow_variable_exponent::Bool=false)
     # Initial parameter guess
     # u[1]: estimate amplitude from low frequency power
     # u[2]: rough estimate of knee frequency from power spectrum
@@ -251,8 +284,11 @@ function lorentzian_initial_guess(psd::AbstractVector{<:Real}, freqs::AbstractVe
     else
         knee_guess = freqs[knee_guess_idx]
     end
-
-    u0 = [initial_amp, knee_guess]
+    if allow_variable_exponent
+        u0 = [initial_amp, knee_guess, 2.0]
+    else
+        u0 = [initial_amp, knee_guess]
+    end
 
     return u0
 end
@@ -268,43 +304,57 @@ Find knee frequency by fitting Lorentzian to power spectral density.
 - `dims::Int=ndims(psd)`: Dimension along which to compute
 - `min_freq::T=freqs[1]`: Minimum frequency to consider
 - `max_freq::T=freqs[end]`: Maximum frequency to consider
+# Keyword arguments
+- `allow_variable_exponent::Bool=false`: Whether to allow variable exponent (PLE)
 
 # Returns
-- Knee frequency values (frequency at half power)
+- Vector of the fit  for the equation amp/(1 + (f/knee)^{exponent}). 
+If allow_variable_exponent=false, assumes exponent=2 and returns [amplitude, knee_frequency]. If true, 
+returns [amplitude, knee_frequency, exponent].
 
 # Notes
 - Uses Lorentzian fitting with NonlinearSolve.jl
-- Initial guess based on half-power point
+- Initial guess for amplitude is based average value of low frequency power. For knee, this is half-power point. For exponent, it is 2.0.  
 """
 function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
-                           min_freq::T=freqs[1],
-                           max_freq::T=freqs[end]) where {T <: Real}
+                             min_freq::T=freqs[1],
+                             max_freq::T=freqs[end],
+                             allow_variable_exponent::Bool=false) where {T <: Real}
     # Initial parameter guess
-    u0 = lorentzian_initial_guess(psd, freqs, min_freq=min_freq, max_freq=max_freq)
-    
+    u0 = lorentzian_initial_guess(psd, freqs; min_freq=min_freq, max_freq=max_freq,
+                                  allow_variable_exponent=allow_variable_exponent)
+
     # Set up and solve the nonlinear least squares problem
-    prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_lorentzian!,
-                                                         resid_prototype=zeros(2)), u0,
-                                       p=[freqs, psd])
-    
+    if allow_variable_exponent
+        prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_lorentzian_with_exponent!,
+                                                              resid_prototype=zeros(3)), u0,
+                                            p=[freqs, psd])
+    else
+        prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_lorentzian!,
+                                                              resid_prototype=zeros(2)), u0,
+                                            p=[freqs, psd])
+    end
+
     sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), abstol=5, verbose=false)
-    return (sol.u[1], sol.u[2])
+    return sol.u
 end
 
-function find_knee_frequency(psd::AbstractArray{T}, freqs::AbstractVector{T}; 
-                           dims::Int=ndims(psd),
-                           min_freq::T=freqs[1],
-                           max_freq::T=freqs[end]) where {T <: Real}
-    f = x -> find_knee_frequency(vec(x), freqs; min_freq=min_freq, max_freq=max_freq)[2]
-    dropdims(mapslices(f, psd, dims=dims), dims=dims)
+function find_knee_frequency(psd::AbstractArray{T}, freqs::AbstractVector{T};
+                             dims::Int=ndims(psd),
+                             min_freq::T=freqs[1],
+                             max_freq::T=freqs[end],
+                             allow_variable_exponent::Bool=false) where {T <: Real}
+    f = x -> find_knee_frequency(vec(x), freqs; min_freq=min_freq, max_freq=max_freq,
+                                 allow_variable_exponent=allow_variable_exponent)
+    return dropdims(mapslices(f, psd, dims=dims), dims=dims)
 end
 
 """
     fooof_fit(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end], 
               oscillation_peak=true, max_peaks=3)
 
-Perform FOOOF-style fitting of power spectral density. The main difference from FOOOF is that FOOOF allows for PLE != 2. 
-Whereas here we are confined to PLE = 2. 
+Perform FOOOF-style fitting of power spectral density. The default behavior is to fit a Lorentzian with PLE = 2. 
+If allow_variable_exponent=true, the function will fit a Lorentzian with variable PLE. 
 
 # Arguments
 - `psd::AbstractArray{T}`: Power spectral density values
@@ -314,12 +364,13 @@ Whereas here we are confined to PLE = 2.
 - `max_freq::T=freqs[end]`: Maximum frequency to consider
 - `oscillation_peak::Bool=true`: Whether to compute oscillation peaks
 - `max_peaks::Int=3`: Maximum number of oscillatory peaks to fit
+- `allow_variable_exponent::Bool=false`: Whether to allow variable exponent (PLE)
 
 # Returns
-If oscillation_peak=true:
+If return_only_knee=false:
 - Tuple of (knee_frequency, oscillation_parameters)
   where oscillation_parameters is Vector of (center_freq, amplitude, std_dev) for each peak
-If oscillation_peak=false:
+If return_only_knee=true:
 - knee_frequency only
 
 # Notes
@@ -330,18 +381,20 @@ If oscillation_peak=false:
   4. Refit Lorentzian to cleaned PSD
 """
 function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
-                  min_freq::T=freqs[1],
-                  max_freq::T=freqs[end],
-                  oscillation_peak::Bool=true,
-                  max_peaks::Int=3,
-                  return_only_knee::Bool=false) where {T <: Real}
+                   min_freq::T=freqs[1],
+                   max_freq::T=freqs[end],
+                   oscillation_peak::Bool=true,
+                   max_peaks::Int=3,
+                   return_only_knee::Bool=false,
+                   allow_variable_exponent::Bool=false) where {T <: Real}
     freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
     fit_psd = psd[freq_mask]
     fit_freqs = freqs[freq_mask]
 
     # 1) Initial Lorentzian fit
-    amp, knee = find_knee_frequency(fit_psd, fit_freqs; 
-                                  min_freq=min_freq, max_freq=max_freq)
+    fitted_parameters = find_knee_frequency(fit_psd, fit_freqs;
+                                    min_freq=min_freq, max_freq=max_freq,
+                                    allow_variable_exponent=allow_variable_exponent)
 
     # Return early if oscillation peak not requested
     if !oscillation_peak
@@ -350,28 +403,33 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
 
     # 2) Iteratively find and fit Gaussian peaks
     residual_psd = copy(fit_psd)
-    lorentzian_psd = lorentzian(fit_freqs, [amp, knee])
+    if allow_variable_exponent
+        lorentzian_psd = lorentzian_with_exponent(fit_freqs, fitted_parameters)
+    else
+        lorentzian_psd = lorentzian(fit_freqs, fitted_parameters)
+    end
+
     residual_psd .-= lorentzian_psd
-    
+
     peaks = []
     for _ in 1:max_peaks
         peak_freq = find_oscillation_peak(residual_psd, fit_freqs;
-                                        min_freq=min_freq, max_freq=max_freq)
-        
+                                          min_freq=min_freq, max_freq=max_freq)
+
         isnan(peak_freq) && break
-        
+
         # Fit Gaussian to the peak
         gaussian_params = fit_gaussian(residual_psd, fit_freqs, peak_freq;
-                                    min_freq=min_freq, max_freq=max_freq)
-        
+                                       min_freq=min_freq, max_freq=max_freq)
+
         push!(peaks, gaussian_params)
-        
+
         # Subtract fitted Gaussian from residual
         residual_psd .-= gaussian(fit_freqs, gaussian_params)
     end
-    
+
     if isempty(peaks)
-        return knee, Vector{Tuple{T,T,T}}()
+        return knee, Vector{Tuple{T, T, T}}()
     end
 
     # 3) Subtract all Gaussians from original PSD and refit Lorentzian
@@ -379,31 +437,34 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
     for peak_params in peaks
         cleaned_psd .-= gaussian(fit_freqs, peak_params)
     end
-    
+
     # 4) Final Lorentzian fit on cleaned PSD
-    final_amp, final_knee = find_knee_frequency(cleaned_psd, fit_freqs;
-                                              min_freq=min_freq, max_freq=max_freq)
+    final_fitted_parameters = find_knee_frequency(cleaned_psd, fit_freqs;
+                                                min_freq=min_freq, max_freq=max_freq,
+                                                allow_variable_exponent=allow_variable_exponent)
 
     # Return final knee frequency and all peak parameters
     peak_params = [(p[2], p[1], p[3]) for p in peaks]  # center_freq, amplitude, std_dev
     if return_only_knee
-        return final_knee
+        return final_fitted_parameters[2]
     else
-        return final_knee, peak_params
+        return final_fitted_parameters[2], peak_params
     end
 end
 
-function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T}; 
-                  dims::Int=ndims(psd),
-                  min_freq::T=freqs[1],
-                  max_freq::T=freqs[end],
-                  oscillation_peak::Bool=true,
-                  max_peaks::Int=3,
-                  return_only_knee::Bool=false) where {T <: Real}
-    f = x -> fooof_fit(vec(x), freqs, 
-                      min_freq=min_freq, max_freq=max_freq,
-                      oscillation_peak=oscillation_peak,
-                      max_peaks=max_peaks, return_only_knee=return_only_knee)
+function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T};
+                   dims::Int=ndims(psd),
+                   min_freq::T=freqs[1],
+                   max_freq::T=freqs[end],
+                   oscillation_peak::Bool=true,
+                   max_peaks::Int=3,
+                   return_only_knee::Bool=false;
+                   allow_variable_exponent::Bool=false) where {T <: Real}
+    f = x -> fooof_fit(vec(x), freqs,
+                       min_freq=min_freq, max_freq=max_freq,
+                       oscillation_peak=oscillation_peak,
+                       max_peaks=max_peaks, return_only_knee=return_only_knee,
+                       allow_variable_exponent=allow_variable_exponent)
     return dropdims(mapslices(f, psd, dims=dims), dims=dims)
 end
 
@@ -490,7 +551,7 @@ Gaussian function for fitting oscillations.
 - Vector of Gaussian values: amp * exp(-(f-center)²/(2*std²))
 """
 function gaussian(f, u)
-    return u[1] .* exp.(-(f .- u[2]).^2 ./ (2 * u[3]^2))
+    return u[1] .* exp.(-(f .- u[2]) .^ 2 ./ (2 * u[3]^2))
 end
 
 # Define the residual function for NonlinearSolve
@@ -517,18 +578,18 @@ Fit Gaussian to power spectral density around a peak.
 # Notes
 - Uses initial peak location from find_oscillation_peak
 """
-function fit_gaussian(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real}, 
-                     initial_peak::Real;
-                     min_freq::Real=freqs[1], max_freq::Real=freqs[end])
+function fit_gaussian(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real},
+                      initial_peak::Real;
+                      min_freq::Real=freqs[1], max_freq::Real=freqs[end])
     # Find peak amplitude and rough width estimate
     peak_idx = argmin(abs.(freqs .- initial_peak))
     initial_amp = psd[peak_idx]
-    
+
     # Estimate width as distance to half maximum
     half_max = initial_amp / 2
     left_idx = findlast(psd[1:peak_idx] .<= half_max)
     right_idx = findfirst(psd[peak_idx:end] .<= half_max)
-    
+
     if isnothing(left_idx) || isnothing(right_idx)
         initial_std = (max_freq - min_freq) / 10  # fallback width estimate
     else
@@ -536,14 +597,14 @@ function fit_gaussian(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real}
         width = freqs[right_idx] - freqs[left_idx]
         initial_std = width / 2.355  # convert FWHM to standard deviation
     end
-    
+
     u0 = [initial_amp, initial_peak, initial_std]
-    
+
     # Set up and solve the nonlinear least squares problem
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_gaussian!,
-                                                         resid_prototype=zeros(3)), u0,
-                                       p=[freqs, psd])
-    
+                                                          resid_prototype=zeros(3)), u0,
+                                        p=[freqs, psd])
+
     sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), abstol=5, verbose=false)
     return sol.u
 end

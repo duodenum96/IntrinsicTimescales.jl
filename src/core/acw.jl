@@ -10,9 +10,9 @@ Module providing autocorrelation width (ACW) calculations for time series analys
 """
 module ACW
 
+using Revise
 using IntrinsicTimescales
 using NaNStatistics, Statistics
-
 export acw, ACWResults
 
 """
@@ -85,7 +85,8 @@ Compute various autocorrelation width measures for time series data.
 """
 function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
              dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
-             trial_dims::Int=setdiff([1, 2], dims)[1], max_peaks::Int=1, oscillation_peak::Bool=true)
+             trial_dims::Int=setdiff([1, 2], dims)[1], max_peaks::Int=1, oscillation_peak::Bool=true,
+             allow_variable_exponent::Bool=false)
 
     missingmask = ismissing.(data)
     if any(missingmask)
@@ -220,7 +221,8 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         end
         knee_result = tau_from_knee(fooof_fit(psd, freqs; dims=dims, min_freq=freqlims[1], 
                                              max_freq=freqlims[2], oscillation_peak=oscillation_peak, 
-                                             max_peaks=max_peaks, return_only_knee=true))
+                                             max_peaks=max_peaks, return_only_knee=true,
+                                             allow_variable_exponent=allow_variable_exponent))
         if (knee_result isa Vector) && (length(knee_result) == 1)
             result[knee_idx] = knee_result[1]
         else
