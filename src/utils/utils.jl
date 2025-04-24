@@ -458,7 +458,7 @@ function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T};
                    max_freq::T=freqs[end],
                    oscillation_peak::Bool=true,
                    max_peaks::Int=3,
-                   return_only_knee::Bool=false;
+                   return_only_knee::Bool=false,
                    allow_variable_exponent::Bool=false) where {T <: Real}
     f = x -> fooof_fit(vec(x), freqs,
                        min_freq=min_freq, max_freq=max_freq,
