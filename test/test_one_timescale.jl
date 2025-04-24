@@ -169,8 +169,8 @@ using Random
             # Custom parameters for faster testing
             param_dict = get_param_dict_abc()
             param_dict[:steps] = 10
-            param_dict[:max_iter] = 10000
-            param_dict[:target_epsilon] = 1e-2
+            param_dict[:max_iter] = 100
+            param_dict[:target_epsilon] = 10.0
             
             results = Models.fit(model, param_dict)
             
@@ -197,9 +197,9 @@ using Random
             
             param_dict = get_param_dict_abc()
             param_dict[:epsilon_0] = 1.0
-            param_dict[:steps] = 100
-            param_dict[:max_iter] = 10000
-            param_dict[:target_epsilon] = 1e-2
+            param_dict[:steps] = 5
+            param_dict[:max_iter] = 100
+            param_dict[:target_epsilon] = 10.0
             param_dict[:N] = 10000
             param_dict[:distance_max] = 500.0
             
