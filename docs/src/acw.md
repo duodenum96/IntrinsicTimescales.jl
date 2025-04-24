@@ -7,7 +7,8 @@ acwresults = acw(data, fs; acwtypes=[:acw0, :acw50, :acweuler, :auc, :tau, :knee
                 n_lags=nothing, freqlims=nothing, dims=ndims(data), 
                 return_acf=true, return_psd=true, 
                 average_over_trials=false, trial_dims=setdiff([1, 2], dims)[1],
-                max_peaks=1, oscillation_peak::Bool=true)
+                max_peaks=1, oscillation_peak::Bool=true,
+                allow_variable_exponent::Bool=false)
 ```
 
 Simple usage:
@@ -86,6 +87,8 @@ result = acw(data, fs; dims=2, average_over_trials=true, trial_dims=3)
 * `max_peaks`: Maximum number of oscillatory peaks to fit when cleaning the PSD for knee frequency estimation. Default is 1. 
 
 * `oscillation_peak`: Whether or not to fit the oscillatory peaks when cleaning the PSD for knee frequency estimation. Default is `true`.
+
+* `allow_variable_exponent`: Whether or not to allow variable exponent (PLE) when fitting a lorentzian to the PSD for knee frequency estimation. Default is `false`. If true, the function will admit Lorentzian's of form ``\frac{A}{1 + (f/a)^b}`` where ``b`` is not confined to -2. 
 
 ## Returns
 
