@@ -7,13 +7,13 @@ using IntrinsicTimescales.SummaryStats
 @testset "find_knee_frequency tests" begin
     # Test 1: Perfect Lorentzian
     @testset "Ideal Lorentzian" begin
-        freqs = collect(0.0:0.1:100.0) / 1000.0
-        f_knee = 10.0 / 1000.0
+        freqs = collect(0.1:0.1:100.0) / 1000.0
+        f_knee = 15.0 / 1000.0
         amp = 100.0
-        psd = @. amp / (1 + ((freqs^2)/f_knee))
+        psd = @. amp / (1 + (freqs/f_knee)^2)
         
         detected_knee = find_knee_frequency(psd, freqs)[2]
-        @test isapprox(detected_knee, f_knee, rtol=0.1)
+        @test isapprox(detected_knee, f_knee, rtol=0.001)
     end
     
     # Test 2: Noisy Lorentzian
@@ -22,12 +22,12 @@ using IntrinsicTimescales.SummaryStats
         freqs = collect(0.0:0.1:100.0) / 1000.0
         f_knee = 10.0 / 1000.0
         amp = 100.0
-        base_psd = @. amp / (1 + ((freqs^2)/f_knee))
+        base_psd = @. amp / (1 + ((freqs/f_knee)^2))
         noise = randn(length(freqs)) * 0.05 * amp
         noisy_psd = base_psd + noise
         
         detected_knee = find_knee_frequency(noisy_psd, freqs)[2]
-        @test isapprox(detected_knee, f_knee, rtol=0.2)
+        @test isapprox(detected_knee, f_knee, rtol=0.05)
     end
 
     # Test 3: Variable exponent
@@ -36,7 +36,7 @@ using IntrinsicTimescales.SummaryStats
         f_knee = 10.0 / 1000.0
         amp = 100.0
         exponent = 1.5
-        psd = @. amp / (1 + ((freqs.^exponent)/f_knee))
+        psd = @. amp / (1 + ((freqs/f_knee)^exponent))
         amp, knee, exponent = fit_lorentzian(psd, freqs, allow_variable_exponent=true)
         @test isapprox(knee, f_knee, rtol=0.2)
         @test isapprox(exponent, 1.5, rtol=0.2)
