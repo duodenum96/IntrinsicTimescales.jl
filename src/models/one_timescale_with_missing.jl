@@ -18,7 +18,7 @@ using NaNStatistics
 using IntrinsicTimescales
 using DifferentiationInterface
 
-export OneTimescaleWithMissingModel, one_timescale_with_missing_model
+export OneTimescaleWithMissingModel, one_timescale_with_missing_model, int_fit
 
 function informed_prior(data_sum_stats::Vector{<:Real}, lags_freqs; summary_method=:acf)
     if summary_method == :acf
@@ -314,7 +314,7 @@ function Models.distance_function(model::OneTimescaleWithMissingModel, sum_stats
 end
 
 """
-    Models.fit(model::OneTimescaleWithMissingModel, param_dict=nothing)
+    int_fit(model::OneTimescaleWithMissingModel, param_dict=nothing)
 
 Perform inference using the specified fitting method.
 
@@ -336,7 +336,7 @@ For ADVI method:
 - For ADVI: Uses Automatic Differentiation Variational Inference via Turing.jl
 - Parameter dictionary can be customized for each method (see get_param_dict_abc())
 """
-function Models.fit(model::OneTimescaleWithMissingModel, param_dict::Dict=Dict())
+function Models.int_fit(model::OneTimescaleWithMissingModel, param_dict::Dict=Dict())
     if model.fit_method == :abc
         if isempty(param_dict)
             param_dict = get_param_dict_abc()

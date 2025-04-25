@@ -154,8 +154,8 @@ time = dt:dt:duration
 prior = Uniform(0.0, 5.0)
 model_full = one_timescale_model(data, time, fit_method; prior=prior)
 model_missing = one_timescale_with_missing_model(data, time, fit_method; prior=prior)
-results_full = IntrinsicTimescales.fit(model_full)
-results_missing = IntrinsicTimescales.fit(model_missing)
+results_full = int_fit(model_full)
+results_missing = int_fit(model_missing)
 ```
 
 Note that in the `fit` function I specified explicity that the function comes from IntrinsicTimescales package. This is necessary because both `Distributions` and `IntrinsicTimescales` packages export `fit` function so we need to disambiguate by explicitly specifying where it comes from. Another note to self: I should've picked a more neutral name but I digress. Also note that this way of calculating INTs is relatively slower than our `acw` function. This is the cost of accuracy. In my computer, it takes 51 seconds for the model with no missing data and 25 minutes for the model with missing data. The main difference is the way we calculate the ACF: `comp_ac_fft` is much faster than `comp_ac_time_missing`. 
@@ -175,8 +175,8 @@ param_dict_full = get_param_dict_abc()
 param_dict_full[:convergence_window] = 10
 param_dict_missing = get_param_dict_abc()
 param_dict_missing[:target_epsilon] = 0.0004
-results_full = IntrinsicTimescales.fit(model_full, param_dict_full)
-results_missing = IntrinsicTimescales.fit(model_missing, param_dict_missing)
+results_full = int_fit(model_full, param_dict_full)
+results_missing = int_fit(model_missing, param_dict_missing)
 map_full = results_full.MAP[1]
 # 0.27
 map_missing = results_missing.MAP[1]
@@ -312,8 +312,8 @@ Random.seed!(666)
 fit_method = :advi
 model_full_advi = one_timescale_model(data, time, fit_method; prior=prior)
 model_missing_advi = one_timescale_with_missing_model(data, time, fit_method; prior=prior)
-results_full_advi = IntrinsicTimescales.fit(model_full)
-results_missing_advi = IntrinsicTimescales.fit(model_missing)
+results_full_advi = int_fit(model_full)
+results_missing_advi = int_fit(model_missing)
 ```
 
 Similat to the fitting in ABC method, fitting in ADVI is also customizable via the parameters in [`get_param_dict_advi`](../fit_parameters.md). If the fitting fails, you can increase the parameters `:n_elbo_samples` (how many samples to take to estimate ELBO) and `:n_iterations` (how many ADVI iterations to perform) to get better estimates. 

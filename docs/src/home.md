@@ -32,14 +32,14 @@ For simulation based methods, pick one of the `one_timescale_model`, `one_timesc
 
 ```julia
 model = one_timescale_model(data, time, :abc)
-result = solve(model)
+result = int_fit(model)
 ```
 
 or 
 
 ```julia
 model = one_timescale_model(data, time, :advi)
-result = solve(model)
+result = int_fit(model)
 ```
 
 These functions are highly customizable, see the page [Simulation Based Timescale Estimation](simbasedinference.md). 
