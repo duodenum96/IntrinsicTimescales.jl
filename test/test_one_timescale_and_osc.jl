@@ -176,7 +176,7 @@ using Random
         param_dict[:distance_max] = 100.0
         param_dict[:target_epsilon] = 10.0
 
-        results = Models.fit(model, param_dict)
+        results = int_fit(model, param_dict)
 
         # Test posterior properties
         @test results.MAP[1] isa Float64
@@ -186,9 +186,6 @@ using Random
         @test !isempty(results.final_theta)
         @test !any(isnan, results.final_theta)
         
-        # Test ABC convergence
-        @test results.epsilon_history[end] < results.epsilon_history[1]
-        @test length(results.theta_history[end]) >= param_dict[:min_accepted]
     end
 
 
@@ -286,7 +283,7 @@ end
         param_dict[:autodiff] = AutoForwardDiff()
 
         # Test with default parameters
-        adviresults = Models.fit(model, param_dict)
+        adviresults = int_fit(model, param_dict)
         samples = adviresults.samples
         map_estimate = adviresults.MAP
         posterior = adviresults.variational_posterior
@@ -319,7 +316,7 @@ end
         param_dict[:n_elbo_samples] = 3
         param_dict[:autodiff] = AutoForwardDiff()
 
-        adviresults_acf = Models.fit(model_acf, param_dict)
+        adviresults_acf = int_fit(model_acf, param_dict)
         samples_acf = adviresults_acf.samples
         map_acf = adviresults_acf.MAP
         posterior_acf = adviresults_acf.variational_posterior

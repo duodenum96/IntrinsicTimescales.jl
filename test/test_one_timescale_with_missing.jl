@@ -169,7 +169,7 @@ using Random
             param_dict[:max_iter] = 100
             param_dict[:target_epsilon] = 10.0
             
-            results = Models.fit(model, param_dict)
+            results = int_fit(model, param_dict)
             
 
             # Test posterior properties
@@ -268,7 +268,7 @@ end
         param_dict[:n_elbo_samples] = 5
 
         # Test with default parameters
-        results = Models.fit(model, param_dict)
+        results = int_fit(model, param_dict)
         samples = results.samples
         map_estimate = results.MAP
         posterior = results.variational_posterior
@@ -290,7 +290,7 @@ end
     #         prior=[Normal(0.3, 0.2)]
     #     )
         
-    #     results = Models.fit(model_psd)
+    #     results = int_fit(model_psd)
         
     #     # Both methods should give reasonable results
     #     @test abs(map_acf[1] - true_tau) < 0.2
