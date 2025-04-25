@@ -388,7 +388,7 @@ end
 
 """
     fooof_fit(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end], 
-              oscillation_peak=true, max_peaks=3)
+              oscillation_peak=true, max_peaks=3, allow_variable_exponent=false, constrained=false)
 
 Perform FOOOF-style fitting of power spectral density. The default behavior is to fit a Lorentzian with PLE = 2. 
 If allow_variable_exponent=true, the function will fit a Lorentzian with variable PLE. 
