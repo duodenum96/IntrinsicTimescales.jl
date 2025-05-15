@@ -237,7 +237,7 @@ using Random
             
             # Test knee frequency estimation with missing data
             for test_data in [clean_data, random_missing, gap_missing]
-                estimated_tau = acw(test_data, fs, acwtypes=:knee, freqlims=(0.1, 10.0), oscillation_peak=false).acw_results
+                estimated_tau = acw(test_data, fs, acwtypes=:knee, freqlims=(0.1, 5.0), oscillation_peak=false).acw_results
                 # Test if estimated tau is within reasonable range
                 # Allow larger tolerance due to missing data
                 @test isapprox(estimated_tau, tau, rtol=1.0) # much worse than clean data but eh
@@ -250,7 +250,7 @@ using Random
                 data_2d_missing[i, rand(1:size(data_2d, 2), 200)] .= NaN
             end
             
-            result_2d = acw(data_2d_missing, fs, acwtypes=:knee, freqlims=(0.1, 10.0), dims=2).acw_results
+            result_2d = acw(data_2d_missing, fs, acwtypes=:knee, freqlims=(0.1, 5.0), dims=2).acw_results
             @test size(result_2d) == (size(data_2d, 1),)
             @test all(isfinite.(result_2d))
             @test all(τ -> isapprox(τ, tau, rtol=1.0), result_2d)
