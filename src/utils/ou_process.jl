@@ -13,7 +13,7 @@ using Statistics
 using IntrinsicTimescales
 using ..Models
 using NonlinearSolve
-import DifferentialEquations as deq
+import StochasticDiffEq as deq
 using StaticArrays
 import SciMLBase
 
