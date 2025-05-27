@@ -8,9 +8,12 @@ Pages = ["API.md"]
 Modules = [IntrinsicTimescales, IntrinsicTimescales.Models, IntrinsicTimescales.ABC, IntrinsicTimescales.ACW, IntrinsicTimescales.TuringBackend, IntrinsicTimescales.SummaryStats, 
     IntrinsicTimescales.Distances, IntrinsicTimescales.Utils, IntrinsicTimescales.OrnsteinUhlenbeck, IntrinsicTimescales.OneTimescale, 
     IntrinsicTimescales.OneTimescaleAndOsc, IntrinsicTimescales.OneTimescaleWithMissing, 
-    IntrinsicTimescales.OneTimescaleAndOscWithMissing, IntrinsicTimescales.IntPlottingExt]
-pages = ["IntrinsicTimescales.jl", ["core/model.jl", "core/one_timescale.jl", "core/one_timescale_and_osc.jl", "core/one_timescale_with_missing.jl", "core/one_timescale_and_osc_with_missing.jl"], "core/abc.jl", "core/turing_backend.jl", "stats/summary.jl", "stats/distances.jl", "utils/utils.jl", "utils/ou_process.jl", "core/plotting.jl", "ext/IntPlottingExt/IntPlottingExt.jl"]
-private = false
+    IntrinsicTimescales.OneTimescaleAndOscWithMissing,
+    isdefined(Base, :get_extension) ?
+        Base.get_extension(IntrinsicTimescales, :IntPlottingExt) :
+        IntrinsicTimescales.IntPlottingExt]
+Pages = ["IntrinsicTimescales.jl", ["core/model.jl", "core/one_timescale.jl", "core/one_timescale_and_osc.jl", "core/one_timescale_with_missing.jl", "core/one_timescale_and_osc_with_missing.jl"], "core/abc.jl", "core/turing_backend.jl", "stats/summary.jl", "stats/distances.jl", "utils/utils.jl", "utils/ou_process.jl", "core/plotting.jl", "ext/IntPlottingExt/IntPlottingExt.jl"]
+Private = false
 ```
 
 ## Index

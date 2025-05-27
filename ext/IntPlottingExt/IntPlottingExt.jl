@@ -8,6 +8,32 @@ export acwplot, posterior_predictive
 
 colorpalette = palette(:Catppuccin_mocha)[[4, 5, 7, 9, 3, 10, 13]]
 
+"""
+    acwplot(acwresults::ACWResults; only_acf::Bool=false, only_psd::Bool=false, show::Bool=true)
+
+Plot autocorrelation function (ACF) and/or power spectral density (PSD) from ACW analysis results.
+
+This function creates visualizations of the autocorrelation and power spectral density analysis
+results stored in an `ACWResults` container. It can plot either or both ACF and PSD data,
+with automatic layout adjustment based on what data is available and requested.
+
+# Arguments
+- `acwresults::ACWResults`: Container with ACF and/or PSD analysis results
+- `only_acf::Bool=false`: If true, plot only the autocorrelation function (requires ACF data)
+- `only_psd::Bool=false`: If true, plot only the power spectral density (requires PSD data)
+- `show::Bool=true`: Whether to display the plot immediately
+
+# Returns
+- Plot object that can be further customized or saved
+
+# Behavior
+- If both ACF and PSD data are available and neither `only_acf` nor `only_psd` is true, 
+  creates a subplot layout with both plots side by side
+- ACF plot shows individual traces in color with the mean overlaid in black
+- PSD plot uses logarithmic scales for both axes
+- Automatically handles cases where only one type of data is available
+- Supports up to 2-dimensional ACF data (throws error for higher dimensions)
+"""
 function IntrinsicTimescales.acwplot(acwresults::ACWResults; only_acf::Bool=false, only_psd::Bool=false, show::Bool=true)
     # Check if we have data to plot
     if only_acf && isnothing(acwresults.acf)

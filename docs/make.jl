@@ -1,6 +1,7 @@
 push!(LOAD_PATH, "../src/")
 using Documenter
 using IntrinsicTimescales
+using Plots
 
 makedocs(sitename="IntrinsicTimescales.jl",
          format=Documenter.HTML(),
