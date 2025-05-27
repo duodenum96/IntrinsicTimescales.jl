@@ -158,7 +158,7 @@ results_full = int_fit(model_full)
 results_missing = int_fit(model_missing)
 ```
 
-Note that in the `fit` function I specified explicity that the function comes from IntrinsicTimescales package. This is necessary because both `Distributions` and `IntrinsicTimescales` packages export `fit` function so we need to disambiguate by explicitly specifying where it comes from. Another note to self: I should've picked a more neutral name but I digress. Also note that this way of calculating INTs is relatively slower than our `acw` function. This is the cost of accuracy. In my computer, it takes 51 seconds for the model with no missing data and 25 minutes for the model with missing data. The main difference is the way we calculate the ACF: `comp_ac_fft` is much faster than `comp_ac_time_missing`. 
+Note that this way of calculating INTs is relatively slower than our `acw` function. This is the cost of accuracy. In my computer, it takes 51 seconds for the model with no missing data and 25 minutes for the model with missing data. The main difference is the way we calculate the ACF: `comp_ac_fft` is much faster than `comp_ac_time_missing`. 
 
 Let's check the results. The results object carries a bunch of useful information. The final result of interest is the maximum a posteriori (_MAP_) estimate. For other information coming from the result, see [the relevant part of the documentation](../fit_result.md). 
 
@@ -204,6 +204,7 @@ plot(p1, size=(1000,1000))
 As you can see, this is a very powerful tool. But (obligatory reference) with great power comes great responsibility. Here, we knew the real timescale and we can compare it with our estimates. We don't have this luxury when we are analyzing data. To make sure we have a reasonable estimate, we need to do a posterior predictive check. We will sample from the posterior, calculate ACFs from that and compare it with ACF from the data. The IntrinsicTimescales.jl function [`posterior_predictive`](@ref) handles this. 
 
 ```julia
+
 p1 = posterior_predictive(results_full, model_full)
 p2 = posterior_predictive(results_missing, model_missing)
 plot(p1, p2, size=(800, 400))
