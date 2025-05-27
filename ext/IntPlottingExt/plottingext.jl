@@ -1,4 +1,4 @@
-module Plotting
+module IntPlottingExt
 
 using Plots
 using IntrinsicTimescales
