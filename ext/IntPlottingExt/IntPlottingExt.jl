@@ -1,14 +1,14 @@
 module IntPlottingExt
 
-using Plots
 using IntrinsicTimescales
+using Plots
 using Statistics
 
 export acwplot, posterior_predictive
 
 colorpalette = palette(:Catppuccin_mocha)[[4, 5, 7, 9, 3, 10, 13]]
 
-function acwplot(acwresults::ACWResults; only_acf::Bool=false, only_psd::Bool=false, show::Bool=true)
+function IntrinsicTimescales.acwplot(acwresults::ACWResults; only_acf::Bool=false, only_psd::Bool=false, show::Bool=true)
     # Check if we have data to plot
     if only_acf && isnothing(acwresults.acf)
         error("ACF data not available in container")
@@ -74,7 +74,7 @@ with posterior predictive samples overlaid.
 # Returns
 - Plot object
 """
-function posterior_predictive(container::ABCResults, model::Models.AbstractTimescaleModel; 
+function IntrinsicTimescales.posterior_predictive(container::ABCResults, model::Models.AbstractTimescaleModel; 
              show::Bool=true, n_samples::Int=100)
     
     # Randomly sample from posterior
@@ -163,7 +163,7 @@ with posterior predictive samples overlaid.
 # Returns
 - Plot object
 """
-function posterior_predictive(container::ADVIResults, model::Models.AbstractTimescaleModel; 
+function IntrinsicTimescales.posterior_predictive(container::ADVIResults, model::Models.AbstractTimescaleModel; 
              show::Bool=true, n_samples::Int=100)
     
 
