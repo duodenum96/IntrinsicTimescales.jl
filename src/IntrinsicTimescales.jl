@@ -70,7 +70,7 @@ include("core/acw.jl")
 @reexport using .ACW
 
 include("core/plotting.jl")
-@reexport using .Plotting
+export acwplot, posterior_predictive
 
 export AbstractTimescaleModel,
        BaseModel,
