@@ -114,9 +114,10 @@ plot(p1, p2, size=(1600, 800))
 ```
 ![](assets/practice_2_2.svg)
 
-Half the time, we got the wrong result with ACW-50! To diagnose the problem, let's plot the autocorrelation functions. This is where the other information stored in the output of [`acw`](../acw.md) comes useful. We'll use the function `acwplot` to plot the ACFs. This function plots the ACFs and returns a plot object which we can modify later. We'll put vertical lines at the lags where we compute autocorrelation. Note that the lags are also stored in the output of `acw`. To not plot 1000 ACFs for each trial, let's resimulate data with a reasonable number of trials. 
+Half the time, we got the wrong result with ACW-50! To diagnose the problem, let's plot the autocorrelation functions. This is where the other information stored in the output of [`acw`](../acw.md) comes useful. We'll use the function `acwplot` to plot the ACFs. This function plots the ACFs and returns a plot object which we can modify later. Note that to reduce compilation time, this function is implemented in an extension in IntrinsicTimescales.jl package. What this means is that to use it, you need to make sure you ran `using Plots` somewhere in your code (and of course, installed the `Plots.jl` library by `Pkg.add("Plots")`). We'll put vertical lines at the lags where we compute autocorrelation. Note that the lags are also stored in the output of `acw`. To not plot 1000 ACFs for each trial, let's resimulate data with a reasonable number of trials. 
 
 ```julia
+using Plots
 num_trials = 20 # Number of trials
 data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
 data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
