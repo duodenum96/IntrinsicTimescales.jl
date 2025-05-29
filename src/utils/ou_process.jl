@@ -7,7 +7,6 @@ Module for generating Ornstein-Uhlenbeck processes with various configurations.
 Uses DifferentialEquations.jl. 
 """
 module OrnsteinUhlenbeck
-using Revise
 using Random
 using Distributions: Distribution
 using Statistics
