@@ -5,7 +5,8 @@ using Distributions
 using IntrinsicTimescales
 using Random
 
-@testset "OU Process Generation" begin
+@testset "OU Process tests" begin
+    @testset "OU Process Generation" begin
         Random.seed!(123)
         tau = 0.5
         D = 2.0
@@ -40,5 +41,37 @@ using Random
         # Test single trial
         ou_single = generate_ou_process(20.0, 0.05, 1.0, 100.0, 1)
         @test size(ou_single, 1) == 1
+    end
+
+    @testset "Seed functionality" begin
+        tau = 1.0
+        D = 1.0
+        dt = 0.01
+        T = 5.0
+        num_trials = 5
+        seed = 42
+        rng = Xoshiro(seed)
+
+        # Generate two OU processes with the same seed
+        ou1 = generate_ou_process_sciml(tau, D, dt, T, num_trials, true; rng=rng, deq_seed=seed)[1]
+        rng = Xoshiro(seed)
+        ou2 = generate_ou_process_sciml(tau, D, dt, T, num_trials, true; rng=rng, deq_seed=seed)[1]
+
+        # They should be identical
+        @test ou1 ≈ ou2
+
+        # Generate with different seed
+        ou3 = generate_ou_process_sciml(tau, D, dt, T, num_trials, true; rng=rng, deq_seed=seed+1)[1]
+
+        # Should be different from the first two
+        @test !(ou1 ≈ ou3)
+
+        # Test with no seed (should work but be different each time)
+        ou4 = generate_ou_process_sciml(tau, D, dt, T, num_trials, true)[1]
+        ou5 = generate_ou_process_sciml(tau, D, dt, T, num_trials, true)[1]
+        
+        # These should likely be different (very small chance they're the same)
+        @test !(ou4 ≈ ou5)
+    end
 end
 
