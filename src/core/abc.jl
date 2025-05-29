@@ -17,7 +17,7 @@ using KernelDensity
 export basic_abc, pmc_abc, effective_sample_size, weighted_covar, find_MAP, get_param_dict_abc, 
     abc_results, ABCResults
 
-    """
+"""
     ABCResults
 
 Container for ABC results to standardize plotting interface.
@@ -29,6 +29,7 @@ Container for ABC results to standardize plotting interface.
 - `weights_history::Vector{Vector{Float64}}`: History of weights
 - `final_theta::Matrix{Float64}`: Final accepted parameter values
 - `final_weights::Vector{Float64}`: Final weights
+- `MAP::Vector{Float64}`: Maximum A Posteriori (MAP) estimate of parameters
 """
 struct ABCResults
     theta_history::Vector{Matrix{Float64}}
@@ -43,7 +44,19 @@ end
 """
     abc_results(output_record::Vector{NamedTuple})
 
-Construct abc_results from PMC-ABC output record.
+Construct an `ABCResults` struct from PMC-ABC output records.
+
+# Arguments
+- `output_record::Vector{NamedTuple}`: Vector of named tuples containing PMC-ABC iteration results. 
+  Each tuple must contain:
+    - `theta_accepted`: Accepted parameter values
+    - `epsilon`: Epsilon threshold value
+    - `n_accepted`: Number of accepted samples
+    - `n_total`: Total number of samples
+    - `weights`: Importance weights
+
+# Returns
+- `ABCResults`: Struct to contain ABC results. See the documentation for `ABCResults` for more details.
 """
 function abc_results(output_record::Vector{NamedTuple})
     n_steps = length(output_record)
@@ -106,31 +119,39 @@ end
 """
     basic_abc(model::Models.AbstractTimescaleModel; kwargs...)
 
-Perform basic ABC rejection sampling.
+Perform basic ABC rejection sampling. The algorithm stops either when `max_iter` is reached or 
+when `min_accepted` samples have been accepted.
 
 # Arguments
 - `model::Models.AbstractTimescaleModel`: Model to perform inference on
-- `epsilon::Float64`: Acceptance threshold
-- `max_iter::Integer`: Maximum number of iterations
-- `min_accepted::Integer`: Minimum number of accepted samples required
-- `pmc_mode::Bool=false`: Whether to use PMC proposal distribution
-- `weights=Array{Float64}`: Importance weights (used in PMC mode)
-- `theta_prev=Array{Float64}`: Previous parameters (used in PMC mode)
-- `tau_squared=Array{Float64}`: Covariance matrix (used in PMC mode)
-- `show_progress::Bool=true`: Whether to show progress bar
+- `epsilon::Float64`: Acceptance threshold for distance between simulated and observed data
+- `max_iter::Integer`: Maximum number of iterations to perform
+- `min_accepted::Integer`: Minimum number of accepted samples required before stopping
+- `pmc_mode::Bool=false`: Whether to use PMC proposal distribution instead of prior
+- `weights::Array{Float64}`: Importance weights for PMC sampling (only used if pmc_mode=true)
+- `theta_prev::Array{Float64}`: Previous parameters for PMC sampling (only used if pmc_mode=true)
+- `tau_squared::Array{Float64}`: Covariance matrix for PMC sampling (only used if pmc_mode=true)
+- `show_progress::Bool=true`: Whether to show progress bar with acceptance count and speed
 
 # Returns
 NamedTuple containing:
-- `samples`: All proposed parameters
-- `isaccepted`: Boolean mask of accepted samples
-- `theta_accepted`: Accepted parameters
-- `distances`: Distances for all proposals
-- `n_accepted`: Number of accepted samples
-- `n_total`: Total number of iterations
-- `epsilon`: Acceptance threshold used
-- `weights`: Sample weights (uniform in basic ABC)
-- `tau_squared`: Covariance matrix (zeros in basic ABC)
-- `eff_sample`: Effective sample size
+- `samples::Matrix{Float64}`: Matrix (max_iter × n_params) of all proposed parameters
+- `isaccepted::Vector{Bool}`: Boolean mask of accepted samples for first `n_total` iterations
+- `theta_accepted::Matrix{Float64}`: Matrix (n_accepted × n_params) of accepted parameters
+- `distances::Vector{Float64}`: Vector of distances for first `n_total` iterations
+- `n_accepted::Int`: Number of accepted samples
+- `n_total::Int`: Total number of iterations performed
+- `epsilon::Float64`: Acceptance threshold used
+- `weights::Vector{Float64}`: Uniform weights (ones) for accepted samples
+- `tau_squared::Matrix{Float64}`: Zero matrix (n_params × n_params) for basic ABC
+- `eff_sample::Int`: Effective sample size (equals n_accepted in basic ABC)
+
+# Implementation Details
+1. Draws parameters either from prior (basic mode) or PMC proposal (pmc_mode)
+2. Generates synthetic data and computes distance to observed data
+3. Accepts parameters if distance ≤ epsilon
+4. Stops when either max_iter reached or min_accepted samples accepted
+5. Returns uniform weights and zero covariance matrix in basic mode
 """
 function basic_abc(model::Models.AbstractTimescaleModel;
                    epsilon::Float64,
@@ -194,29 +215,74 @@ function basic_abc(model::Models.AbstractTimescaleModel;
 end
 
 """
-    pmc_abc(model::Models.AbstractTimescaleModel; epsilon_0=1.0, max_iter=10000, min_accepted=100, steps=10, sample_only=false, minAccRate=0.01, target_acc_rate=0.01)
+    pmc_abc(model::Models.AbstractTimescaleModel; kwargs...)
 
-Perform Population Monte Carlo Approximate Bayesian Computation (PMC-ABC) inference.
+Perform Population Monte Carlo Approximate Bayesian Computation (PMC-ABC) inference. 
 
 # Arguments
+## Basic ABC parameters
 - `model::Models.AbstractTimescaleModel`: Model to perform inference on
-- `epsilon_0::Float64=1.0`: Initial epsilon threshold for acceptance
-- `max_iter::Int=10000`: Maximum number of iterations per step
-- `min_accepted::Int=100`: Minimum number of accepted samples required
-- `steps::Int=10`: Number of PMC steps to perform
+- `epsilon_0::Real=1.0`: Initial epsilon threshold for acceptance
+- `max_iter::Integer=10000`: Maximum number of iterations per step
+- `min_accepted::Integer=100`: Minimum number of accepted samples required
+- `steps::Integer=10`: Maximum number of PMC steps to perform
 - `sample_only::Bool=false`: If true, only perform sampling without adaptation
-- `minAccRate::Float64=0.01`: Minimum acceptance rate before stopping
+
+## Acceptance rate parameters
+- `minAccRate::Float64=0.01`: Minimum acceptance rate before early stopping
 - `target_acc_rate::Float64=0.01`: Target acceptance rate for epsilon adaptation
+- `target_epsilon::Float64=5e-3`: Target epsilon value for early stopping
+
+## Display parameters
+- `show_progress::Bool=true`: Whether to show progress bar
+- `verbose::Bool=true`: Whether to print detailed progress information
+
+## Numerical stability parameters
+- `jitter::Float64=1e-6`: Small value added to covariance matrix for stability
+
+## Epsilon selection parameters
+- `distance_max::Float64=10.0`: Maximum distance to consider valid
+- `quantile_lower::Float64=25.0`: Lower quantile for epsilon adjustment
+- `quantile_upper::Float64=75.0`: Upper quantile for epsilon adjustment
+- `quantile_init::Float64=50.0`: Initial quantile when no acceptance rate
+- `acc_rate_buffer::Float64=0.1`: Buffer around target acceptance rate
+
+## Adaptive alpha parameters
+- `alpha_max::Float64=0.9`: Maximum adaptation rate
+- `alpha_min::Float64=0.1`: Minimum adaptation rate
+- `acc_rate_far::Float64=2.0`: Threshold for "far from target" adjustment
+- `acc_rate_close::Float64=0.2`: Threshold for "close to target" adjustment
+- `alpha_far_mult::Float64=1.5`: Multiplier for alpha when far from target
+- `alpha_close_mult::Float64=0.5`: Multiplier for alpha when close to target
+
+## Early stopping parameters
+- `convergence_window::Integer=3`: Number of steps to check for convergence
+- `theta_rtol::Float64=1e-2`: Relative tolerance for parameter convergence
+- `theta_atol::Float64=1e-3`: Absolute tolerance for parameter convergence
 
 # Returns
-Vector of NamedTuples containing results for each PMC step, including:
-- Accepted parameters (theta_accepted)
-- Distances (D_accepted) 
-- Number of accepted/total samples
-- Epsilon threshold
-- Sample weights
-- Covariance matrix (tau_squared)
-- Effective sample size
+`ABCResults`: A struct containing:
+- `ABCResults.theta_history`: Parameter value history across iterations
+- `ABCResults.epsilon_history`: Epsilon value history 
+- `ABCResults.acc_rate_history`: Acceptance rate history
+- `ABCResults.weight_history`: Weight history
+- `ABCResults.theta_final`: Final parameter values
+- `ABCResults.weights_final`: Final weights
+- `ABCResults.theta_map`: MAP estimate
+
+# Early Stopping Conditions
+The algorithm stops and returns results if any of these conditions are met:
+1. Acceptance rate falls below `minAccRate`
+2. Parameters converge within tolerances over `convergence_window` steps
+3. Epsilon falls below `target_epsilon`
+4. Maximum number of `steps` reached
+
+# Implementation Details
+1. First step uses basic ABC with prior sampling
+2. Subsequent steps use PMC proposal with adaptive epsilon
+3. Epsilon is adjusted based on acceptance rates and distance quantiles
+4. Covariance and weights are updated each step unless `sample_only=true`
+5. Parameter convergence is checked using both relative and absolute tolerances
 """
 function pmc_abc(model::Models.AbstractTimescaleModel;
                  # Basic ABC parameters
@@ -441,14 +507,15 @@ end
 Calculate importance weights for PMC-ABC algorithm.
 
 # Arguments
-- `theta_prev`: Previously accepted parameters
-- `theta`: Current parameters
-- `tau_squared`: Covariance matrix for proposal distribution
-- `weights`: Previous importance weights
-- `prior`: Prior distribution(s)
+- `theta_prev::Union{Vector{Float64}, Matrix{Float64}}`: Previously accepted parameters. For multiple parameters,
+   each row is a sample and each column is a parameter
+- `theta::Union{Vector{Float64}, Matrix{Float64}}`: Current parameters in same format as theta_prev
+- `tau_squared::Matrix{Float64}`: Covariance matrix for the proposal distribution
+- `weights::Vector{Float64}`: Previous iteration's importance weights
+- `prior::Union{Vector, dist.Distribution}`: Prior distribution(s). Can be single distribution or vector of distributions
 
 # Returns
-- Vector of normalized importance weights
+- `Vector{Float64}`: Normalized importance weights (sum to 1)
 """
 function calc_weights(theta_prev::Union{Vector{Float64}, Matrix{Float64}},
                       theta::Union{Vector{Float64}, Matrix{Float64}},
@@ -505,11 +572,12 @@ end
 Calculate weighted covariance matrix.
 
 # Arguments
-- `x`: Matrix of values where each row is an observation
-- `w`: Vector of weights corresponding to each observation
+- `x::Matrix{Float64}`: Matrix of observations where each row is an observation and each column is a variable
+- `w::Vector{Float64}`: Vector of weights corresponding to each observation (row of x)
 
 # Returns
-- Weighted covariance matrix
+- `Matrix{Float64}`: Weighted covariance matrix of size (n_variables × n_variables)
+
 """
 function weighted_covar(x::Matrix{Float64}, w::Vector{Float64})
     # Normalize weights to ensure they sum to 1
@@ -544,16 +612,22 @@ function weighted_covar(x::Matrix{Float64}, w::Vector{Float64})
     end
 end
 
+
 """
     effective_sample_size(w::Vector{Float64})
 
-Calculate effective sample size from importance weights.
+Calculate effective sample size (ESS) from importance weights. 
 
 # Arguments
-- `w`: Vector of importance sampling weights
+- `w::Vector{Float64}`: Vector of importance sampling weights (need not be normalized)
 
 # Returns
-- Float64: Effective sample size
+- `Float64`: Effective sample size
+
+# Details
+The effective sample size is always less than or equal to the actual number of samples.
+It reaches its maximum (equal to sample size) when all weights are equal, and approaches
+its minimum (1) when one weight dominates all others.
 """
 function effective_sample_size(w::Vector{Float64})
     """
@@ -568,20 +642,60 @@ function effective_sample_size(w::Vector{Float64})
 end
 
 """
-Adaptively selects epsilon based on acceptance rate and distance distribution
+    select_epsilon(distances::Vector{Float64}, current_epsilon::Float64; kwargs...)
+
+Adaptively select the epsilon threshold for ABC based on acceptance rates and distance distribution.
+Uses a combination of quantile-based bounds and adaptive step sizes to adjust epsilon towards
+achieving the target acceptance rate.
 
 # Arguments
-- `distances`: Vector of distances from ABC
-- `current_epsilon`: Current epsilon value
-- `target_acc_rate`: Target acceptance rate
-- `current_acc_rate`: Current acceptance rate
-- `iteration`: Current iteration number
-- `total_iterations`: Total number of iterations
-- `distance_max`: Maximum distance to consider valid (default: 10.0)
-- `quantile_lower`: Lower quantile for epsilon adjustment (default: 25)
-- `quantile_upper`: Upper quantile for epsilon adjustment (default: 75)
-- `quantile_init`: Initial quantile when no acceptance rate (default: 50)
-- `acc_rate_buffer`: Buffer around target acceptance rate (default: 0.1)
+## Required Arguments
+- `distances::Vector{Float64}`: Vector of distances from ABC simulations
+- `current_epsilon::Float64`: Current epsilon threshold value
+
+## Optional Keyword Arguments
+### Acceptance Rate Parameters
+- `target_acc_rate::Float64=0.01`: Target acceptance rate to achieve
+- `current_acc_rate::Float64=0.0`: Current acceptance rate
+- `acc_rate_buffer::Float64=0.1`: Allowed deviation from target acceptance rate
+
+### Iteration Parameters
+- `iteration::Integer=1`: Current iteration number
+- `total_iterations::Integer=100`: Total number of iterations planned
+
+### Distance Processing Parameters
+- `distance_max::Float64=10.0`: Maximum valid distance (larger values filtered out)
+- `quantile_lower::Float64=25.0`: Lower quantile for epsilon bounds
+- `quantile_upper::Float64=75.0`: Upper quantile for epsilon bounds
+- `quantile_init::Float64=50.0`: Initial quantile for first iteration
+
+### Adaptive Step Size Parameters
+- `alpha_max::Float64=0.9`: Maximum adaptation rate
+- `alpha_min::Float64=0.1`: Minimum adaptation rate
+- `acc_rate_far::Float64=2.0`: Threshold for "far from target" adjustment
+- `acc_rate_close::Float64=0.2`: Threshold for "close to target" adjustment
+- `alpha_far_mult::Float64=1.5`: Multiplier for alpha when far from target
+- `alpha_close_mult::Float64=0.5`: Multiplier for alpha when close to target
+
+# Returns
+- `Float64`: New epsilon value
+
+# Implementation Details
+1. Filters out NaN and distances larger than distance_max
+2. Computes quantile-based bounds for epsilon adjustment
+3. Uses adaptive alpha value based on iteration and acceptance rate (see `compute_adaptive_alpha`)
+4. For first iteration (iteration=1):
+   - Returns initial quantile of valid distances
+5. For subsequent iterations:
+   - If acceptance rate too high: decreases epsilon by (1-alpha)
+   - If acceptance rate too low: increases epsilon by (1+alpha)
+   - Keeps epsilon unchanged if within buffer of target rate
+6. Always constrains new epsilon between quantile bounds
+
+# Notes
+- Returns current epsilon if no valid distances are found
+- Uses compute_adaptive_alpha for step size calculation
+- Adjustments are proportional to distance from target acceptance rate
 """
 function select_epsilon(distances::Vector{Float64},
                         current_epsilon::Float64;
@@ -646,20 +760,49 @@ function select_epsilon(distances::Vector{Float64},
     return new_epsilon
 end
 
+
 """
-Compute adaptive alpha value based on iteration and convergence metrics
+    compute_adaptive_alpha(iteration::Integer, current_acc_rate::Float64, target_acc_rate::Float64; kwargs...)
+
+Compute an adaptive step size (alpha) for epsilon adjustment in ABC, based on iteration progress
+and distance from target acceptance rate.
 
 # Arguments
-- `iteration`: Current iteration number
-- `current_acc_rate`: Current acceptance rate
-- `target_acc_rate`: Target acceptance rate
-- `alpha_max`: Maximum alpha value (default: 0.9)
-- `alpha_min`: Minimum alpha value (default: 0.1)
-- `total_iterations`: Total number of iterations
-- `acc_rate_far`: Threshold for "far from target" adjustment (default: 2.0)
-- `acc_rate_close`: Threshold for "close to target" adjustment (default: 0.2)
-- `alpha_far_mult`: Multiplier for alpha when far from target (default: 1.5)
-- `alpha_close_mult`: Multiplier for alpha when close to target (default: 0.5)
+## Required Arguments
+- `iteration::Integer`: Current iteration number
+- `current_acc_rate::Float64`: Current acceptance rate
+- `target_acc_rate::Float64`: Target acceptance rate to achieve
+
+## Optional Keyword Arguments
+### Bounds Parameters
+- `alpha_max::Float64=0.9`: Maximum allowed alpha value
+- `alpha_min::Float64=0.1`: Minimum allowed alpha value
+- `total_iterations::Integer=100`: Total number of iterations planned
+
+### Adaptation Parameters
+- `acc_rate_far::Float64=2.0`: Relative difference threshold for "far from target"
+- `acc_rate_close::Float64=0.2`: Relative difference threshold for "close to target"
+- `alpha_far_mult::Float64=1.5`: Multiplier for alpha when far from target
+- `alpha_close_mult::Float64=0.5`: Multiplier for alpha when close to target
+
+# Returns
+- `Float64`: Adaptive alpha value between `alpha_min` and `alpha_max`
+
+# Implementation Details
+1. Computes base alpha using linear decay between max and min:
+   - `base_alpha = alpha_max * (1 - progress) + alpha_min * progress`
+   where `progress = iteration/total_iterations`
+
+2. Adjusts base alpha based on relative difference from target:
+   - `acc_rate_diff = |current_acc_rate - target_acc_rate|/target_acc_rate`
+
+3. Final alpha selection:
+   - If `acc_rate_diff > acc_rate_far`: More aggressive adaptation
+     `alpha = min(alpha_max, base_alpha * alpha_far_mult)`
+   - If `acc_rate_diff < acc_rate_close`: More conservative adaptation
+     `alpha = max(alpha_min, base_alpha * alpha_close_mult)`
+   - Otherwise: Use base alpha
+     `alpha = base_alpha`
 """
 function compute_adaptive_alpha(iteration::Integer,
                                 current_acc_rate::Float64,
@@ -693,17 +836,18 @@ function compute_adaptive_alpha(iteration::Integer,
     return alpha
 end
 
-"""
-    find_MAP(theta_accepted::Matrix{Float64}, N::Int)
 
-Find the MAP estimates from posteriors with grid search.
+"""
+    find_MAP(theta_accepted::AbstractArray{Float64}, N::Integer=10000)
+
+Find Maximum A Posteriori (MAP) estimates with grid search.
 
 # Arguments
-- `theta_accepted::Matrix{Float64}`: Matrix of accepted samples from the final step of ABC
-- `N::Int`: Number of samples for grid search
+- `theta_accepted::AbstractArray{Float64}`: Matrix of accepted samples from the final step of ABC
+- `N::Integer=10000`: Number of random grid points to evaluate for each parameter
 
 # Returns
-- `theta_map::Vector{Float64}`: MAP estimates of the parameters
+- `theta_map::Vector{Float64}`: MAP estimate of the parameters
 """
 function find_MAP(theta_accepted::AbstractArray{Float64}, N::Integer=10000)
     num_params = size(theta_accepted, 2)
@@ -735,14 +879,55 @@ Get default parameter dictionary for ABC algorithm.
 
 # Returns
 Dictionary containing default values for all ABC parameters including:
-- Basic ABC parameters (epsilon_0, max_iter, etc.)
-- Acceptance rate parameters
-- Display parameters
-- Numerical stability parameters
-- Epsilon selection parameters
-- Adaptive alpha parameters
-- Early stopping parameters
-- MAP estimation parameters
+
+## Basic ABC Parameters
+- `:epsilon_0 => 1.0`: Initial epsilon threshold
+- `:max_iter => 10000`: Maximum iterations per step
+- `:min_accepted => 100`: Minimum number of accepted samples
+- `:steps => 30`: Maximum PMC steps
+- `:sample_only => false`: If true, only perform sampling without adaptation
+
+## Acceptance Rate Parameters
+- `:minAccRate => 0.01`: Minimum acceptance rate before early stopping
+- `:target_acc_rate => 0.01`: Target acceptance rate
+- `:target_epsilon => 1e-4`: Target epsilon for early stopping
+
+## Display Parameters
+- `:show_progress => true`: Show progress bar
+- `:verbose => true`: Print detailed progress information
+
+## Numerical Stability Parameters
+- `:jitter => 1e-6`: Small value added to covariance matrix
+
+## Epsilon Selection Parameters
+- `:distance_max => 10.0`: Maximum valid distance
+- `:quantile_lower => 25.0`: Lower quantile for epsilon bounds
+- `:quantile_upper => 75.0`: Upper quantile for epsilon bounds
+- `:quantile_init => 50.0`: Initial quantile
+- `:acc_rate_buffer => 0.1`: Allowed deviation from target rate
+
+## Adaptive Alpha Parameters
+- `:alpha_max => 0.9`: Maximum adaptation rate
+- `:alpha_min => 0.1`: Minimum adaptation rate
+- `:acc_rate_far => 2.0`: Threshold for "far from target"
+- `:acc_rate_close => 0.2`: Threshold for "close to target"
+- `:alpha_far_mult => 1.5`: Multiplier when far from target
+- `:alpha_close_mult => 0.5`: Multiplier when close to target
+
+## Early Stopping Parameters
+- `:convergence_window => 5`: Steps to check for convergence
+- `:theta_rtol => 1e-2`: Relative tolerance for convergence
+- `:theta_atol => 1e-3`: Absolute tolerance for convergence
+
+## MAP Estimation Parameters
+- `:N => 10000`: Number of grid points for MAP estimation
+
+# Example
+```julia
+params = get_param_dict_abc()
+params[:epsilon_0] = 0.5  # Modify initial epsilon
+params[:max_iter] = 5000  # Reduce maximum iterations
+```
 """
 function get_param_dict_abc()
     return Dict(:epsilon_0 => 1.0,
