@@ -59,7 +59,7 @@ using Random
         @test ou1 ≈ ou2
 
         # Generate with different seed
-        ou3 = generate_ou_process_sciml(tau, D, dt, T, num_trials, true; rng=rng, deq_seed=seed+1)[1]
+        ou3 = generate_ou_process_sciml(tau, D, dt, T, num_trials, true; rng=Xoshiro(seed), deq_seed=seed+1)[1]
 
         # Should be different from the first two
         @test !(ou1 ≈ ou3)
