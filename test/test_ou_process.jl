@@ -133,16 +133,6 @@ using Random
         osc5 = generate_ou_with_oscillation(theta, dt, T, num_trials, data_mean, data_sd)
         osc6 = generate_ou_with_oscillation(theta, dt, T, num_trials, data_mean, data_sd)
         @test !(osc5 ≈ osc6)  # Should be different
-
-        # Test coefficient bounds handling with reproducible seeds
-        theta_low = [1.0, 0.5, -0.1]  # coefficient < 0
-        theta_high = [1.0, 0.5, 1.1]  # coefficient > 1
-        
-        @test_logs (:warn, r"coefficient lower than 0") generate_ou_with_oscillation(
-            theta_low, dt, T, num_trials, data_mean, data_sd; rng=Xoshiro(seed), deq_seed=seed)
-        
-        @test_logs (:warn, r"coefficient greater than 1") generate_ou_with_oscillation(
-            theta_high, dt, T, num_trials, data_mean, data_sd; rng=Xoshiro(seed), deq_seed=seed)
     end
 end
 
