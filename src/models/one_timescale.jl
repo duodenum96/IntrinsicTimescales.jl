@@ -315,13 +315,13 @@ function Models.distance_function(model::OneTimescaleModel, sum_stats, data_sum_
 end
 
 """
-    int_fit(model::OneTimescaleModel, param_dict=nothing)
+    int_fit(model::OneTimescaleModel, param_dict::Dict=Dict())
 
 Perform inference using the specified fitting method.
 
 # Arguments
 - `model::OneTimescaleModel`: Model instance
-- `param_dict=nothing`: Optional dictionary of algorithm parameters. If nothing, uses defaults.
+- `param_dict::Dict=Dict()`: Dictionary of algorithm parameters. If empty, uses defaults.
 
 # Returns
 For ABC method:
