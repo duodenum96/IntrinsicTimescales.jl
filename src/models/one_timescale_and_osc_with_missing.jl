@@ -61,7 +61,6 @@ Parameters: [tau, freq, coeff] representing timescale, oscillation frequency, an
 - `summary_method::Symbol`: Summary statistic type (:psd or :acf)
 - `lags_freqs`: Lags (for ACF) or frequencies (for PSD)
 - `prior`: Prior distribution(s) for parameters
-- `optalg`: Optimization algorithm for :optimization method
 - `distance_method::Symbol`: Distance metric type (:linear or :logarithmic)
 - `data_sum_stats`: Pre-computed summary statistics
 - `dt::Real`: Time step between observations
@@ -86,7 +85,6 @@ struct OneTimescaleAndOscWithMissingModel <: AbstractTimescaleModel
     summary_method::Symbol
     lags_freqs::Union{Real, AbstractVector}
     prior::Union{Vector{<:Distribution}, Distribution, String}
-    optalg::Union{Symbol, Nothing}
     distance_method::Symbol
     data_sum_stats::AbstractArray{<:Real}
     dt::Real
@@ -110,8 +108,48 @@ end
 
 Construct a OneTimescaleAndOscWithMissingModel for inferring timescales and oscillations from data with missing values.
 
-We don't recommend setting each parameter individually. See https://duodenum96.github.io/IntrinsicTimescales.jl/stable/one_timescale_and_osc_with_missing/ 
-for details and complete examples. 
+# Arguments
+- `data`: Input time series data (may contain NaN values)
+- `time`: Time points corresponding to the data
+- `fit_method`: Fitting method to use (:abc or :advi)
+
+# Keyword Arguments
+- `summary_method=:psd`: Summary statistic type (:psd or :acf)
+- `data_sum_stats=nothing`: Pre-computed summary statistics
+- `lags_freqs=nothing`: Custom lags or frequencies
+- `prior=nothing`: Prior distribution(s) for parameters
+- `n_lags=nothing`: Number of lags for ACF
+- `distance_method=nothing`: Distance metric type (:linear or :logarithmic)
+- `dt=time[2]-time[1]`: Time step between observations
+- `T=time[end]`: Total time span
+- `data_mean=nanmean(data)`: Data mean (excluding NaN values)
+- `data_sd=nanstd(data)`: Data standard deviation (excluding NaN values)
+- `freqlims=nothing`: Frequency limits for PSD analysis (defaults to (0.5/1000, 100/1000) kHz)
+- `freq_idx=nothing`: Frequency selection mask
+- `dims=ndims(data)`: Dimension along which to compute statistics
+- `numTrials=size(data, setdiff([1,2], dims)[1])`: Number of trials/iterations
+- `distance_combined=false`: Whether to use combined distance metric
+- `weights=[0.5, 0.5]`: Weights for combined distance (length 2 for ACF, length 3 for PSD)
+- `data_tau=nothing`: Pre-computed timescale for combined distance
+- `data_osc=nothing`: Pre-computed oscillation frequency for combined distance
+
+# Returns
+- `OneTimescaleAndOscWithMissingModel`: Model instance configured for specified analysis method
+
+# Notes
+Main usage patterns:
+1. ACF-based analysis: `summary_method=:acf` - Uses autocorrelation with missing data handling
+2. PSD-based analysis: `summary_method=:psd` - Uses Lomb-Scargle periodogram for irregular sampling
+
+Key differences from regular model:
+- Automatically detects and handles NaN values in input data
+- Uses nanmean/nanstd for robust statistics computation
+- Applies specialized missing-data algorithms for summary statistics
+- Preserves missing data pattern in synthetic data generation
+
+For combined distance (`distance_combined=true`):
+- ACF method: Combines summary distance with timescale distance (2 weights)
+- PSD method: Combines summary, timescale, and oscillation distances (3 weights)
 """
 function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             summary_method=:psd,
@@ -119,7 +157,6 @@ function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             lags_freqs=nothing,
                                             prior=nothing,
                                             n_lags=nothing,
-                                            optalg=nothing,
                                             distance_method=nothing,
                                             dt=time[2] - time[1],
                                             T=time[end],
@@ -165,7 +202,6 @@ function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             summary_method,
                                             lags_freqs,
                                             prior,
-                                            optalg,
                                             distance_method,
                                             data_sum_stats,
                                             dt,
@@ -212,7 +248,6 @@ function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             summary_method,
                                             lags_freqs,
                                             prior,
-                                            optalg,
                                             distance_method,
                                             data_sum_stats,
                                             dt,
