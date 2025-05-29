@@ -20,16 +20,21 @@ export acw, ACWResults
 Structure holding ACW analysis inputs and results.
 
 # Fields
-- `data::AbstractArray{<:Real}`: Input time series data
 - `fs::Real`: Sampling frequency
-- `acwtypes::Union{Vector{<:Symbol}, Symbol, Nothing}`: Types of ACW to compute
-- `n_lags::Union{Int, Nothing}`: Number of lags for ACF calculation
-- `freqlims::Union{Tuple{Real, Real}, Nothing}`: Frequency limits for spectral analysis
-- `acw_results::Vector{<:Real}`: Computed ACW values
+- `acw_results`: Computed ACW values (type depends on number of ACW types requested)
+- `acwtypes::Union{Vector{<:Symbol}, Symbol}`: Types of ACW computed
+- `n_lags::Union{Int, Nothing}`: Number of lags used for ACF calculation
+- `freqlims::Union{Tuple{Real, Real}, Nothing}`: Frequency limits used for spectral analysis
+- `acf::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}`: Autocorrelation function
+- `psd::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}`: Power spectral density
+- `freqs::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}`: Frequency vector for PSD
+- `lags::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}`: Lag vector for ACF
+- `x_dim::Union{Int, Nothing}`: Dimension index corresponding to x-axis (lags/freqs)
 
 # Notes
-- Supported ACW types: :acw0, :acw50, :acweuler, :tau, :knee
+- Supported ACW types: :acw0, :acw50, :acweuler, :auc, :tau, :knee
 - Results order matches input acwtypes order
+- If only one ACW type is requested, `acw_results` is a scalar; otherwise it's a vector
 """
 struct ACWResults
     fs::Real
@@ -49,16 +54,24 @@ possible_acwtypes = [:acw0, :acw50, :acweuler, :auc, :tau, :knee]
 """
     acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
         dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
-        trial_dims::Int=setdiff([1, 2], dims)[1], max_peaks::Int=1)
+        trial_dims::Int=setdiff([1, 2], dims)[1], max_peaks::Int=1, oscillation_peak::Bool=true,
+        allow_variable_exponent::Bool=false)
 
-Compute various autocorrelation width measures for time series data.
+Compute various timescale measures for time series data. For detailed documentaion, see https://duodenum96.github.io/IntrinsicTimescales.jl/stable/acw/. 
 
 # Arguments
 - `data::AbstractArray{<:Real}`: Input time series data
 - `fs::Real`: Sampling frequency
-- `acwtypes::Union{Vector{Symbol}, Symbol}=possible_acwtypes`: Types of ACW to compute
-- `n_lags::Union{Int, Nothing}=nothing`: Number of lags for ACF calculation
-- `freqlims::Union{Tuple{Real, Real}, Nothing}=nothing`: Frequency limits for spectral analysis
+- `acwtypes::Union{Vector{Symbol}, Symbol}=[:acw0, :acw50, :acweuler, :auc, :tau, :knee]`: Types of ACW to compute.
+Supported ACW types:
+  * :acw0 - Time to first zero crossing
+  * :acw50 - Time to 50% decay
+  * :acweuler - Time to 1/e decay
+  * :auc - Area under curve of ACF before ACW0
+  * :tau - Exponential decay timescale
+  * :knee - Knee frequency from spectral analysis
+- `n_lags::Union{Int, Nothing}=nothing`: Number of lags for ACF calculation. If not specified, uses 1.1 * ACW0.
+- `freqlims::Union{Tuple{Real, Real}, Nothing}=nothing`: Frequency limits for spectral analysis. If not specified, uses full frequency range.
 - `time::Union{Vector{Real}, Nothing}=nothing`: Time vector. This is required for Lomb-Scargle method in the case of missing data.
 - `dims::Int=ndims(data)`: Dimension along which to compute ACW (Dimension of time)
 - `return_acf::Bool=true`: Whether to return the ACF
@@ -67,20 +80,10 @@ Compute various autocorrelation width measures for time series data.
 - `trial_dims::Int=setdiff([1, 2], dims)[1]`: Dimension along which to average the ACF or PSD over trials (Dimension of trials)
 - `max_peaks::Int=1`: Maximum number of oscillatory peaks to fit in spectral analysis
 - `oscillation_peak::Bool=true`: Whether to fit an oscillation peak in the spectral analysis
+- `allow_variable_exponent::Bool=false`: Whether to allow variable exponent in spectral fitting
 
 # Returns
-- Vector of computed ACW measures, ordered according to input acwtypes
-
-# Notes
-- Supported ACW types:
-
-  * :acw0 - Time to first zero crossing
-  * :acw50 - Time to 50% decay
-  * :acweuler - Time to 1/e decay
-  * :tau - Exponential decay timescale
-  * :knee - Knee frequency from spectral analysis
-- If n_lags is not specified, uses 1.1 * ACW0
-- For spectral measures, freqlims defaults to full frequency range
+- `ACWResults`: Structure containing computed ACW measures and intermediate results
 """
 function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
              dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
