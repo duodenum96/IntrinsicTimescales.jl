@@ -51,7 +51,7 @@ end
 """
     OneTimescaleAndOscWithMissingModel <: AbstractTimescaleModel
 
-Model for inferring a single timescale and oscillation from time series data with missing values.
+Model for inferring a single timescale from time series data with missing values.
 Parameters: [tau, freq, coeff] representing timescale, oscillation frequency, and oscillation coefficient.
 
 # Fields
@@ -61,7 +61,6 @@ Parameters: [tau, freq, coeff] representing timescale, oscillation frequency, an
 - `summary_method::Symbol`: Summary statistic type (:psd or :acf)
 - `lags_freqs`: Lags (for ACF) or frequencies (for PSD)
 - `prior`: Prior distribution(s) for parameters
-- `optalg`: Optimization algorithm for :optimization method
 - `distance_method::Symbol`: Distance metric type (:linear or :logarithmic)
 - `data_sum_stats`: Pre-computed summary statistics
 - `dt::Real`: Time step between observations
@@ -86,7 +85,6 @@ struct OneTimescaleAndOscWithMissingModel <: AbstractTimescaleModel
     summary_method::Symbol
     lags_freqs::Union{Real, AbstractVector}
     prior::Union{Vector{<:Distribution}, Distribution, String}
-    optalg::Union{Symbol, Nothing}
     distance_method::Symbol
     data_sum_stats::AbstractArray{<:Real}
     dt::Real
@@ -105,13 +103,60 @@ struct OneTimescaleAndOscWithMissingModel <: AbstractTimescaleModel
     missing_mask::AbstractArray{Bool}
 end
 
+"""
+    one_timescale_and_osc_with_missing_model(data, time, fit_method; kwargs...)
+
+Construct a OneTimescaleAndOscWithMissingModel for inferring timescales and oscillations from data with missing values.
+
+# Arguments
+- `data`: Input time series data (may contain NaN values)
+- `time`: Time points corresponding to the data
+- `fit_method`: Fitting method to use (:abc or :advi)
+
+# Keyword Arguments
+- `summary_method=:psd`: Summary statistic type (:psd or :acf)
+- `data_sum_stats=nothing`: Pre-computed summary statistics
+- `lags_freqs=nothing`: Custom lags or frequencies
+- `prior=nothing`: Prior distribution(s) for parameters
+- `n_lags=nothing`: Number of lags for ACF
+- `distance_method=nothing`: Distance metric type (:linear or :logarithmic)
+- `dt=time[2]-time[1]`: Time step between observations
+- `T=time[end]`: Total time span
+- `data_mean=nanmean(data)`: Data mean (excluding NaN values)
+- `data_sd=nanstd(data)`: Data standard deviation (excluding NaN values)
+- `freqlims=nothing`: Frequency limits for PSD analysis (defaults to (0.5/1000, 100/1000) kHz)
+- `freq_idx=nothing`: Frequency selection mask
+- `dims=ndims(data)`: Dimension along which to compute statistics
+- `numTrials=size(data, setdiff([1,2], dims)[1])`: Number of trials/iterations
+- `distance_combined=false`: Whether to use combined distance metric
+- `weights=[0.5, 0.5]`: Weights for combined distance (length 2 for ACF, length 3 for PSD)
+- `data_tau=nothing`: Pre-computed timescale for combined distance
+- `data_osc=nothing`: Pre-computed oscillation frequency for combined distance
+
+# Returns
+- `OneTimescaleAndOscWithMissingModel`: Model instance configured for specified analysis method
+
+# Notes
+Main usage patterns:
+1. ACF-based analysis: `summary_method=:acf` - Uses autocorrelation with missing data handling
+2. PSD-based analysis: `summary_method=:psd` - Uses Lomb-Scargle periodogram for irregular sampling
+
+Key differences from regular model:
+- Automatically detects and handles NaN values in input data
+- Uses nanmean/nanstd for robust statistics computation
+- Applies specialized missing-data algorithms for summary statistics
+- Preserves missing data pattern in synthetic data generation
+
+For combined distance (`distance_combined=true`):
+- ACF method: Combines summary distance with timescale distance (2 weights)
+- PSD method: Combines summary, timescale, and oscillation distances (3 weights)
+"""
 function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             summary_method=:psd,
                                             data_sum_stats=nothing,
                                             lags_freqs=nothing,
                                             prior=nothing,
                                             n_lags=nothing,
-                                            optalg=nothing,
                                             distance_method=nothing,
                                             dt=time[2] - time[1],
                                             T=time[end],
@@ -157,7 +202,6 @@ function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             summary_method,
                                             lags_freqs,
                                             prior,
-                                            optalg,
                                             distance_method,
                                             data_sum_stats,
                                             dt,
@@ -204,7 +248,6 @@ function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             summary_method,
                                             lags_freqs,
                                             prior,
-                                            optalg,
                                             distance_method,
                                             data_sum_stats,
                                             dt,
@@ -258,19 +301,22 @@ Compute combined distance metric between simulated and observed data.
 - `model`: OneTimescaleAndOscWithMissingModel instance
 - `simulation_summary`: Summary statistics from simulation
 - `data_summary`: Summary statistics from observed data
-- `weights`: Weights for combining distances
-- `distance_method`: Distance metric type
+- `weights`: Weights for combining distances (length 2 for ACF, length 3 for PSD)
+- `distance_method`: Distance metric type (:linear or :logarithmic)
 - `data_tau`: Timescale from observed data
 - `simulation_tau`: Timescale from simulation
-- `data_osc`: Oscillation frequency from observed data
-- `simulation_osc`: Oscillation frequency from simulation
+- `data_osc`: Oscillation frequency from observed data (used only for PSD)
+- `simulation_osc`: Oscillation frequency from simulation (used only for PSD)
 
 # Returns
 For ACF:
-- Weighted combination of ACF distance and timescale distance
+- Weighted combination: weights[1] * summary_distance + weights[2] * tau_distance
 
 For PSD:
-- Weighted combination of PSD distance, timescale distance, and oscillation frequency distance
+- Weighted combination: weights[1] * summary_distance + weights[2] * tau_distance + weights[3] * osc_distance
+
+# Notes
+- Ensure weights vector has correct length: 2 for ACF, 3 for PSD method
 """
 function combined_distance(model::OneTimescaleAndOscWithMissingModel, simulation_summary, data_summary,
                          weights, distance_method, data_tau, simulation_tau, data_osc, simulation_osc)
@@ -327,6 +373,24 @@ function Models.summary_stats(model::OneTimescaleAndOscWithMissingModel, data)
     end
 end
 
+"""
+    Models.distance_function(model::OneTimescaleAndOscWithMissingModel, sum_stats, data_sum_stats)
+
+Compute distance between simulated and observed summary statistics.
+
+# Arguments
+- `model::OneTimescaleAndOscWithMissingModel`: Model instance specifying distance configuration
+- `sum_stats`: Summary statistics from simulation
+- `data_sum_stats`: Summary statistics from observed data
+
+# Returns
+- Distance value based on model configuration
+
+# Notes
+- If distance_combined=true: Uses combined_distance with both the estimated parameters and the full summary statistics. 
+- If distance_combined=false: Uses simple distance based on full summary statistics. 
+- Distance methods: :linear (Euclidean) or :logarithmic (log-space Euclidean)
+"""
 function Models.distance_function(model::OneTimescaleAndOscWithMissingModel, sum_stats, data_sum_stats)
     if model.distance_combined
         if model.summary_method == :acf
@@ -355,33 +419,30 @@ function Models.distance_function(model::OneTimescaleAndOscWithMissingModel, sum
 end
 
 """
-    int_fit(model::OneTimescaleAndOscWithMissingModel, param_dict=nothing)
+    int_fit(model::OneTimescaleAndOscWithMissingModel, param_dict=Dict())
 
 Perform inference using the specified fitting method.
 
 # Arguments
 - `model::OneTimescaleAndOscWithMissingModel`: Model instance
-- `param_dict=nothing`: Optional dictionary of algorithm parameters. If nothing, uses defaults.
+- `param_dict=Dict()`: Dictionary of algorithm parameters. If empty, uses defaults.
 
 # Returns
 For ABC method:
-- `posterior_samples`: Matrix of accepted parameter samples
-- `posterior_MAP`: Maximum a posteriori estimate
-- `abc_record`: Full record of ABC iterations
+- `abc_record`: Complete ABC record containing accepted samples, distances, and convergence info
 
 For ADVI method:
-- `ADVIResults`: Container with samples, MAP estimates, variances, and full chain
+- `ADVIResults`: Container with samples, MAP estimates, variances, and convergence information
 
 # Notes
 - For ABC: Uses Population Monte Carlo ABC with adaptive epsilon selection
 - For ADVI: Uses Automatic Differentiation Variational Inference via Turing.jl
-- Parameter dictionary can be customized for each method (see get_param_dict_abc())
+- Default parameters available via get_param_dict_abc() and get_param_dict_advi()
 """
 function Models.int_fit(model::OneTimescaleAndOscWithMissingModel, param_dict::Dict=Dict())
     if model.fit_method == :abc
         if isempty(param_dict)
             param_dict = get_param_dict_abc()
-
         end
 
         abc_record = pmc_abc(model;

@@ -86,6 +86,7 @@ end
     one_timescale_with_missing_model(data, time, fit_method; kwargs...)
 
 Construct a OneTimescaleWithMissingModel for time series analysis with missing data.
+See https://duodenum96.github.io/IntrinsicTimescales.jl/stable/one_timescale_with_missing/ for details and complete examples. 
 
 # Arguments
 - `data`: Input time series data (may contain NaN)
@@ -203,7 +204,6 @@ function one_timescale_with_missing_model(data, time, fit_method;
                                             numTrials, data_mean, data_sd, freqlims, n_lags,
                                             freq_idx,
                                             dims, distance_combined, weights, data_tau,
-
                                             missing_mask)
     end
 end
@@ -263,6 +263,26 @@ function Models.summary_stats(model::OneTimescaleWithMissingModel, data)
     end
 end
 
+"""
+    combined_distance(model, simulation_summary, data_summary, weights, data_tau, simulation_tau)
+
+Calculate a weighted combination of summary statistic distance and timescale distance.
+
+# Arguments
+- `model::OneTimescaleWithMissingModel`: Model instance
+- `simulation_summary`: Summary statistics from simulated data
+- `data_summary`: Summary statistics from observed data  
+- `weights`: Weight vector for combining distances
+- `data_tau`: Timescale extracted from observed data
+- `simulation_tau`: Timescale extracted from simulated data
+
+# Returns
+- Combined weighted distance value
+
+# Notes
+Uses the model's distance_method (:linear or :logarithmic) for summary statistic comparison
+and linear distance for timescale comparison.
+"""
 function combined_distance(model::OneTimescaleWithMissingModel, simulation_summary,
                            data_summary,
                            weights,
@@ -314,7 +334,7 @@ function Models.distance_function(model::OneTimescaleWithMissingModel, sum_stats
 end
 
 """
-    int_fit(model::OneTimescaleWithMissingModel, param_dict=nothing)
+    int_fit(model::OneTimescaleWithMissingModel, param_dict=Dict())
 
 Perform inference using the specified fitting method.
 
@@ -340,7 +360,6 @@ function Models.int_fit(model::OneTimescaleWithMissingModel, param_dict::Dict=Di
     if model.fit_method == :abc
         if isempty(param_dict)
             param_dict = get_param_dict_abc()
-
         end
 
         abc_record = pmc_abc(model;
@@ -372,14 +391,11 @@ function Models.int_fit(model::OneTimescaleWithMissingModel, param_dict::Dict=Di
 
         return abc_record
 
-
     elseif model.fit_method == :advi
         if isempty(param_dict)
             param_dict = get_param_dict_advi()
         end
         
-
-
         result = fit_vi(model; 
             n_samples=param_dict[:n_samples],
             n_iterations=param_dict[:n_iterations],
@@ -390,6 +406,5 @@ function Models.int_fit(model::OneTimescaleWithMissingModel, param_dict::Dict=Di
         return result
     end
 end
-
 
 end # module

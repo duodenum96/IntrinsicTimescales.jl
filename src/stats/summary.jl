@@ -94,12 +94,9 @@ Compute power spectral density using periodogram or welch method.
 - `noverlap=div(n,2)`: Overlap for Welch method
 
 # Returns
-- `power`: Power spectral density values
-- `freqs`: Corresponding frequencies
+- `power`: Power spectral density values (excludes DC component)
+- `freqs`: Corresponding frequencies (excludes DC component)
 
-# Notes
-- For Welch method, carefully consider window size and overlap
-- Uses DSP.jl for underlying computations
 """
 function comp_psd(x::AbstractArray{T}, fs::Real;
                   dims::Int=ndims(x),
@@ -137,11 +134,13 @@ function comp_psd(x::Vector{T}, fs::Real;
                   noverlap=div(n, 2)) where {T <: Real}
     if method == "periodogram"
         psd = dsp.periodogram(x; fs=fs, window=window)
+        # Exclude DC component (zero frequency)
         power = psd.power[2:end]
         freqs = psd.freq[2:end]
     elseif method == "welch"
         @warn "Using Welch method. Don't trust the defaults!"
         psd = dsp.welch_pgram(x, n, noverlap; fs=fs, window=window)
+        # Include all frequency components
         power = psd.power
         freqs = psd.freq
     else
@@ -223,12 +222,10 @@ Internal function to compute Lomb-Scargle periodogram for a single time series.
 
 # Returns
 - `power`: Lomb-Scargle periodogram values
-- `frequency_grid`: Input frequency grid
 
 # Notes
 - Uses LombScargle.jl for core computation
 - Assumes data has been pre-processed and doesn't contain NaN values
-- Normalizes power spectrum by variance
 """
 function _comp_psd_lombscargle(times::AbstractVector{<:Number},
                                signal::AbstractVector{<:Number},
