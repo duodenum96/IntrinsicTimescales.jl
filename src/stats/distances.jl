@@ -12,7 +12,7 @@ export linear_distance, logarithmic_distance
 """
     linear_distance(data, synth_data)
 
-Compute mean squared (L2) distance between summary statistics.
+Compute mean squared error (MSE) between summary statistics.
 
 # Arguments
 - `data::Union{AbstractArray, Real}`: Observed data summary statistics
