@@ -32,6 +32,9 @@ Generate an Ornstein-Uhlenbeck process with a single timescale
 - `duration::Real`: Total time length
 - `num_trials::Real`: Number of trials/trajectories
 - `standardize::Bool=true`: Whether to standardize output to match true_D
+- `rng::AbstractRNG=Random.default_rng()`: Random number generator for initial conditions
+- `deq_seed::Integer=nothing`: Random seed for DifferentialEquations.jl solver. If `nothing`, uses StochasticDiffEq.jl defaults. Note that for full replicability, 
+you need to set both `rng` and `deq_seed`. 
 
 # Returns
 - Matrix{Float64}: Generated OU process data with dimensions (num_trials, num_timesteps)
@@ -46,9 +49,11 @@ function generate_ou_process(tau::Union{Real, Vector{<:Real}},
                             dt::Real,
                             duration::Real,
                             num_trials::Real;
-                            standardize::Bool=true)
+                            standardize::Bool=true,
+                            rng::AbstractRNG=Random.default_rng(),
+                            deq_seed::Union{Integer, Nothing}=nothing)
 
-    ou, sol = generate_ou_process_sciml(tau, true_D, dt, duration, num_trials, standardize)
+    ou, sol = generate_ou_process_sciml(tau, true_D, dt, duration, num_trials, standardize; rng=rng, deq_seed=deq_seed)
     if SciMLBase.successful_retcode(sol.retcode)
         return ou
     else
@@ -156,6 +161,9 @@ Generate a one-timescale OU process with an additive oscillation.
 - `num_trials::Integer`: Number of trials
 - `data_mean::Real`: Target mean value
 - `data_var::Real`: Target variance
+- `rng::AbstractRNG=Random.default_rng()`: Random number generator for initial conditions
+- `deq_seed::Integer=nothing`: Random seed for DifferentialEquations.jl solver. If `nothing`, uses StochasticDiffEq.jl defaults. Note that for full replicability, 
+you need to set both `rng` and `deq_seed`. 
 
 # Returns
 - Matrix{Float64}: Generated data with dimensions (num_trials, num_timesteps)
@@ -171,7 +179,9 @@ function generate_ou_with_oscillation(theta::Vector{T},
                                       duration::Real,
                                       num_trials::Integer,
                                       data_mean::Real,
-                                      data_sd::Real) where T <: Real
+                                      data_sd::Real;
+                                      rng::AbstractRNG=Random.default_rng(),
+                                      deq_seed::Union{Integer, Nothing}=nothing) where T <: Real
     # Extract parameters
     tau = theta[1]
     freq = theta[2]
@@ -187,14 +197,14 @@ function generate_ou_with_oscillation(theta::Vector{T},
     end
 
     # Generate OU process and oscillation
-    ou, sol = generate_ou_process_sciml(tau, data_sd, dt, duration, num_trials, false)
+    ou, sol = generate_ou_process_sciml(tau, data_sd, dt, duration, num_trials, false; rng=rng, deq_seed=deq_seed)
     if sol.retcode != deq.ReturnCode.Success
         ou = NaN * ones(num_trials, Int(duration / dt))
     end
 
     # Create time matrix and random phases
     time_mat = repeat(collect(dt:dt:duration), 1, num_trials)'
-    phases = rand(num_trials, 1) * 2π
+    phases = rand(rng, num_trials, 1) * 2π
 
     # Generate oscillation and combine with OU
     oscil = sqrt(2.0) * sin.(phases .+ 2π * freq * time_mat)
