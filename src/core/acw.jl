@@ -84,6 +84,18 @@ Supported ACW types:
 
 # Returns
 - `ACWResults`: Structure containing computed ACW measures and intermediate results
+
+Fields of the ACWResults structure:
+- `fs::Real`: Sampling frequency
+- `acw_results`: Computed ACW values (type depends on number of ACW types requested)
+- `acwtypes::Union{Vector{<:Symbol}, Symbol}`: Types of ACW computed
+- `n_lags::Union{Int, Nothing}`: Number of lags used for ACF calculation
+- `freqlims::Union{Tuple{Real, Real}, Nothing}`: Frequency limits used for spectral analysis
+- `acf::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}`: Autocorrelation function
+- `psd::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}`: Power spectral density
+- `freqs::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}`: Frequency vector for PSD
+- `lags::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}`: Lag vector for ACF
+- `x_dim::Union{Int, Nothing}`: Dimension index corresponding to x-axis (lags/freqs)
 """
 function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
              dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
