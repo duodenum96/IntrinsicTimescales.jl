@@ -4,7 +4,7 @@
 A Julia package for estimation of timescales from time series data.
 
 # Features
-- Standard techniques for INT calculation: ACW-50, ACW-0, FOOOF
+- Standard techniques for INT calculation 
 - Approximate Bayesian Computation (ABC) for parameter inference
 - ADVI for variational inference
 - Multiple model types:

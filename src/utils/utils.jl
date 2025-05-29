@@ -160,7 +160,7 @@ Compute the ACW at 1/e (≈ 0.368) along specified dimension.
 
 # Arguments
 - `lags::AbstractVector{T}`: Vector of lag values
-- `acf::AbstractArray{S}`: Array of autocorrelation values
+- `acf::AbstractVector{S}`: Array of autocorrelation values
 - `dims::Int=ndims(acf)`: Dimension along which to compute
 
 # Returns
@@ -181,7 +181,7 @@ function acweuler(lags::AbstractVector{T}, acf::AbstractArray{S};
 end
 
 """
-    acw_romberg(lags, acf)
+    acw_romberg(dt, acf)
 
 Calculate the area under the curve of ACF using Romberg integration.
 
@@ -231,7 +231,11 @@ Compute Lorentzian function values that allow variable exponent (PLE).
 - `u::Vector`: Parameters [amplitude, knee_frequency, exponent]
 
 # Returns
-- Vector of Lorentzian values: amp/(1 + (f/knee)²)
+- Vector of Lorentzian values: amp/(1 + (f/knee)^exponent)
+
+# Notes
+- Generalizes standard Lorentzian to allow variable power law exponent
+- When exponent=2, reduces to standard Lorentzian
 """
 function lorentzian_with_exponent(f, u)
     return u[1] ./ (1 .+ ((f ./ u[2]) .^ u[3]))
@@ -324,8 +328,10 @@ If allow_variable_exponent=false, assumes exponent=2 and returns [amplitude, kne
 returns [amplitude, knee_frequency, exponent].
 
 # Notes
-- Uses Lorentzian fitting with NonlinearSolve.jl
-- Initial guess for amplitude is based average value of low frequency power. For knee, this is half-power point. For exponent, it is 2.0.  
+- Uses Lorentzian fitting with NonlinearSolve.jl or Optimization.jl
+- Initial guess for amplitude based on low frequency power
+- Initial guess for knee at half-power point
+- Initial guess for exponent is 2.0 when variable exponent allowed
 """
 function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
                              min_freq::T=freqs[1],
@@ -401,6 +407,7 @@ If allow_variable_exponent=true, the function will fit a Lorentzian with variabl
 - `max_freq::T=freqs[end]`: Maximum frequency to consider
 - `oscillation_peak::Bool=true`: Whether to compute oscillation peaks
 - `max_peaks::Int=3`: Maximum number of oscillatory peaks to fit
+- `return_only_knee::Bool=false`: Whether to return only knee frequency
 - `allow_variable_exponent::Bool=false`: Whether to allow variable exponent (PLE)
 - `constrained::Bool=false`: Whether to use constrained optimization
 # Returns
@@ -416,6 +423,8 @@ If return_only_knee=true:
   2. Find and fit Gaussian peaks iteratively
   3. Subtract all Gaussians from original PSD
   4. Refit Lorentzian to cleaned PSD
+- Default behavior fits standard Lorentzian (PLE = 2)
+- If allow_variable_exponent=true, fits Lorentzian with variable PLE
 """
 function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
                    min_freq::T=freqs[1],

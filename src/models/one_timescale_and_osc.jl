@@ -98,7 +98,8 @@ end
 """
     one_timescale_and_osc_model(data, time, fit_method; kwargs...)
 
-Construct a OneTimescaleAndOscModel for time series analysis with oscillation.
+Construct a OneTimescaleAndOscModel for time series with oscillations.
+See https://duodenum96.github.io/IntrinsicTimescales.jl/stable/one_timescale_and_osc/ for details and complete examples. 
 
 # Arguments
 - `data`: Input time series data
@@ -133,7 +134,6 @@ Four main usage patterns:
 1. ACF-based ABC/ADVI: `summary_method=:acf`, `fit_method=:abc/:advi`
 2. PSD-based ABC/ADVI: `summary_method=:psd`, `fit_method=:abc/:advi`
 """
-
 function one_timescale_and_osc_model(data, time, fit_method;
                                      summary_method=:psd,
                                      data_sum_stats=nothing,
@@ -293,19 +293,19 @@ Compute combined distance metric between simulated and observed data.
 - `model`: OneTimescaleAndOscModel instance
 - `simulation_summary`: Summary statistics from simulation
 - `data_summary`: Summary statistics from observed data
-- `weights`: Weights for combining distances
-- `distance_method`: Distance metric type
+- `weights`: Weight vector for combining distances. For ACF: [w1, w2]. For PSD: [w1, w2, w3]
+- `distance_method`: Distance metric type (:linear or :logarithmic)
 - `data_tau`: Timescale from observed data
 - `simulation_tau`: Timescale from simulation
-- `data_osc`: Oscillation frequency from observed data
-- `simulation_osc`: Oscillation frequency from simulation
+- `data_osc`: Oscillation frequency from observed data (used for PSD only)
+- `simulation_osc`: Oscillation frequency from simulation (used for PSD only)
 
 # Returns
 For ACF:
-- Weighted combination of summary statistic distance and timescale distance
+- Weighted combination: weights[1] * summary_distance + weights[2] * timescale_distance
 
 For PSD:
-- Weighted combination of summary statistic distance, timescale distance, and oscillation frequency distance
+- Weighted combination: weights[1] * summary_distance + weights[2] * timescale_distance + weights[3] * oscillation_distance
 """
 function combined_distance(model::OneTimescaleAndOscModel, simulation_summary, data_summary,
                          weights, distance_method, data_tau, simulation_tau, 
@@ -379,27 +379,25 @@ function Models.distance_function(model::OneTimescaleAndOscModel, sum_stats, dat
 end
 
 """
-    int_fit(model::OneTimescaleAndOscModel, param_dict=nothing)
+    int_fit(model::OneTimescaleAndOscModel, param_dict::Dict=Dict())
 
 Perform inference using the specified fitting method.
 
 # Arguments
 - `model::OneTimescaleAndOscModel`: Model instance
-- `param_dict=nothing`: Optional dictionary of algorithm parameters. If nothing, uses defaults.
+- `param_dict::Dict=Dict()`: Dictionary of algorithm parameters. If empty, uses defaults.
 
 # Returns
 For ABC method:
-- `posterior_samples`: Matrix of accepted parameter samples
-- `posterior_MAP`: Maximum a posteriori estimate
-- `abc_record`: Full record of ABC iterations
+- `abc_record`: Complete record of ABC iterations including posterior samples and MAP estimate
 
 For ADVI method:
-- `ADVIResults: Container with samples, MAP estimates, variances, and full variational posterior
+- `result`: Results from variational inference containing samples, MAP estimates, and variational posterior
 
 # Notes
 - For ABC: Uses Population Monte Carlo ABC with adaptive epsilon selection
 - For ADVI: Uses Automatic Differentiation Variational Inference via Turing.jl
-- Parameter dictionary can be customized for each method (see get_param_dict_abc())
+- Parameter dictionary can be customized for each method (see get_param_dict_abc() and get_param_dict_advi())
 """
 function Models.int_fit(model::OneTimescaleAndOscModel, param_dict::Dict=Dict())
     if model.fit_method == :abc
