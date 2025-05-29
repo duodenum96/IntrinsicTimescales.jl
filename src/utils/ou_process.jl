@@ -73,7 +73,7 @@ _prob_inplace = deq.SDEProblem(f_inplace, g_inplace, u0_inplace, (0.0, 1.0), p) 
 _prob_outofplace = deq.SDEProblem(f_outofplace, g_outofplace, u0_outofplace, (0.0, 1.0), p)
 
 """
-    generate_ou_process_sciml(tau, true_D, dt, duration, num_trials, standardize=true; seed=nothing)
+    generate_ou_process_sciml(tau, true_D, dt, duration, num_trials, standardize; rng=Random.default_rng(), deq_seed=nothing)
 
 Generate an Ornstein-Uhlenbeck process using DifferentialEquations.jl.
 
@@ -83,9 +83,9 @@ Generate an Ornstein-Uhlenbeck process using DifferentialEquations.jl.
 - `dt::Real`: Time step size
 - `duration::Real`: Total time length
 - `num_trials::Integer`: Number of trials/trajectories
-- `standardize::Bool=true`: Whether to standardize output to match true_D
+- `standardize::Bool`: Whether to standardize output to match true_D
 - `rng::AbstractRNG=Random.default_rng()`: Random number generator for initial conditions
-- `deq_seed::Integer=nothing`: Random seed for DifferentialEquations.jl solver. If `nothing`, uses StochasticDiffEq.jl defaults. Note that for full replicability, 
+- `deq_seed::Union{Integer, Nothing}=nothing`: Random seed for DifferentialEquations.jl solver. If `nothing`, uses StochasticDiffEq.jl defaults. Note that for full replicability, 
 you need to set both `rng` and `deq_seed`. 
 
 # Returns
@@ -149,7 +149,7 @@ end
 
 
 """
-    generate_ou_with_oscillation(theta, dt, duration, num_trials, data_mean, data_var)
+    generate_ou_with_oscillation(theta, dt, duration, num_trials, data_mean, data_sd; rng=Random.default_rng(), deq_seed=nothing)
 
 Generate a one-timescale OU process with an additive oscillation.
 
@@ -159,9 +159,9 @@ Generate a one-timescale OU process with an additive oscillation.
 - `duration::Real`: Total time length
 - `num_trials::Integer`: Number of trials
 - `data_mean::Real`: Target mean value
-- `data_var::Real`: Target variance
+- `data_sd::Real`: Target standard deviation
 - `rng::AbstractRNG=Random.default_rng()`: Random number generator for initial conditions
-- `deq_seed::Integer=nothing`: Random seed for DifferentialEquations.jl solver. If `nothing`, uses StochasticDiffEq.jl defaults. Note that for full replicability, 
+- `deq_seed::Union{Integer, Nothing}=nothing`: Random seed for DifferentialEquations.jl solver. If `nothing`, uses StochasticDiffEq.jl defaults. Note that for full replicability, 
 you need to set both `rng` and `deq_seed`. 
 
 # Returns
@@ -170,7 +170,7 @@ you need to set both `rng` and `deq_seed`.
 # Notes
 - Coefficient is bounded between 0 and 1
 - Combines OU process with sinusoidal oscillation
-- Standardizes and scales output to match target mean and variance
+- Standardizes and scales output to match target mean and standard deviation
 - Returns NaN matrix if SciML solver fails
 """
 function generate_ou_with_oscillation(theta::Vector{T},
@@ -211,7 +211,7 @@ function generate_ou_with_oscillation(theta::Vector{T},
 
     data = (data .- mean(data, dims=2)) ./ std(data, dims=2)
 
-    # Scale to match target mean and variance
+    # Scale to match target mean and standard deviation
     data_scaled = data_sd * data .+ data_mean
 
     return data_scaled
