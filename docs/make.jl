@@ -4,7 +4,7 @@ using IntrinsicTimescales
 using Plots
 
 makedocs(sitename="IntrinsicTimescales.jl",
-         format=Documenter.HTML(),
+         format=Documenter.HTML(size_threshold = nothing),
          pages=["Getting Started" => "home.md",
          "Practice" => Any["practice/practice_intro.md",
          "practice/practice_1_acf.md",
@@ -24,8 +24,7 @@ makedocs(sitename="IntrinsicTimescales.jl",
                  "Model Fitting and Parameters" => "fit_parameters.md",
                  "Results" => "fit_result.md"
              ]],
-             "API" => "index.md"],
-             HTMLWriter = HTMLWriter(size_threshold = nothing))
+             "API" => "index.md"])
 
 
 # Documenter can also automatically deploy documentation to gh-pages.
