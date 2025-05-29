@@ -15,8 +15,7 @@ Container for ADVI (Automatic Differentiation Variational Inference) results.
 # Fields
 - `samples::AbstractArray{T}`: Matrix of posterior samples
 - `MAP::AbstractVector{T}`: Maximum a posteriori estimates
-- `variances::AbstractVector{T}`: Posterior variances for each parameter
-- `chain`: Turing chain object containing full inference results
+- `variational_posterior::Any`: Turing variational posterior object containing full inference results
 """
 struct ADVIResults{T<:Real}
     samples::AbstractArray{T}
@@ -80,10 +79,9 @@ Perform variational inference using ADVI (Automatic Differentiation Variational 
 
 # Returns
 - `ADVIResults`: Container with inference results including:
-  - Posterior samples
-  - MAP estimates
-  - Parameter variances
-  - Full Turing chain
+  - `samples_matrix`: Matrix of posterior samples
+  - `MAP`: Maximum a posteriori parameter estimates
+  - `variational_posterior`: Turing variational posterior object containing full inference results
 
 # Notes
 Uses Turing.jl's ADVI implementation for fast approximate Bayesian inference.
