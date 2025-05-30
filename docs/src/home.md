@@ -44,6 +44,12 @@ result = int_fit(model)
 
 These functions are highly customizable, see the page [Simulation Based Timescale Estimation](simbasedinference.md). 
 
+## Organization of the package
+
+The diagram below shows the rough organization of the package:
+
+![Figure 1: A diagram showing the features of the package. \* in \*_model denotes one of the models Generative Models. .\label{fig:fig1}](../../paper/diagram.svg)
+
 ## Where to go from here?
 
 This documentation is divided in four parts. The fourth part [API](index.md) is an exhaustive list of functions and their signatures in the package. It is boring. A better place to start is the third part, Implementation. This part documents [model-free](acw.md) and [simulation-based](simbasedinference.md) methods that are used in the package, with the full function signatures. If you are already familiar with calculating INTs and just want to start using the package, this is the right place. 
@@ -53,6 +59,12 @@ The remaining two parts are to understand the motivation to use various methods 
 ## Getting Help and Making Contributions
 
 Questions and contributions are welcome. Use the [issues section of our github page](https://github.com/duodenum96/IntrinsicTimescales.jl/issues) to report bugs, make feature requests, ask questions or tackle the issues by making pull requests. 
+
+## Statement of Need
+
+Intrinsic neural timescales (INTs) were found to be an important metric to probe the brain dynamics and function. On the neuroscientific side, INTs were found to follow the large-scale gradients in the cortex ranging from uni to transmodal areas including local and long-range excitation and proxies of myelination. From a cognitive science perspective, INTs were found to be related to reward, behavior, self, consciousness among others. Proper estimation of INTs to make sure the estimates are not affected by limited data, missingness of the data and oscillatory artifacts is crucial. While several methods exist for estimating INTs, there is a lack of standardized, open-source tools that implement both traditional model-free approaches and modern Bayesian estimation techniques. Existing software solutions are often limited to specific estimation methods, lack proper uncertainty quantification, or are not optimized for large-scale neuroimaging data.
+
+IntrinsicTimescales.jl addresses these limitations by providing a comprehensive, high-performance toolbox for INT estimation. The package implements both established model-free methods and novel Bayesian approaches, allowing researchers to compare and validate results across different methodologies with a simple API. Its implementation in Julia ensures computational efficiency, crucial for analyzing large neuroimaging datasets. The package's modular design facilitates easy extension and integration with existing neuroimaging workflows, while its rigorous testing and documentation make it accessible to researchers across different levels of programming expertise.
 
 ## About
 
