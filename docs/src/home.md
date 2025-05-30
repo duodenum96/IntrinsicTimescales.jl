@@ -48,7 +48,7 @@ These functions are highly customizable, see the page [Simulation Based Timescal
 
 The diagram below shows the rough organization of the package:
 
-![Figure 1: A diagram showing the features of the package. \* in \*_model denotes one of the models Generative Models. .\label{fig:fig1}](../../paper/diagram.svg)
+![](assets/diagram.svg)
 
 ## Where to go from here?
 
