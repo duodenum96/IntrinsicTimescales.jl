@@ -54,7 +54,7 @@ possible_acwtypes = [:acw0, :acw50, :acweuler, :auc, :tau, :knee]
 """
     acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
         dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
-        trial_dims::Int=setdiff([1, 2], dims)[1], max_peaks::Int=1, oscillation_peak::Bool=true,
+        trial_dims::Int=setdiff([1, 2], dims)[1], skip_zero_lag::Bool=false, max_peaks::Int=1, oscillation_peak::Bool=true,
         allow_variable_exponent::Bool=false)
 
 Compute various timescale measures for time series data. For detailed documentaion, see https://duodenum96.github.io/IntrinsicTimescales.jl/stable/acw/. 
@@ -78,6 +78,7 @@ Supported ACW types:
 - `return_psd::Bool=true`: Whether to return the PSD
 - `average_over_trials::Bool=false`: Whether to average the ACF or PSD over trials
 - `trial_dims::Int=setdiff([1, 2], dims)[1]`: Dimension along which to average the ACF or PSD over trials (Dimension of trials)
+- `skip_zero_lag::Bool=false`: Whether to skip the zero lag for fitting an exponential decay function. Used only for :tau.
 - `max_peaks::Int=1`: Maximum number of oscillatory peaks to fit in spectral analysis
 - `oscillation_peak::Bool=true`: Whether to fit an oscillation peak in the spectral analysis
 - `allow_variable_exponent::Bool=false`: Whether to allow variable exponent in spectral fitting
@@ -99,7 +100,7 @@ Fields of the ACWResults structure:
 """
 function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
              dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
-             trial_dims::Int=setdiff([1, 2], dims)[1], max_peaks::Int=1, oscillation_peak::Bool=true,
+             trial_dims::Int=setdiff([1, 2], dims)[1], skip_zero_lag::Bool=false, max_peaks::Int=1, oscillation_peak::Bool=true,
              allow_variable_exponent::Bool=false)
 
     missingmask = ismissing.(data)
@@ -200,7 +201,11 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
 
         if any(in.(:tau, [acwtypes]))
             tau_idx = findfirst(acwtypes .== :tau)
-            tau_result = fit_expdecay(collect(lags), acf; dims=dims)
+            if !skip_zero_lag
+                tau_result = fit_expdecay(collect(lags), acf; dims=dims)
+            else
+                tau_result = fit_expdecay_3_parameters(collect(lags), acf; dims=dims)
+            end
             if (tau_result isa Vector) && (length(tau_result) == 1)
                 result[tau_idx] = tau_result[1]
             else
