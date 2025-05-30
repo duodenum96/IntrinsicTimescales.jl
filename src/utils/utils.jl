@@ -57,6 +57,31 @@ function residual_expdecay!(du, u, p)
 end
 
 """
+    expdecay_3_parameters(p, lags)
+
+Compute exponential decay function with amplitude and offset parameters. 
+This is used in `acw` with the setting `skip_zero_lag=true`. 
+
+# Arguments
+- `p::AbstractVector`: Parameters [A, tau, B] where:
+  * A: Amplitude parameter
+  * tau: Timescale parameter 
+  * B: Offset parameter
+- `lags::AbstractVector`: Time lags
+
+# Returns
+- Vector of A*(exp(-t/tau) + B) values
+"""
+function expdecay_3_parameters(p, lags)
+    return p[1]*(exp.(- (lags/p[2]) ) + p[3])
+end
+
+function residual_expdecay_3_parameters!(du, u, p)
+    du .= mean(abs2.(expdecay_3_parameters(p, u[1]) .- p[2]))
+    return nothing
+end
+
+"""
     fit_expdecay(lags, acf; dims=ndims(acf))
 
 Fit exponential decay to autocorrelation function.
@@ -85,6 +110,37 @@ end
 function fit_expdecay(lags::AbstractVector{T}, acf::AbstractArray{T};
                       dims::Int=ndims(acf)) where {T <: Real}
     f = x -> fit_expdecay(lags, vec(x))
+    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+end
+
+"""
+    fit_expdecay_3_parameters(lags, acf)
+
+Fit a 3-parameter exponential decay function to autocorrelation data ( A*(exp(-t/tau) + B) ). 
+Excludes lag 0 from fitting. 
+
+# Arguments
+- `lags::AbstractVector{T}`: Time lags
+- `acf::AbstractVector{T}`: Autocorrelation values
+
+# Returns
+- Fitted timescale parameter (tau)
+
+# Notes
+- Initial guess: A=0.5, tau from ACW50, B=0.0
+"""
+function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real}
+    u0 = [0.5, tau_from_acw50(acw50(lags, acf)), 0.0]
+    prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay_3_parameters!,
+                                                          resid_prototype=zeros(3)), u0,
+                                        p=[lags[2:end], acf[2:end]])
+    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.001, verbose=false) # TODO: Find a reasonable tolerance. 
+    return sol.u[2]
+end
+
+function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractArray{T};
+                                   dims::Int=ndims(acf)) where {T <: Real}
+    f = x -> fit_expdecay_3_parameters(lags, vec(x))
     return dropdims(mapslices(f, acf, dims=dims), dims=dims)
 end
 
