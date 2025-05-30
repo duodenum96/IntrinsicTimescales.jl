@@ -312,4 +312,96 @@ using Random
         end
     end
 
-end 
+    @testset "ACW skip_zero_lag Tests" begin
+        Random.seed!(123)
+        fs = 100.0
+        dt = 1/fs
+        duration = 10.0
+        tau = 0.2
+        
+        # Generate test data using OU process
+        data = generate_ou_process(tau, 1.0, dt, duration, 1)[:]
+
+        @testset "Basic skip_zero_lag functionality" begin
+            
+            result_false = acw(data, fs, acwtypes=:tau, skip_zero_lag=false)
+            @test !isnothing(result_false.acw_results)
+            @test isfinite(result_false.acw_results)
+            
+            # Test that skip_zero_lag=true works
+            result_true = acw(data, fs, acwtypes=:tau, skip_zero_lag=true)
+            @test !isnothing(result_true.acw_results)
+            @test isfinite(result_true.acw_results)
+            
+            # Results should be similar
+            @test isapprox(result_false.acw_results, result_true.acw_results, rtol=0.5)
+        end
+
+        @testset "skip_zero_lag with multi-dimensional data" begin
+            # Test with 2D data
+            data_2d = generate_ou_process(tau, 1.0, dt, duration, 3)
+            
+            result_2d_false = acw(data_2d, fs, acwtypes=:tau, dims=2, skip_zero_lag=false)
+            result_2d_true = acw(data_2d, fs, acwtypes=:tau, dims=2, skip_zero_lag=true)
+            
+            @test length(result_2d_false.acw_results) == 3
+            @test length(result_2d_true.acw_results) == 3
+            @test all(isfinite.(result_2d_false.acw_results))
+            @test all(isfinite.(result_2d_true.acw_results))
+            
+            for i in 1:3
+                @test isapprox(result_2d_false.acw_results[i], result_2d_true.acw_results[i], rtol=0.5)
+            end
+            
+            # Test with 3D data
+            data_3d = cat(data_2d, data_2d, dims=3)
+            result_3d_false = acw(data_3d, fs, acwtypes=:tau, dims=2, skip_zero_lag=false)
+            result_3d_true = acw(data_3d, fs, acwtypes=:tau, dims=2, skip_zero_lag=true)
+            
+            @test size(result_3d_false.acw_results) == (3, 2)
+            @test size(result_3d_true.acw_results) == (3, 2)
+            @test all(isfinite.(result_3d_false.acw_results))
+            @test all(isfinite.(result_3d_true.acw_results))
+        end
+
+        @testset "skip_zero_lag with missing data" begin
+            # Test skip_zero_lag with missing data
+            missing_data = copy(data)
+            missing_indices = rand(1:length(data), 100)
+            missing_data[missing_indices] .= NaN
+            
+            result_missing_false = acw(missing_data, fs, acwtypes=:tau, skip_zero_lag=false)
+            result_missing_true = acw(missing_data, fs, acwtypes=:tau, skip_zero_lag=true)
+            
+            @test isfinite(result_missing_false.acw_results)
+            @test isfinite(result_missing_true.acw_results)
+            
+            # Both should estimate tau reasonably despite missing data
+            @test isapprox(result_missing_false.acw_results, tau, rtol=0.5)
+            @test isapprox(result_missing_true.acw_results, tau, rtol=0.5)            
+        end
+
+        @testset "skip_zero_lag with very low sampling rates" begin
+            # Test scenario where skip_zero_lag might be more beneficial (like fMRI data)
+            fs_low = 1.0  # 1 Hz sampling rate (like fMRI)
+            dt_low = 1/fs_low
+            duration_low = 300.0  # 5 minutes
+            tau = 1.0
+            
+            # Generate data with lower sampling rate
+            data_low_fs = generate_ou_process(tau, 1.0, dt_low, duration_low, 1)[:]
+            
+            result_low_false = acw(data_low_fs, fs_low, acwtypes=:tau, skip_zero_lag=false)
+            result_low_true = acw(data_low_fs, fs_low, acwtypes=:tau, skip_zero_lag=true)
+            
+            @test isfinite(result_low_false.acw_results)
+            @test isfinite(result_low_true.acw_results)
+            
+            # Both should provide reasonable estimates
+            @test isapprox(result_low_false.acw_results, tau, rtol=0.5)
+            @test isapprox(result_low_true.acw_results, tau, rtol=0.5)
+        end
+
+    end
+
+end

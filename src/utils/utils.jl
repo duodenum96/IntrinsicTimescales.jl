@@ -22,7 +22,7 @@ using OptimizationOptimJL
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
        acw50, acw50_analytical, acw0, acweuler, tau_from_acw50, tau_from_knee,
-       knee_from_tau, acw_romberg
+       knee_from_tau, acw_romberg, expdecay_3_parameters, fit_expdecay_3_parameters
 
 """
     expdecay(tau, lags)
@@ -73,11 +73,11 @@ This is used in `acw` with the setting `skip_zero_lag=true`.
 - Vector of A*(exp(-t/tau) + B) values
 """
 function expdecay_3_parameters(p, lags)
-    return p[1]*(exp.(- (lags/p[2]) ) + p[3])
+    return p[1]*(exp.(- (lags ./ p[2]) ) .+ p[3])
 end
 
 function residual_expdecay_3_parameters!(du, u, p)
-    du .= mean(abs2.(expdecay_3_parameters(p, u[1]) .- p[2]))
+    du .= mean(abs2.(expdecay_3_parameters(u, p[1]) .- p[2]))
     return nothing
 end
 
@@ -132,7 +132,7 @@ Excludes lag 0 from fitting.
 function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real}
     u0 = [0.5, tau_from_acw50(acw50(lags, acf)), 0.0]
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay_3_parameters!,
-                                                          resid_prototype=zeros(3)), u0,
+                                                          resid_prototype=zeros(1)), u0,
                                         p=[lags[2:end], acf[2:end]])
     sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.001, verbose=false) # TODO: Find a reasonable tolerance. 
     return sol.u[2]
