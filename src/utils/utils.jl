@@ -168,7 +168,12 @@ Compute the ACW50 (autocorrelation width at 50%) along specified dimension.
 """
 function acw50(lags::AbstractVector{T}, acf::AbstractVector{T};
                dims::Int=ndims(acf)) where {T <: Real}
-    lags[findfirst(acf .<= 0.5)]
+    if any(acf .<= 0.5)
+        return lags[findfirst(acf .<= 0.5)]
+    else
+        @warn "No 50% crossings found in ACF. Returning NaN."
+        return NaN
+    end
 end
 
 function acw50(lags::AbstractVector{T}, acf::AbstractArray{T};
@@ -227,7 +232,12 @@ Compute the ACW at 1/e (≈ 0.368) along specified dimension.
 """
 function acweuler(lags::AbstractVector{T},
                   acf::AbstractVector{S}) where {T <: Real, S <: Real}
-    lags[findfirst(acf .<= 1 / ℯ)]
+    if any(acf .<= 1 / ℯ)
+        return lags[findfirst(acf .<= 1 / ℯ)]
+    else
+        @warn "No 1/e crossings found in ACF. Returning NaN."
+        return NaN
+    end
 end
 
 function acweuler(lags::AbstractVector{T}, acf::AbstractArray{S};
