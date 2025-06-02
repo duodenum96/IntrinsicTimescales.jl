@@ -6,7 +6,8 @@ Performed via the function `acw` in IntrinsicTimescales.jl. The `acw` function c
 acwresults = acw(data, fs; acwtypes=[:acw0, :acw50, :acweuler, :auc, :tau, :knee], 
                 n_lags=nothing, freqlims=nothing, dims=ndims(data), 
                 return_acf=true, return_psd=true, 
-                average_over_trials=false, trial_dims=setdiff([1, 2], dims)[1],
+                average_over_trials=false, trial_dims=setdiff([1, 2], dims)[1], 
+                skip_zero_lag=false,
                 max_peaks=1, oscillation_peak::Bool=true,
                 allow_variable_exponent::Bool=false,
                 constrained::Bool=false)
@@ -54,11 +55,11 @@ Supported ACW types:
 
 `:acweuler`: The lag where autocorrelation function crosses ``1/e``. Corresponds to the inverse decay rate of an exponential decay function. 
 
-`:tau`: Fit an exponential decay function ``e^{\frac{t}{\tau}}`` to the autocorrelation function and extract ``\tau``, which is the inverse decay rate. 
+`:tau`: Fit an exponential decay function ``e^{\frac{t}{\tau}}`` to the autocorrelation function and extract ``\tau``, which is the inverse decay rate. The parameter `skip_zero_lag` is used to specify whether to skip the zero lag for fitting an exponential decay function. When zero-lag is skipped, the function fits an exponential decay of the form ``A (exp(-lags / tau) + B)`` where A is the amplitude and B is the offset. See below for details and references. 
 
 `:auc`: Calculate the area under the autocorrelation function from lag 0 to the lag where autocorrelation function crosses 0. 
 
-`:knee`: Fit a lorentzian function ``\frac{A}{1 + (f/a)^2}`` to the power spectrum using an iterative FOOOF-style approach. By Wiener-Khinchine theorem, this is the power spectrum of a time-series with an autocorrelation function of exponential decay form. The parameter ``a`` corresponds to the knee frequency. ``\tau`` and ``a`` has the relationship ``\tau = \frac{1}{2 \pi a}``. The `:knee` method uses this relationship to estimate ``\tau`` from the knee frequency. In practice, first, an initial lorentzian fit is performed. Then, any oscillatory peaks are identified and fitted with gaussian functions. These gaussians are subtracted from the original power spectrum to ensure the remaining PSD is closer to a Lorentzian, and a final Lorentzian is fit to this "cleaned" spectrum. You can set the maximum number of oscillatory peaks to fit with the `max_peaks` argument. The argument `oscillation_peak` is used to specify whether to fit the oscillatory peaks or not. If set to `false`, just fit a Lorentzian and return the timescale estimated from the knee frequency. 
+`:knee`: Fit a lorentzian function ``\frac{A}{1 + (f/a)^2}`` to the power spectrum using an iterative FOOOF-style approach. By Wiener-Khinchine theorem, this is the power spectrum of a time-series with an autocorrelation function of exponential decay form. The parameter ``a`` corresponds to the knee frequency. ``\tau`` and ``a`` has the relationship ``\tau = \frac{1}{2 \pi a}``. The `:knee` method uses this relationship to estimate ``\tau`` from the knee frequency. In practice, first, an initial lorentzian fit is performed. Then, any oscillatory peaks are identified and fitted with gaussian functions. These gaussians are subtracted from the original power spectrum to ensure the remaining PSD is closer to a Lorentzian, and a final Lorentzian is fit to this "cleaned" spectrum. `freqlims` is used to specify the frequency limits to fit the lorentzian function. You can set the maximum number of oscillatory peaks to fit with the `max_peaks` argument. The argument `oscillation_peak` is used to specify whether to fit the oscillatory peaks or not. If set to `false`, just fit a Lorentzian and return the timescale estimated from the knee frequency. The parameter `allow_variable_exponent` is used to specify whether to allow a variable exponent in the lorentzian fit (i.e. ``b`` in ``\frac{A}{1 + (f/a)^b}``). This might be useful for cases where the power spectrum does not conform to a simple Lorentzian. The parameter `constrained` is used to specify whether to use constrained optimization when fitting a lorentzian to the PSD for knee frequency estimation (see below). 
 
 * `n_lags`: An integer. Only used when `:tau` is in `acwtypes`. The number of lags to be used for fitting an exponential decay function. 
 
@@ -84,6 +85,8 @@ result = acw(data, fs; dims=2, average_over_trials=true, trial_dims=3)
 ```
 
 * `trial_dims`: Dimension of trials to average over. See above (`average_over_trials`) for explanation. An integer.
+
+* `skip_zero_lag`: Whether or not to skip the zero lag for fitting an exponential decay function. Default is `false`. If true, the function will fit an exponential decay of the form ``A (exp(-lags / tau) + B)`` where A is the amplitude and B is the offset. This can be useful for cases with very low sampling rate (e.g. fMRI). The technique is used in [Ito et al., 2020](https://www.sciencedirect.com/science/article/pii/S1053811920306273) and [Murray et al., 2014](https://www.nature.com/articles/nn.3862). 
 
 * `max_peaks`: Maximum number of oscillatory peaks to fit when cleaning the PSD for knee frequency estimation. Default is 1. 
 

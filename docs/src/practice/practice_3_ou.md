@@ -75,7 +75,7 @@ plot(p1, p2, size=(800,400))
 
 ![](assets/practice_3_2.svg)
 
-Note that the numerical ACF estimate decays consistenly faster than the analytical ground truth. The difference between the numerical estimate and analytical one increases as timescale increases. This is a limitation of finite data. As long as your data is finite and has a sampling rate that is not infinitesimally small, you will underestimate the INT. We will address this problem in the [final tutorial of Practice]. 
+Note that the numerical ACF estimate decays consistenly faster than the analytical ground truth. The difference between the numerical estimate and analytical one increases as timescale increases. This is a limitation of finite data. As long as your data is finite and has a sampling rate that is not infinitesimally small, you will underestimate the INT. We will address this problem in the [final tutorial of Practice](practice_5_bayesian.md). 
 
 The good thing is even though we are underestimating the INT, the ACF of the long timescale process still decays slower than the short timescale one. 
 
@@ -112,5 +112,19 @@ println("ACW-e estimate of long timescale: $(acw_e_long)")
 println("Curve-fitting estimate of long timescale: $(acw_tau_long)")
 # 0.02
 ```
+
+There is one note I should mention before closing: it is possible to skip the zero-lag in the ACF when fitting the exponential decay function. Since the zero-lag is always 1, it doesn't carry any information about the timescale. Especially for cases where sampling rate is very low (I'm talking about fMRI, a TR=1 fMRI data has a sampling rate of 1 Hz), the ACF usually decays from 1 (lag 0) to somewhere around 0.3 to 0.6 (lag 1) which makes the fitting noisier. By reparametrizing the ACF as 
+
+```math
+\textrm{ACF}(l) = A (e^{-\frac{l}{\tau}} + B)
+```
+
+where ``A`` is the amplitude and ``B`` is the offset, we can fit the ACF much more reliably. This is what `skip_zero_lag` is for. An example usage is 
+
+```julia
+acw_results = acw(data_short_ts, fs, acwtypes=:tau, skip_zero_lag=true)
+```
+
+Even though we introduced two more parameters to fit, this estimation is much more reliable. This method is used in [Ito et al., 2020](https://www.sciencedirect.com/science/article/pii/S1053811920306273) and [Murray et al., 2014](https://www.nature.com/articles/nn.3862). For more details about estimating timescales in fMRI data, see [Bonus Practice: The delicate case of fMRI data](practice_6_fmri.md). 
 
 So far, we always assumed that the ACF is a nice exponential decay. This is rarely the case for EEG/MEG data where oscillatory brain activity (alpha oscillations for example) makes a considerable impact on ACF. We will learn how to deal with it in the next section. 
