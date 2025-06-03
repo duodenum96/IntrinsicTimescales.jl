@@ -25,10 +25,12 @@ makedocs(sitename="IntrinsicTimescales.jl",
                  "Model Fitting and Parameters" => "fit_parameters.md",
                  "Results" => "fit_result.md"
              ]],
-             "API" => "index.md"],
+             "API" => "index.md",
              "Citations" => "citations.md",
              "Contributing" => "contributing.md",
-             "Developer Documentation" => "developer.md")
+             "Developer Documentation" => "developer.md"]
+             ),
+
 
 
 # Documenter can also automatically deploy documentation to gh-pages.
