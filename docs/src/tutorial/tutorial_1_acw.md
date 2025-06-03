@@ -89,11 +89,31 @@ Yes for fMRI, no for EEG / MEG.
 
 ## Should I `allow_variable_exponent`?
 
-This is an engineering problem. If we allow variable exponent, we are adding one more parameter to estimate which makes the fitting more difficult and in practice, most EEG / MEG spectra have a power law exponent of approximately 2. But in the cases where this is not correct, it is necessary to allow variable exponent. My recommendation is to plot the result using `acwplot` and see if the knee frequency is correctly estimated (check vertical line) visually. In the next version of IntrinsicTimescales.jl (v0.6.0), I'll add more diagnostic plotting capabilities which will make this process much smoother. Meanwhile also consider using the python package [FOOOF](https://fooof-tools.github.io/fooof/) which is not an INT toolbox but can estimate INTs using the knee frequency method. In fact, the `:knee` option in IntrinsicTimescales.jl is trying to mimic FOOOF package's behavior, with slight differences (e.g. using SciML environment as opposed to SciPy). 
+This is an engineering problem. If we allow variable exponent, we are adding one more parameter to estimate which makes the fitting more difficult and in practice, most EEG / MEG spectra have a power law exponent of approximately 2. But in the cases where this is not correct, it is necessary to allow variable exponent. My recommendation is to plot the result using `acwplot` and see if the knee frequency is correctly estimated (check vertical line) visually. In the next version of IntrinsicTimescales.jl (v0.6.0), I'll add more diagnostic plotting capabilities which will make this process much smoother. Meanwhile also consider using the python package [FOOOF](https://fooof-tools.github.io/fooof/) which is not a general INT toolbox but can estimate INTs using the knee frequency method. In fact, the `:knee` option in IntrinsicTimescales.jl is trying to mimic FOOOF package's behavior, with slight differences (e.g. using SciML environment as opposed to SciPy). 
 
-## Should I 
+## Should I set `constrained=true`?
+
+In certain cases it might be beneficial to set `constrained` to `true` for `:knee`. This effectively sets bounds on the values each parameter can take. But in my experience, NonlinearSolve.jl (which is the engine behind `constrained=false`) performs better than Optimization.jl (which is used when `constrained=true`) (note that this is entirely anecdotal). Furthermore, if the fitting is problematic and gives unreasonable results (such as negative timescales), I would first look at the PSDs to see if they are indeed Lorentzian shaped (i.e. in the log-log space they start out as a flat line and then decay with a slope of -2). Most of the time, computational problems are actually model problems, in the sense of using the wrong model (see [Folk Theorem of Statistical Computing](https://statmodeling.stat.columbia.edu/2008/05/13/the_folk_theore/)). 
+
+Some practical advices in this case: 1) `average_over_trials` if you haven't done so. This results in a smoother PSD which is more amenable to fitting. 2) Check your lower frequency limit in the PSD. Remember that your PSD should look like a Lorentzian, the low frequency section should be flat. If the full PSD is just a line (i.e. scale-free), `:knee` can not be used. 3) Check the length of each of your trials. Let's assume that during the preprocessing stage you applied a high-pass filter of 1 Hz. As a rule of thumb, you should contain at least 3 cycles of the lowest frequency in your data for each trial. This means that you should have at least 3 seconds of data in each trial. Nonetheless, it will still be quite noisy. I suggest at least 10 seconds per trial. If your timescale is at, say, 3 Hz and your data is only 1 second, you will barely see the knee frequency in your PSD and wrongly conclude that your data is scale-free. 
+
+## When to use Bayesian methods?
+
+Bayesian methods are very novel and experimental. They can work terrificly good especially in the case of short data and missing samples. But they come at a cost of significantly increased computation time. I would consider them in cutting-edge research, for example, an experimental scenario where you have to compare timescales of two different conditions with different trial lengths (standard ACF / PSD based methods can be sensitive to data length). In any case, don't forget to do posterior predictive check if you are using Bayesian methods. 
 
 ## Can I calculate INTs in task trials (ERP/ERF/ASSR and so on)?
 
 No. Both ACF and PSD assume stationarity. Task trials are nonstationary (i.e. the signal's mean value is changing over time). I would recommend calculating INTs only in resting state or continuous tasks such as listening to a story or some continuous behavioral tasks (see [Manea et al., 2022](https://elifesciences.org/articles/75540) or [Çatal et al., 2024](https://www.nature.com/articles/s42003-024-07349-1)). 
+
+## TL;DR
+
+- Don't use ACW-0 for anything serious.
+- There is no one-size-fits-all method. Experiment with different measures and most importantly, look at your data. 
+- If there are strong oscillatory components in your PSD, consider using `:knee`.
+- If your sampling rate is very low (fMRI), consider using `:tau` with `skip_zero_lag` or `:auc`.
+- If you have trials, `average_over_trials`. 
+- If your knee frequencies are at the wrong place after visual inspection, consider using `allow_variable_exponent`. 
+- Look at your PSD before setting `constrained=true`. 
+- If you are considering using Bayesian methods, make sure to check the posteriors. 
+- Calculate INTs only in stationary data. 
 
