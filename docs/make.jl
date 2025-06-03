@@ -14,6 +14,7 @@ makedocs(sitename="IntrinsicTimescales.jl",
          "practice/practice_5_bayesian.md"
          ],
          "Theory" => "theory/theory.md",
+         "Navigating the Forest of INT Metrics" => "tutorial/tutorial_1_acw.md",
          "Implementation" => Any[
             "Model-Free Timescale Estimation" => "acw.md",
              "Simulation Based Timescale Estimation" => ["Overview" => "simbasedinference.md",
@@ -24,7 +25,12 @@ makedocs(sitename="IntrinsicTimescales.jl",
                  "Model Fitting and Parameters" => "fit_parameters.md",
                  "Results" => "fit_result.md"
              ]],
-             "API" => "index.md"])
+             "API" => "index.md",
+             "Citations" => "citations.md",
+             "Contributing" => "contributing.md",
+             "Developer Documentation" => "developer.md"]
+             ),
+
 
 
 # Documenter can also automatically deploy documentation to gh-pages.
