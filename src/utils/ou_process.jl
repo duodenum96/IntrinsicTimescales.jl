@@ -20,7 +20,7 @@ import SciMLBase
 export generate_ou_process, generate_ou_with_oscillation, generate_ou_process_sciml
 
 """
-    generate_ou_process(tau, true_D, dt, duration, num_trials; standardize=true)
+    generate_ou_process(tau, true_D, dt, duration, num_trials; standardize=true, rng=Random.default_rng(), deq_seed=nothing)
 
 Generate an Ornstein-Uhlenbeck process with a single timescale
 

@@ -375,7 +375,7 @@ function lorentzian_initial_guess(psd::AbstractVector{<:Real},
 end
 
 """
-    find_knee_frequency(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end])
+    find_knee_frequency(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end], constrained=false, allow_variable_exponent=false)
 
 Find knee frequency by fitting Lorentzian to power spectral density.
 

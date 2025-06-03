@@ -101,7 +101,7 @@ Fields of the ACWResults structure:
 function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
              dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
              trial_dims::Int=setdiff([1, 2], dims)[1], skip_zero_lag::Bool=false, max_peaks::Int=1, oscillation_peak::Bool=true,
-             allow_variable_exponent::Bool=false)
+             allow_variable_exponent::Bool=false, constrained::Bool=false)
 
     missingmask = ismissing.(data)
     if any(missingmask)
@@ -241,7 +241,7 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         knee_result = tau_from_knee(fooof_fit(psd, freqs; dims=dims, min_freq=freqlims[1], 
                                              max_freq=freqlims[2], oscillation_peak=oscillation_peak, 
                                              max_peaks=max_peaks, return_only_knee=true,
-                                             allow_variable_exponent=allow_variable_exponent))
+                                             allow_variable_exponent=allow_variable_exponent, constrained=constrained))
         if (knee_result isa Vector) && (length(knee_result) == 1)
             result[knee_idx] = knee_result[1]
         else
