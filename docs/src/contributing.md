@@ -1,4 +1,4 @@
-# [Contributing guidelines](@id contributing)
+# [Contributing Guidelines](@id contributing)
 
 First of all, thanks for the interest!
 
@@ -6,7 +6,7 @@ We welcome all kinds of contribution, including, but not limited to code, docume
 
 Needless to say, be polite and respectful when interacting with strangers while you are contributing. Currently, IntrinsicTimescales.jl is maintained by only one person, it would be great to have other developers / contributers. Therefore please be patient if I can't address your problems in a timely manner. 
 
-## Bug reports and discussions
+## Bug reports and issues
 
 If you think you found a bug, feel free to open an [issue](https://github.com/duodenum96/IntrinsicTimescales.jl/issues).
 Focused suggestions and requests can also be opened as issues.
@@ -22,7 +22,7 @@ Otherwise, say what your proposed solution is and wait for a discussion around i
     Feel free to ping us after a few days if there are no responses.
 
 If your solution involves code (or something that requires running the package locally), check the [developer documentation](developer.md).
-Otherwise, you can use the GitHub interface directly to create your pull request.
+Otherwise, you can use the GitHub interface directly to create your pull request. You can contact me directly at catalyasir@gmail.com if you need any help navigating the codebase. 
 
 ## Discussions
 

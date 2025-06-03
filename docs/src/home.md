@@ -58,7 +58,7 @@ The remaining two parts are to understand the motivation to use various methods 
 
 ## Getting Help and Making Contributions
 
-Questions and contributions are welcome. Use the [issues section of our github page](https://github.com/duodenum96/IntrinsicTimescales.jl/issues) to report bugs, make feature requests, ask questions or tackle the issues by making pull requests. 
+Questions and contributions are welcome. Use the [issues section of our github page](https://github.com/duodenum96/IntrinsicTimescales.jl/issues) to report bugs and make feature requests and ask questions. Please see [Contributing Guidelines](contributing.md) before contributing. 
 
 ## Statement of Need
 
