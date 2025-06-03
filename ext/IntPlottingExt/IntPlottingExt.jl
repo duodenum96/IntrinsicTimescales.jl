@@ -78,6 +78,8 @@ function IntrinsicTimescales.acwplot(acwresults::ACWResults; only_acf::Bool=fals
               xlabel="Frequency (Hz)", ylabel="Power",
               title="Power Spectral Density",
               xscale=:log10, yscale=:log10)
+        knee_idx = findfirst(acwresults.acwtypes .== :knee)
+        vline!(p[current_plot], [knee_from_tau(acwresults.acw_results[knee_idx])], color=:red, label="")
     end
     if show
         display(p)
