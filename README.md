@@ -24,7 +24,11 @@ For model-free methods, simply use the `acw` function.
 
 ```julia
 using IntrinsicTimescales
-acwresults = acw(data, fs; acwtypes = [:acw0, :acw50, :acweuler, :auc, :tau, :knee]), dims=ndims(data))
+
+data = randn(10, 5000) # Data in the form of (trials x time) 
+fs = 100.0 # Sampling frequency
+
+acwresults = acw(data, fs; acwtypes = [:acw0, :acw50, :acweuler, :auc, :tau, :knee], dims=ndims(data))
 # or even simpler:
 acwresults = acw(data, fs)
 ```
@@ -35,6 +39,9 @@ symbols (indicated with `:`) telling which methods to use and `dims` is indicati
 For simulation based methods, pick one of the `one_timescale_model`, `one_timescale_with_missing_model`, `one_timescale_and_osc_model` and `one_timescale_and_osc_with_missing_model` functions. These models correspond to different generative models depending on whether there is an oscillation or not. For each generative model, there are with or without missing variants which use different ways to calculate ACF and PSD. Once you pick the model, the syntax is 
 
 ```julia
+data = randn(10, 5000) # Data in the form of (trials x time) 
+time = 1:5000 # Time vector
+
 model = one_timescale_model(data, time, :abc)
 result = int_fit(model)
 ```
