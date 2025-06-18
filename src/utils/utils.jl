@@ -12,12 +12,14 @@ Module providing utility functions for time series analysis, including:
 """
 module Utils
 
+using Revise
 using Statistics
 using NonlinearSolve
 using Logging
 using Romberg
 using Optimization
 using OptimizationOptimJL
+using OhMyThreads
 
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
@@ -73,7 +75,7 @@ This is used in `acw` with the setting `skip_zero_lag=true`.
 - Vector of A*(exp(-t/tau) + B) values
 """
 function expdecay_3_parameters(p, lags)
-    return p[1]*(exp.(- (lags ./ p[2]) ) .+ p[3])
+    return p[1] * (exp.(-(lags ./ p[2])) .+ p[3])
 end
 
 function residual_expdecay_3_parameters!(du, u, p)
@@ -108,9 +110,14 @@ function fit_expdecay(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T 
 end
 
 function fit_expdecay(lags::AbstractVector{T}, acf::AbstractArray{T};
-                      dims::Int=ndims(acf)) where {T <: Real}
+                      dims::Int=ndims(acf); parallel::Bool=false) where {T <: Real}
+    slices = get_slices(acf, dims=dims)
     f = x -> fit_expdecay(lags, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
@@ -129,7 +136,8 @@ Excludes lag 0 from fitting.
 # Notes
 - Initial guess: A=0.5, tau from ACW50, B=0.0
 """
-function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real}
+function fit_expdecay_3_parameters(lags::AbstractVector{T},
+                                   acf::AbstractVector{T}) where {T <: Real}
     u0 = [0.5, tau_from_acw50(acw50(lags, acf)), 0.0]
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay_3_parameters!,
                                                           resid_prototype=zeros(1)), u0,
@@ -139,9 +147,14 @@ function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractVector{
 end
 
 function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractArray{T};
-                                   dims::Int=ndims(acf)) where {T <: Real}
+                                   dims::Int=ndims(acf); parallel=false) where {T <: Real}
+    slices = get_slices(acf, dims=dims)
     f = x -> fit_expdecay_3_parameters(lags, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 acw50_analytical(tau) = -tau * log(0.5)
@@ -177,9 +190,14 @@ function acw50(lags::AbstractVector{T}, acf::AbstractVector{T};
 end
 
 function acw50(lags::AbstractVector{T}, acf::AbstractArray{T};
-               dims::Int=ndims(acf)) where {T <: Real}
+               dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real}
+    slices = get_slices(acf, dims=dims)
     f = x -> acw50(lags, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
@@ -209,9 +227,14 @@ function acw0(lags::AbstractVector{T}, acf::AbstractVector{S}) where {T <: Real,
 end
 
 function acw0(lags::AbstractVector{T}, acf::AbstractArray{S};
-              dims::Int=ndims(acf)) where {T <: Real, S <: Real}
+              dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real, S <: Real}
+    slices = get_slices(acf, dims=dims)
     f = x -> acw0(lags, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
@@ -241,9 +264,14 @@ function acweuler(lags::AbstractVector{T},
 end
 
 function acweuler(lags::AbstractVector{T}, acf::AbstractArray{S};
-                  dims::Int=ndims(acf)) where {T <: Real, S <: Real}
+                  dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real, S <: Real}
+    slices = get_slices(acf, dims=dims)
     f = x -> acweuler(lags, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
@@ -266,9 +294,14 @@ function acw_romberg(dt::Real, acf::AbstractVector{S}) where {S <: Real}
 end
 
 function acw_romberg(dt::Real, acf::AbstractArray{S};
-                     dims::Int=ndims(acf)) where {S <: Real}
+                     dims::Int=ndims(acf), parallel::Bool=false) where {S <: Real}
+    slices = get_slices(acf, dims=dims)
     f = x -> acw_romberg(dt, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
@@ -432,18 +465,20 @@ function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
     if constrained
         prob = OptimizationProblem(OptimizationFunction(function_to_minimize,
                                                         Optimization.AutoForwardDiff()),
-                                   u0, [freqs, psd], 
+                                   u0, [freqs, psd],
                                    lb=lb, ub=ub)
     else
         prob = NonlinearLeastSquaresProblem(NonlinearFunction(function_to_minimize,
-                                                              resid_prototype=resid_prototype), u0,
+                                                              resid_prototype=resid_prototype),
+                                            u0,
                                             p=[freqs, psd])
     end
 
     if constrained
         sol = Optimization.solve(prob, Optimization.LBFGS())
     else
-        sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.1, verbose=false)
+        sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.1,
+                                   verbose=false)
     end
     return sol.u
 end
@@ -452,10 +487,18 @@ function find_knee_frequency(psd::AbstractArray{T}, freqs::AbstractVector{T};
                              dims::Int=ndims(psd),
                              min_freq::T=freqs[1],
                              max_freq::T=freqs[end],
-                             allow_variable_exponent::Bool=false, constrained=false) where {T <: Real}
+                             allow_variable_exponent::Bool=false,
+                             constrained=false, parallel::Bool=false) where {T <: Real}
+    slices = get_slices(psd, dims=dims)
     f = x -> find_knee_frequency(vec(x), freqs; min_freq=min_freq, max_freq=max_freq,
-                                 allow_variable_exponent=allow_variable_exponent, constrained=constrained)
-    return mapslices(f, psd, dims=dims)
+                                 allow_variable_exponent=allow_variable_exponent,
+                                 constrained=constrained)
+
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
@@ -575,14 +618,19 @@ function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T};
                    max_peaks::Int=3,
                    return_only_knee::Bool=false,
                    allow_variable_exponent::Bool=false,
-                   constrained::Bool=false) where {T <: Real}
+                   constrained::Bool=false, parallel::Bool=false) where {T <: Real}
+    slices = get_slices(psd, dims=dims)
     f = x -> fooof_fit(vec(x), freqs,
                        min_freq=min_freq, max_freq=max_freq,
                        oscillation_peak=oscillation_peak,
                        max_peaks=max_peaks, return_only_knee=return_only_knee,
                        allow_variable_exponent=allow_variable_exponent,
                        constrained=constrained)
-    return dropdims(mapslices(f, psd, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
@@ -724,6 +772,11 @@ function fit_gaussian(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real}
 
     sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), abstol=5, verbose=false)
     return sol.u
+end
+
+function get_slices(x::AbstractArray{T}; dims::Int=ndims(x)) where {T}
+    slices = eachslice(x, dims=(setdiff(1:ndims(x), dims)...,))
+    return slices
 end
 
 end # module

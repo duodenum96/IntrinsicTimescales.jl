@@ -74,9 +74,15 @@ Compute autocorrelation using FFT along specified dimension.
 Array with autocorrelation values, the specified dimension becomes the dimension of lags while the other dimensions denote ACF values
 """
 function comp_ac_fft(data::AbstractArray{T}; dims::Real=ndims(data),
-                     n_lags::Real=size(data, dims)) where {T <: Real}
+                     n_lags::Real=size(data, dims), parallel::Bool=false) where {T <: Real}
+    
+    slices = Utils.get_slices(data, dims=dims)
     f = x -> comp_ac_fft(vec(x), n_lags=n_lags)
-    return mapslices(f, data, dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
@@ -103,7 +109,7 @@ function comp_psd(x::AbstractArray{T}, fs::Real;
                   method::String="periodogram",
                   window=dsp.hamming,
                   n=div(size(x, dims), 8),
-                  noverlap=div(n, 2)) where {T <: Real}
+                  noverlap=div(n, 2), parallel::Bool=false) where {T <: Real}
     # Create a wrapper function that only returns power
     f = x -> begin
         power, _ = comp_psd(vec(x), fs, method=method, window=window, n=n,
@@ -111,8 +117,14 @@ function comp_psd(x::AbstractArray{T}, fs::Real;
         return power
     end
 
+    slices = get_slices(x, dims=dims)
+
     # Apply the function along the specified dimension
-    power = mapslices(f, x, dims=dims)
+    if parallel
+        power = tmap(f, slices)
+    else
+        power =  map(f, slices)
+    end
 
     # Get a single time series for frequency calculation
     # Create indices to get first element along all dimensions except dims
@@ -163,9 +175,16 @@ Compute power spectral density using an automatic differentiation (AD) friendly 
 - `power`: Power spectral density values
 - `freqs`: Corresponding frequencies
 """
-function comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x))
+function comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x), parallel::Bool=false)
     f = x -> comp_psd_adfriendly(vec(x), fs)[1]
-    power = mapslices(f, x, dims=dims)
+
+    slices = get_slices(x, dims=dims)
+
+    if parallel
+        power = tmap(f, slices)
+    else
+        power = map(f, slices)
+    end
 
     # Get a single time series for frequency calculation
     idx = [i == dims ? (1:size(x, dims)) : 1 for i in 1:ndims(x)]
@@ -383,9 +402,15 @@ function comp_ac_time(data::Vector{T}; n_lags::Integer=length(data)) where {T <:
 end
 
 function comp_ac_time(data::AbstractArray{T}; dims::Int=ndims(data),
-                      n_lags::Integer=size(data, dims)) where {T <: Real}
+                      n_lags::Integer=size(data, dims), parallel::Bool=false) where {T <: Real}
+    
+    slices = get_slices(data, dims=dims)
     f = x -> comp_ac_time(vec(x), n_lags=n_lags)
-    return mapslices(f, data, dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
