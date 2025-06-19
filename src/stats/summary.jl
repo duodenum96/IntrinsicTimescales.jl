@@ -9,7 +9,8 @@ Includes functions for:
 - Special handling for missing data (NaN values)
 """
 module SummaryStats
-# using FFTW, Statistics
+
+using Revise
 using FFTW
 using Statistics
 using FastTransformsForwardDiff
@@ -18,6 +19,8 @@ import StatsBase as sb
 using Missings
 using LinearAlgebra
 import LombScargle as ls
+using OhMyThreads
+using IntrinsicTimescales.Utils: get_slices
 include("bat_autocor.jl")
 
 export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing,
@@ -76,12 +79,12 @@ Array with autocorrelation values, the specified dimension becomes the dimension
 function comp_ac_fft(data::AbstractArray{T}; dims::Real=ndims(data),
                      n_lags::Real=size(data, dims), parallel::Bool=false) where {T <: Real}
     
-    slices = Utils.get_slices(data, dims=dims)
+    slices = collect.(get_slices(data, dims=dims))
     f = x -> comp_ac_fft(vec(x), n_lags=n_lags)
     if parallel
-        return tmap(f, slices)
+        return stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        return map(f, slices)
+        return stack_and_reshape(map(f, slices), dims=dims)
     end
 end
 
@@ -117,13 +120,13 @@ function comp_psd(x::AbstractArray{T}, fs::Real;
         return power
     end
 
-    slices = get_slices(x, dims=dims)
+    slices = collect.(get_slices(x, dims=dims))
 
     # Apply the function along the specified dimension
     if parallel
-        power = tmap(f, slices)
+        power = stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        power =  map(f, slices)
+        power =  stack_and_reshape(map(f, slices), dims=dims)
     end
 
     # Get a single time series for frequency calculation
@@ -178,12 +181,12 @@ Compute power spectral density using an automatic differentiation (AD) friendly 
 function comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x), parallel::Bool=false)
     f = x -> comp_psd_adfriendly(vec(x), fs)[1]
 
-    slices = get_slices(x, dims=dims)
+    slices = collect.(get_slices(x, dims=dims))
 
     if parallel
-        power = tmap(f, slices)
+        power = stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        power = map(f, slices)
+        power = stack_and_reshape(map(f, slices), dims=dims)
     end
 
     # Get a single time series for frequency calculation
@@ -404,12 +407,12 @@ end
 function comp_ac_time(data::AbstractArray{T}; dims::Int=ndims(data),
                       n_lags::Integer=size(data, dims), parallel::Bool=false) where {T <: Real}
     
-    slices = get_slices(data, dims=dims)
+    slices = collect.(get_slices(data, dims=dims))
     f = x -> comp_ac_time(vec(x), n_lags=n_lags)
     if parallel
-        return tmap(f, slices)
+        return stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        return map(f, slices)
+        return stack_and_reshape(map(f, slices), dims=dims)
     end
 end
 
@@ -463,9 +466,15 @@ function comp_ac_time_missing(data::AbstractVector{T}; n_lags::Integer=length(da
 end
 
 function comp_ac_time_missing(data::AbstractArray{T}; dims::Int=ndims(data),
-                              n_lags::Integer=size(data, dims)) where {T <: Real}
+                              n_lags::Integer=size(data, dims), parallel::Bool=false) where {T <: Real}
+    
+    slices = collect.(get_slices(data, dims=dims))
     f = x -> comp_ac_time_missing(vec(x), n_lags=n_lags)
-    return mapslices(f, data, dims=dims)
+    if parallel
+        return stack_and_reshape(tmap(f, slices), dims=dims)
+    else
+        return stack_and_reshape(map(f, slices), dims=dims)
+    end
 end
 
 # The two functions below are Julia translations of the functions from statsmodels.tsa.stattools

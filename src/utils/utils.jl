@@ -110,13 +110,13 @@ function fit_expdecay(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T 
 end
 
 function fit_expdecay(lags::AbstractVector{T}, acf::AbstractArray{T};
-                      dims::Int=ndims(acf); parallel::Bool=false) where {T <: Real}
-    slices = get_slices(acf, dims=dims)
+                      dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real}
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> fit_expdecay(lags, vec(x))
     if parallel
-        return tmap(f, slices)
+        return stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        return map(f, slices)
+        return stack_and_reshape(map(f, slices), dims=dims)
     end
 end
 
@@ -147,13 +147,13 @@ function fit_expdecay_3_parameters(lags::AbstractVector{T},
 end
 
 function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractArray{T};
-                                   dims::Int=ndims(acf); parallel=false) where {T <: Real}
-    slices = get_slices(acf, dims=dims)
+                                   dims::Int=ndims(acf), parallel=false) where {T <: Real}
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> fit_expdecay_3_parameters(lags, vec(x))
     if parallel
-        return tmap(f, slices)
+        return stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        return map(f, slices)
+        return stack_and_reshape(map(f, slices), dims=dims)
     end
 end
 
@@ -191,12 +191,12 @@ end
 
 function acw50(lags::AbstractVector{T}, acf::AbstractArray{T};
                dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real}
-    slices = get_slices(acf, dims=dims)
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> acw50(lags, vec(x))
     if parallel
-        return tmap(f, slices)
+        return stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        return map(f, slices)
+        return stack_and_reshape(map(f, slices), dims=dims)
     end
 end
 
@@ -228,12 +228,12 @@ end
 
 function acw0(lags::AbstractVector{T}, acf::AbstractArray{S};
               dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real, S <: Real}
-    slices = get_slices(acf, dims=dims)
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> acw0(lags, vec(x))
     if parallel
-        return tmap(f, slices)
+        return stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        return map(f, slices)
+        return stack_and_reshape(map(f, slices), dims=dims)
     end
 end
 
@@ -265,12 +265,12 @@ end
 
 function acweuler(lags::AbstractVector{T}, acf::AbstractArray{S};
                   dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real, S <: Real}
-    slices = get_slices(acf, dims=dims)
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> acweuler(lags, vec(x))
     if parallel
-        return tmap(f, slices)
+        return stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        return map(f, slices)
+        return stack_and_reshape(map(f, slices), dims=dims)
     end
 end
 
@@ -295,12 +295,12 @@ end
 
 function acw_romberg(dt::Real, acf::AbstractArray{S};
                      dims::Int=ndims(acf), parallel::Bool=false) where {S <: Real}
-    slices = get_slices(acf, dims=dims)
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> acw_romberg(dt, vec(x))
     if parallel
-        return tmap(f, slices)
+        return stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        return map(f, slices)
+        return stack_and_reshape(map(f, slices), dims=dims)
     end
 end
 
@@ -489,15 +489,15 @@ function find_knee_frequency(psd::AbstractArray{T}, freqs::AbstractVector{T};
                              max_freq::T=freqs[end],
                              allow_variable_exponent::Bool=false,
                              constrained=false, parallel::Bool=false) where {T <: Real}
-    slices = get_slices(psd, dims=dims)
+    slices = collect.(get_slices(psd, dims=dims))
     f = x -> find_knee_frequency(vec(x), freqs; min_freq=min_freq, max_freq=max_freq,
                                  allow_variable_exponent=allow_variable_exponent,
                                  constrained=constrained)
 
     if parallel
-        return tmap(f, slices)
+        return stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        return map(f, slices)
+        return stack_and_reshape(map(f, slices), dims=dims)
     end
 end
 
@@ -619,7 +619,7 @@ function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T};
                    return_only_knee::Bool=false,
                    allow_variable_exponent::Bool=false,
                    constrained::Bool=false, parallel::Bool=false) where {T <: Real}
-    slices = get_slices(psd, dims=dims)
+    slices = collect.(get_slices(psd, dims=dims))
     f = x -> fooof_fit(vec(x), freqs,
                        min_freq=min_freq, max_freq=max_freq,
                        oscillation_peak=oscillation_peak,
@@ -627,9 +627,9 @@ function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T};
                        allow_variable_exponent=allow_variable_exponent,
                        constrained=constrained)
     if parallel
-        return tmap(f, slices)
+        return stack_and_reshape(tmap(f, slices), dims=dims)
     else
-        return map(f, slices)
+        return stack_and_reshape(map(f, slices), dims=dims)
     end
 end
 
@@ -774,9 +774,56 @@ function fit_gaussian(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real}
     return sol.u
 end
 
+##### Some helper functions
+
+"""
+    get_slices(x::AbstractArray{T}; dims::Int=ndims(x)) where {T}
+
+Get array slices along all dimensions except the specified one.
+
+# Arguments
+- `x::AbstractArray{T}`: Input array
+- `dims::Int=ndims(x)`: Dimension to exclude when taking slices
+
+# Returns
+- Iterator of array slices
+
+# Notes
+- Returns slices along all dimensions except `dims`
+- Each slice represents a view into the array with `dims` fixed
+"""
 function get_slices(x::AbstractArray{T}; dims::Int=ndims(x)) where {T}
     slices = eachslice(x, dims=(setdiff(1:ndims(x), dims)...,))
     return slices
+end
+
+"""
+    stack_and_reshape(slices; dims::Int)
+
+Reconstruct an array from slices by stacking and reshaping them back to original dimensions.
+
+# Arguments
+- `slices`: Iterator or collection of array slices (from `get_slices`)
+- `dims::Int`: Dimension along which the original slicing was performed (should be same as dims fed into `get_slices`)
+
+# Returns
+- Reconstructed array with proper dimension ordering
+
+# Example
+```julia
+# Split array into slices along dimension 2
+x = rand(3, 4, 5)
+slices = get_slices(x; dims=2)
+
+# Reconstruct original array
+x_reconstructed = stack_and_reshape(slices; dims=2)
+```
+"""
+function stack_and_reshape(slices; dims::Int=ndims(x))
+   n_dims = ndims(slices) + 1
+   permute_dims = [2:dims..., 1, (dims+1):n_dims...]
+   x_permuted = permutedims(stack(slices), permute_dims)
+   return x_permuted
 end
 
 end # module
