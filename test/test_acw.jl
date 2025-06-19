@@ -83,13 +83,18 @@ using Random
         num_trials = 2
         data_2d = generate_ou_process(tau, 1.0, dt, duration, num_trials)
         result = acw(data_2d, fs, acwtypes=:acw0, dims=1).acw_results
+        result_parallel = acw(data_2d, fs, acwtypes=:acw0, dims=1, parallel=true).acw_results
         @test length(result) == size(data_2d, 2)
+        @test length(result_parallel) == size(data_2d, 2)
+        @test all(isapprox.(result, result_parallel))
 
         # Create 3D data
         data_3d = cat(data_2d, data_2d, dims=3)
         result = acw(data_3d, fs, acwtypes=:acw0, dims=1).acw_results
+        result_parallel = acw(data_3d, fs, acwtypes=:acw0, dims=1, parallel=true).acw_results
         @test size(result) == (size(data_3d, 2), size(data_3d, 3))
-
+        @test size(result_parallel) == (size(data_3d, 2), size(data_3d, 3))
+        @test all(isapprox.(result, result_parallel))
 
         # Test correctness of results along different dimensions using OU processes
         fs = 100
@@ -114,17 +119,20 @@ using Random
 
         # Test ACW50 along dimension 1
         result_test = acw(data_test, fs, acwtypes=:acw50, dims=2).acw_results
+        result_test_parallel = acw(data_test, fs, acwtypes=:acw50, dims=2, parallel=true).acw_results
         @test size(result_test) == (3, 1) # Check output shape
         
         # Test if ACW50 values increase with increasing tau
         # ACW50 should be proportional to tau: acw50 ≈ -tau * log(0.5)
         @test result_test[1] < result_test[2] < result_test[3]
+        @test all(isapprox.(result_test, result_test_parallel))
         @test isapprox(result_test[1], -tau1 * log(0.5), rtol=0.5)
         @test isapprox(result_test[2], -tau2 * log(0.5), rtol=0.5)
         @test isapprox(result_test[3], -tau3 * log(0.5), rtol=0.5)
 
         # Test tau estimation directly
         result_tau = acw(data_test, fs, acwtypes=:tau, dims=2).acw_results
+        result_tau_parallel = acw(data_test, fs, acwtypes=:tau, dims=2, parallel=true).acw_results
         @test size(result_tau) == (3, 1)
         @test isapprox(result_tau[1], tau1, rtol=1.0)
         @test isapprox(result_tau[2], tau2, rtol=0.5)
@@ -133,10 +141,12 @@ using Random
         # Test along dimension 2
         data_test_perm = permutedims(data_test, (2, 1, 3))
         result_test_dim2 = acw(data_test_perm, fs, acwtypes=:tau, dims=1).acw_results
+        result_test_dim2_parallel = acw(data_test_perm, fs, acwtypes=:tau, dims=1, parallel=true).acw_results
         @test size(result_test_dim2) == (3, 1)
         @test isapprox(result_test_dim2[1], tau1, rtol=1.0)
         @test isapprox(result_test_dim2[2], tau2, rtol=0.5)
         @test isapprox(result_test_dim2[3], tau3, rtol=0.5)
+        @test all(isapprox.(result_test_dim2, result_test_dim2_parallel))
     end
     
     @testset "Missing Data Handling" begin
@@ -206,14 +216,19 @@ using Random
             end
             
             result_2d = acw(data_2d_missing, fs, acwtypes=:tau, dims=2).acw_results
+            result_2d_parallel = acw(data_2d_missing, fs, acwtypes=:tau, dims=2, parallel=true).acw_results
             @test length(result_2d) == size(data_2d, 1)
             @test all(isfinite.(result_2d))
+            @test all(isapprox.(result_2d, result_2d_parallel))
             
             # Create 3D data
             data_3d = cat(data_2d_missing, data_2d_missing, dims=3)
             result_3d = acw(data_3d, fs, acwtypes=:tau, dims=2).acw_results
+            result_3d_parallel = acw(data_3d, fs, acwtypes=:tau, dims=2, parallel=true).acw_results
             @test size(result_3d) == (size(data_3d, 1), size(data_3d, 3))
+            @test size(result_3d_parallel) == (size(data_3d, 1), size(data_3d, 3))
             @test all(isfinite.(result_3d))
+            @test all(isapprox.(result_3d, result_3d_parallel))
         end
         
         @testset "Lomb-Scargle PSD with Missing Data" begin
@@ -226,7 +241,7 @@ using Random
             
             # Generate clean data
             Random.seed!(456)
-            clean_data = vec(generate_ou_process(tau, true_D, dt, duration, 1))
+            clean_data = vec(generate_ou_process(tau, true_D, dt, duration, 1, rng=Xoshiro(69), deq_seed=69))
             
             # Create different missing data patterns
             random_missing = copy(clean_data)
@@ -281,8 +296,11 @@ using Random
             num_trials = 3
             data_2d = generate_ou_process(tau, 1.0, dt, duration, num_trials)
             result = acw(data_2d, fs, acwtypes=:auc, dims=2).acw_results
+            result_parallel = acw(data_2d, fs, acwtypes=:auc, dims=2, parallel=true).acw_results
             @test length(result) == num_trials
+            @test length(result_parallel) == num_trials
             @test all(x -> x > 0, result)  # All AUCs should be positive            
+            @test all(isapprox.(result, result_parallel))
         end
         
         @testset "AUC with missing data" begin
@@ -293,19 +311,21 @@ using Random
             
             result_clean = acw(data, fs, acwtypes=:auc).acw_results
             result_missing = acw(missing_data, fs, acwtypes=:auc).acw_results
-            
+            result_missing_parallel = acw(missing_data, fs, acwtypes=:auc, parallel=true).acw_results
             # Results should be similar despite missing data
             @test isapprox(result_missing[1], result_clean[1], rtol=0.2)
+            @test isapprox(result_missing_parallel[1], result_clean[1], rtol=0.2)
         end
         
         @testset "Multiple ACW measures including AUC" begin
             data = generate_ou_process(tau, 1.0, dt, duration, 1)[:]
             result = acw(data, fs, acwtypes=[:acw50, :auc, :tau]).acw_results
-            
+            result_parallel = acw(data, fs, acwtypes=[:acw50, :auc, :tau], parallel=true).acw_results
             @test length(result) == 3
+            @test length(result_parallel) == 3
             @test result[2] > 0  # AUC should be positive
             @test result[2] < duration  # AUC should be less than duration
-            
+            @test all(isapprox.(result, result_parallel))
             # AUC should be related to other timescale measures
             @test result[2] > result[1]  # AUC should be larger than ACW50
             @test isapprox(result[2], result[3], rtol=1.0)  # AUC should be roughly similar to tau
@@ -327,14 +347,15 @@ using Random
             result_false = acw(data, fs, acwtypes=:tau, skip_zero_lag=false)
             @test !isnothing(result_false.acw_results)
             @test isfinite(result_false.acw_results)
-            
+            result_false_parallel = acw(data, fs, acwtypes=:tau, skip_zero_lag=false, parallel=true)
             # Test that skip_zero_lag=true works
             result_true = acw(data, fs, acwtypes=:tau, skip_zero_lag=true)
             @test !isnothing(result_true.acw_results)
             @test isfinite(result_true.acw_results)
-            
+            result_true_parallel = acw(data, fs, acwtypes=:tau, skip_zero_lag=true, parallel=true)
             # Results should be similar
             @test isapprox(result_false.acw_results, result_true.acw_results, rtol=0.5)
+            @test isapprox(result_false_parallel.acw_results, result_true_parallel.acw_results, rtol=0.5)
         end
 
         @testset "skip_zero_lag with multi-dimensional data" begin
@@ -343,25 +364,32 @@ using Random
             
             result_2d_false = acw(data_2d, fs, acwtypes=:tau, dims=2, skip_zero_lag=false)
             result_2d_true = acw(data_2d, fs, acwtypes=:tau, dims=2, skip_zero_lag=true)
-            
+            result_2d_false_parallel = acw(data_2d, fs, acwtypes=:tau, dims=2, skip_zero_lag=false, parallel=true)
+            result_2d_true_parallel = acw(data_2d, fs, acwtypes=:tau, dims=2, skip_zero_lag=true, parallel=true)
             @test length(result_2d_false.acw_results) == 3
             @test length(result_2d_true.acw_results) == 3
             @test all(isfinite.(result_2d_false.acw_results))
             @test all(isfinite.(result_2d_true.acw_results))
-            
+            @test all(isapprox.(result_2d_false.acw_results, result_2d_false_parallel.acw_results))
+            @test all(isapprox.(result_2d_true.acw_results, result_2d_true_parallel.acw_results))
             for i in 1:3
                 @test isapprox(result_2d_false.acw_results[i], result_2d_true.acw_results[i], rtol=0.5)
+                @test isapprox(result_2d_false_parallel.acw_results[i], result_2d_true_parallel.acw_results[i], rtol=0.5)
             end
             
             # Test with 3D data
             data_3d = cat(data_2d, data_2d, dims=3)
             result_3d_false = acw(data_3d, fs, acwtypes=:tau, dims=2, skip_zero_lag=false)
             result_3d_true = acw(data_3d, fs, acwtypes=:tau, dims=2, skip_zero_lag=true)
-            
+            result_3d_false_parallel = acw(data_3d, fs, acwtypes=:tau, dims=2, skip_zero_lag=false, parallel=true)
+            result_3d_true_parallel = acw(data_3d, fs, acwtypes=:tau, dims=2, skip_zero_lag=true, parallel=true)
+
             @test size(result_3d_false.acw_results) == (3, 2)
             @test size(result_3d_true.acw_results) == (3, 2)
             @test all(isfinite.(result_3d_false.acw_results))
             @test all(isfinite.(result_3d_true.acw_results))
+            @test all(isapprox.(result_3d_false.acw_results, result_3d_false_parallel.acw_results))
+            @test all(isapprox.(result_3d_true.acw_results, result_3d_true_parallel.acw_results))
         end
 
         @testset "skip_zero_lag with missing data" begin
@@ -372,10 +400,14 @@ using Random
             
             result_missing_false = acw(missing_data, fs, acwtypes=:tau, skip_zero_lag=false)
             result_missing_true = acw(missing_data, fs, acwtypes=:tau, skip_zero_lag=true)
-            
+            result_missing_false_parallel = acw(missing_data, fs, acwtypes=:tau, skip_zero_lag=false, parallel=true)
+            result_missing_true_parallel = acw(missing_data, fs, acwtypes=:tau, skip_zero_lag=true, parallel=true)
+
             @test isfinite(result_missing_false.acw_results)
             @test isfinite(result_missing_true.acw_results)
-            
+            @test all(isapprox.(result_missing_false.acw_results, result_missing_false_parallel.acw_results))
+            @test all(isapprox.(result_missing_true.acw_results, result_missing_true_parallel.acw_results))
+
             # Both should estimate tau reasonably despite missing data
             @test isapprox(result_missing_false.acw_results, tau, rtol=0.5)
             @test isapprox(result_missing_true.acw_results, tau, rtol=0.5)            
@@ -393,10 +425,14 @@ using Random
             
             result_low_false = acw(data_low_fs, fs_low, acwtypes=:tau, skip_zero_lag=false)
             result_low_true = acw(data_low_fs, fs_low, acwtypes=:tau, skip_zero_lag=true)
-            
+            result_low_false_parallel = acw(data_low_fs, fs_low, acwtypes=:tau, skip_zero_lag=false, parallel=true)
+            result_low_true_parallel = acw(data_low_fs, fs_low, acwtypes=:tau, skip_zero_lag=true, parallel=true)
+
             @test isfinite(result_low_false.acw_results)
             @test isfinite(result_low_true.acw_results)
-            
+            @test all(isapprox.(result_low_false.acw_results, result_low_false_parallel.acw_results))
+            @test all(isapprox.(result_low_true.acw_results, result_low_true_parallel.acw_results))
+
             # Both should provide reasonable estimates
             @test isapprox(result_low_false.acw_results, tau, rtol=0.5)
             @test isapprox(result_low_true.acw_results, tau, rtol=0.5)
