@@ -12,12 +12,14 @@ Module providing utility functions for time series analysis, including:
 """
 module Utils
 
+using Revise
 using Statistics
 using NonlinearSolve
 using Logging
 using Romberg
 using Optimization
 using OptimizationOptimJL
+using OhMyThreads
 
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
@@ -73,7 +75,7 @@ This is used in `acw` with the setting `skip_zero_lag=true`.
 - Vector of A*(exp(-t/tau) + B) values
 """
 function expdecay_3_parameters(p, lags)
-    return p[1]*(exp.(- (lags ./ p[2]) ) .+ p[3])
+    return p[1] * (exp.(-(lags ./ p[2])) .+ p[3])
 end
 
 function residual_expdecay_3_parameters!(du, u, p)
@@ -82,7 +84,7 @@ function residual_expdecay_3_parameters!(du, u, p)
 end
 
 """
-    fit_expdecay(lags, acf; dims=ndims(acf))
+    fit_expdecay(lags, acf; dims=ndims(acf), parallel=false)
 
 Fit exponential decay to autocorrelation function.
 
@@ -90,6 +92,7 @@ Fit exponential decay to autocorrelation function.
 - `lags::AbstractVector{T}`: Time lags
 - `acf::AbstractArray{T}`: Autocorrelation values
 - `dims::Int=ndims(acf)`: Dimension along which to fit
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - Fitted timescale parameter(s)
@@ -108,13 +111,18 @@ function fit_expdecay(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T 
 end
 
 function fit_expdecay(lags::AbstractVector{T}, acf::AbstractArray{T};
-                      dims::Int=ndims(acf)) where {T <: Real}
+                      dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real}
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> fit_expdecay(lags, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
-    fit_expdecay_3_parameters(lags, acf)
+    fit_expdecay_3_parameters(lags, acf; parallel=false)
 
 Fit a 3-parameter exponential decay function to autocorrelation data ( A*(exp(-t/tau) + B) ). 
 Excludes lag 0 from fitting. 
@@ -122,6 +130,7 @@ Excludes lag 0 from fitting.
 # Arguments
 - `lags::AbstractVector{T}`: Time lags
 - `acf::AbstractVector{T}`: Autocorrelation values
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - Fitted timescale parameter (tau)
@@ -129,7 +138,8 @@ Excludes lag 0 from fitting.
 # Notes
 - Initial guess: A=0.5, tau from ACW50, B=0.0
 """
-function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real}
+function fit_expdecay_3_parameters(lags::AbstractVector{T},
+                                   acf::AbstractVector{T}) where {T <: Real}
     u0 = [0.5, tau_from_acw50(acw50(lags, acf)), 0.0]
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay_3_parameters!,
                                                           resid_prototype=zeros(1)), u0,
@@ -139,9 +149,14 @@ function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractVector{
 end
 
 function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractArray{T};
-                                   dims::Int=ndims(acf)) where {T <: Real}
+                                   dims::Int=ndims(acf), parallel=false) where {T <: Real}
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> fit_expdecay_3_parameters(lags, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 acw50_analytical(tau) = -tau * log(0.5)
@@ -150,7 +165,7 @@ tau_from_knee(knee) = 1.0 ./ (2.0 .* pi .* knee)
 knee_from_tau(tau) = 1.0 ./ (2.0 .* pi .* tau)
 
 """
-    acw50(lags, acf; dims=ndims(acf))
+    acw50(lags, acf; dims=ndims(acf), parallel=false)
 
 Compute the ACW50 (autocorrelation width at 50%) along specified dimension.
 
@@ -158,6 +173,7 @@ Compute the ACW50 (autocorrelation width at 50%) along specified dimension.
 - `lags::AbstractVector{T}`: Vector of lag values
 - `acf::AbstractArray{T}`: Array of autocorrelation values
 - `dims::Int=ndims(acf)`: Dimension along which to compute ACW50
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - First lag where autocorrelation falls below 0.5
@@ -177,13 +193,18 @@ function acw50(lags::AbstractVector{T}, acf::AbstractVector{T};
 end
 
 function acw50(lags::AbstractVector{T}, acf::AbstractArray{T};
-               dims::Int=ndims(acf)) where {T <: Real}
+               dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real}
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> acw50(lags, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
-    acw0(lags, acf; dims=ndims(acf))
+    acw0(lags, acf; dims=ndims(acf), parallel=false)
 
 Compute the ACW0 (autocorrelation width at zero crossing) along specified dimension.
 
@@ -191,6 +212,7 @@ Compute the ACW0 (autocorrelation width at zero crossing) along specified dimens
 - `lags::AbstractVector{T}`: Vector of lag values
 - `acf::AbstractArray{T}`: Array of autocorrelation values
 - `dims::Int=ndims(acf)`: Dimension along which to compute ACW0
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - First lag where autocorrelation crosses zero
@@ -209,13 +231,18 @@ function acw0(lags::AbstractVector{T}, acf::AbstractVector{S}) where {T <: Real,
 end
 
 function acw0(lags::AbstractVector{T}, acf::AbstractArray{S};
-              dims::Int=ndims(acf)) where {T <: Real, S <: Real}
+              dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real, S <: Real}
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> acw0(lags, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
-    acweuler(lags, acf; dims=ndims(acf))
+    acweuler(lags, acf; dims=ndims(acf), parallel=false)
 
 Compute the ACW at 1/e (≈ 0.368) along specified dimension.
 
@@ -223,6 +250,7 @@ Compute the ACW at 1/e (≈ 0.368) along specified dimension.
 - `lags::AbstractVector{T}`: Vector of lag values
 - `acf::AbstractVector{S}`: Array of autocorrelation values
 - `dims::Int=ndims(acf)`: Dimension along which to compute
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - First lag where autocorrelation falls below 1/e
@@ -241,19 +269,26 @@ function acweuler(lags::AbstractVector{T},
 end
 
 function acweuler(lags::AbstractVector{T}, acf::AbstractArray{S};
-                  dims::Int=ndims(acf)) where {T <: Real, S <: Real}
+                  dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real, S <: Real}
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> acweuler(lags, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
-    acw_romberg(dt, acf)
+    acw_romberg(dt, acf; dims=ndims(acf), parallel=false)
 
 Calculate the area under the curve of ACF using Romberg integration.
 
 # Arguments
 - `dt::Real`: Time step
 - `acf::AbstractVector`: Array of autocorrelation values
+- `dims::Int=ndims(acf)`: Dimension along which to compute
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - AUC of ACF
@@ -266,9 +301,14 @@ function acw_romberg(dt::Real, acf::AbstractVector{S}) where {S <: Real}
 end
 
 function acw_romberg(dt::Real, acf::AbstractArray{S};
-                     dims::Int=ndims(acf)) where {S <: Real}
+                     dims::Int=ndims(acf), parallel::Bool=false) where {S <: Real}
+    slices = collect.(get_slices(acf, dims=dims))
     f = x -> acw_romberg(dt, vec(x))
-    return dropdims(mapslices(f, acf, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
@@ -375,7 +415,7 @@ function lorentzian_initial_guess(psd::AbstractVector{<:Real},
 end
 
 """
-    find_knee_frequency(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end], constrained=false, allow_variable_exponent=false)
+    find_knee_frequency(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end], constrained=false, allow_variable_exponent=false, parallel=false)
 
 Find knee frequency by fitting Lorentzian to power spectral density.
 
@@ -387,6 +427,7 @@ Find knee frequency by fitting Lorentzian to power spectral density.
 - `max_freq::T=freqs[end]`: Maximum frequency to consider
 - `constrained::Bool=false`: Whether to use constrained optimization
 - `allow_variable_exponent::Bool=false`: Whether to allow variable exponent (PLE)
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - Vector of the fit  for the equation amp/(1 + (f/knee)^{exponent}). 
@@ -432,18 +473,20 @@ function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
     if constrained
         prob = OptimizationProblem(OptimizationFunction(function_to_minimize,
                                                         Optimization.AutoForwardDiff()),
-                                   u0, [freqs, psd], 
+                                   u0, [freqs, psd],
                                    lb=lb, ub=ub)
     else
         prob = NonlinearLeastSquaresProblem(NonlinearFunction(function_to_minimize,
-                                                              resid_prototype=resid_prototype), u0,
+                                                              resid_prototype=resid_prototype),
+                                            u0,
                                             p=[freqs, psd])
     end
 
     if constrained
         sol = Optimization.solve(prob, Optimization.LBFGS())
     else
-        sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.1, verbose=false)
+        sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.1,
+                                   verbose=false)
     end
     return sol.u
 end
@@ -452,15 +495,23 @@ function find_knee_frequency(psd::AbstractArray{T}, freqs::AbstractVector{T};
                              dims::Int=ndims(psd),
                              min_freq::T=freqs[1],
                              max_freq::T=freqs[end],
-                             allow_variable_exponent::Bool=false, constrained=false) where {T <: Real}
+                             allow_variable_exponent::Bool=false,
+                             constrained=false, parallel::Bool=false) where {T <: Real}
+    slices = collect.(get_slices(psd, dims=dims))
     f = x -> find_knee_frequency(vec(x), freqs; min_freq=min_freq, max_freq=max_freq,
-                                 allow_variable_exponent=allow_variable_exponent, constrained=constrained)
-    return mapslices(f, psd, dims=dims)
+                                 allow_variable_exponent=allow_variable_exponent,
+                                 constrained=constrained)
+
+    if parallel
+        return stack_and_reshape(tmap(f, slices), dims=dims)
+    else
+        return stack_and_reshape(map(f, slices), dims=dims)
+    end
 end
 
 """
     fooof_fit(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end], 
-              oscillation_peak=true, max_peaks=3, allow_variable_exponent=false, constrained=false)
+              oscillation_peak=true, max_peaks=3, allow_variable_exponent=false, constrained=false, parallel=false)
 
 Perform FOOOF-style fitting of power spectral density. The default behavior is to fit a Lorentzian with PLE = 2. 
 If allow_variable_exponent=true, the function will fit a Lorentzian with variable PLE. 
@@ -476,6 +527,8 @@ If allow_variable_exponent=true, the function will fit a Lorentzian with variabl
 - `return_only_knee::Bool=false`: Whether to return only knee frequency
 - `allow_variable_exponent::Bool=false`: Whether to allow variable exponent (PLE)
 - `constrained::Bool=false`: Whether to use constrained optimization
+- `parallel=false`: Whether to use parallel computation
+
 # Returns
 If return_only_knee=false:
 - Tuple of (knee_frequency, oscillation_parameters)
@@ -575,14 +628,19 @@ function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T};
                    max_peaks::Int=3,
                    return_only_knee::Bool=false,
                    allow_variable_exponent::Bool=false,
-                   constrained::Bool=false) where {T <: Real}
+                   constrained::Bool=false, parallel::Bool=false) where {T <: Real}
+    slices = collect.(get_slices(psd, dims=dims))
     f = x -> fooof_fit(vec(x), freqs,
                        min_freq=min_freq, max_freq=max_freq,
                        oscillation_peak=oscillation_peak,
                        max_peaks=max_peaks, return_only_knee=return_only_knee,
                        allow_variable_exponent=allow_variable_exponent,
                        constrained=constrained)
-    return dropdims(mapslices(f, psd, dims=dims), dims=dims)
+    if parallel
+        return tmap(f, slices)
+    else
+        return map(f, slices)
+    end
 end
 
 """
@@ -724,6 +782,58 @@ function fit_gaussian(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real}
 
     sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), abstol=5, verbose=false)
     return sol.u
+end
+
+##### Some helper functions
+
+"""
+    get_slices(x::AbstractArray{T}; dims::Int=ndims(x)) where {T}
+
+Get array slices along all dimensions except the specified one.
+
+# Arguments
+- `x::AbstractArray{T}`: Input array
+- `dims::Int=ndims(x)`: Dimension to exclude when taking slices
+
+# Returns
+- Iterator of array slices
+
+# Notes
+- Returns slices along all dimensions except `dims`
+- Each slice represents a view into the array with `dims` fixed
+"""
+function get_slices(x::AbstractArray{T}; dims::Int=ndims(x)) where {T}
+    slices = eachslice(x, dims=(setdiff(1:ndims(x), dims)...,))
+    return slices
+end
+
+"""
+    stack_and_reshape(slices; dims::Int)
+
+Reconstruct an array from slices by stacking and reshaping them back to original dimensions.
+
+# Arguments
+- `slices`: Iterator or collection of array slices (from `get_slices`)
+- `dims::Int`: Dimension along which the original slicing was performed (should be same as dims fed into `get_slices`)
+
+# Returns
+- Reconstructed array with proper dimension ordering
+
+# Example
+```julia
+# Split array into slices along dimension 2
+x = rand(3, 4, 5)
+slices = get_slices(x; dims=2)
+
+# Reconstruct original array
+x_reconstructed = stack_and_reshape(slices; dims=2)
+```
+"""
+function stack_and_reshape(slices; dims::Int=ndims(x))
+   n_dims = ndims(slices) + 1
+   permute_dims = [2:dims..., 1, (dims+1):n_dims...]
+   x_permuted = permutedims(stack(slices), permute_dims)
+   return x_permuted
 end
 
 end # module

@@ -169,20 +169,26 @@ end
         # 2D case (matrix)
         acf_2d = repeat(perfect_acf', 3, 1)  # 3 identical rows
         acw50_2d_cols = acw50(lags, acf_2d, dims=2)
+        acw50_2d_cols_parallel = acw50(lags, acf_2d, dims=2, parallel=true)
         @test length(acw50_2d_cols) == 3
         @test all(x -> isapprox(x, -tau * log(0.5), rtol=0.1), acw50_2d_cols)
+        @test all(x -> isapprox(x, -tau * log(0.5), rtol=0.1), acw50_2d_cols_parallel)
         
         # 2D case along rows
         acf_2d_t = acf_2d'  # transpose to test along rows
         acw50_2d_rows = acw50(lags, acf_2d_t, dims=1)
+        acw50_2d_rows_parallel = acw50(lags, acf_2d_t, dims=1, parallel=true)
         @test length(acw50_2d_rows) == size(acf_2d_t, 2)
         @test all(x -> isapprox(x, -tau * log(0.5), rtol=0.1), acw50_2d_rows)
-        
+        @test all(x -> isapprox(x, -tau * log(0.5), rtol=0.1), acw50_2d_rows_parallel)
+
         # 3D case
         acf_3d = repeat(perfect_acf, 1, 3, 2)  # 3×2 identical slices
         acw50_3d = acw50(lags, acf_3d, dims=1)
+        acw50_3d_parallel = acw50(lags, acf_3d, dims=1, parallel=true)
         @test size(acw50_3d) == (3, 2)
         @test all(x -> isapprox(x, -tau * log(0.5), rtol=0.1), acw50_3d)
+        @test all(x -> isapprox(x, -tau * log(0.5), rtol=0.1), acw50_3d_parallel)
     end
 
     @testset "fit_expdecay with different dimensions" begin
@@ -197,14 +203,18 @@ end
         # 2D case - multiple trials
         acf_2d = repeat(perfect_acf', 3, 1)  # 3 trials
         fitted_taus_2d = fit_expdecay(lags, acf_2d, dims=2)
+        fitted_taus_2d_parallel = fit_expdecay(lags, acf_2d, dims=2, parallel=true)
         @test length(fitted_taus_2d) == 3
         @test all(x -> isapprox(x, true_tau, rtol=0.1), fitted_taus_2d)
+        @test all(x -> isapprox(x, true_tau, rtol=0.1), fitted_taus_2d_parallel)
         
         # 3D case - multiple experiments
         acf_3d = repeat(perfect_acf, 1, 3, 2)  # 3×2 experiments
         fitted_taus_3d = fit_expdecay(lags, acf_3d, dims=1)
+        fitted_taus_3d_parallel = fit_expdecay(lags, acf_3d, dims=1, parallel=true)
         @test size(fitted_taus_3d) == (3, 2)
         @test all(x -> isapprox(x, true_tau, rtol=0.1), fitted_taus_3d)
+        @test all(x -> isapprox(x, true_tau, rtol=0.1), fitted_taus_3d_parallel)
     end
 
     @testset "find_knee_frequency with different dimensions" begin
@@ -220,14 +230,18 @@ end
         # 2D case - multiple trials
         psd_2d = repeat(perfect_psd', 3, 1)  # 3 trials
         detected_knees_2d = find_knee_frequency(psd_2d, freqs, dims=2)[:, 2]
+        detected_knees_2d_parallel = find_knee_frequency(psd_2d, freqs, dims=2, parallel=true)[:, 2]
         @test length(detected_knees_2d) == 3
         @test all(x -> isapprox(x, f_knee, rtol=0.1), detected_knees_2d)
+        @test all(x -> isapprox(x, f_knee, rtol=0.1), detected_knees_2d_parallel)
         
         # 3D case - multiple experiments
         psd_3d = repeat(perfect_psd, 1, 5, 6)  # 3×4 experiments (power x 5 x 6)
         detected_knees_3d = find_knee_frequency(psd_3d, freqs, dims=1)[2, :, :]
+        detected_knees_3d_parallel = find_knee_frequency(psd_3d, freqs, dims=1, parallel=true)[2, :, :]
         @test size(detected_knees_3d) == (5, 6)
         @test all(x -> isapprox(x, f_knee, rtol=0.1), detected_knees_3d)
+        @test all(x -> isapprox(x, f_knee, rtol=0.1), detected_knees_3d_parallel)
     end
 
     @testset "fooof_fit with different dimensions" begin
@@ -266,8 +280,18 @@ end
         # 2D case - multiple trials
         psd_2d = repeat(perfect_psd', 3, 1)
         results_2d = fooof_fit(psd_2d, freqs, dims=2, oscillation_peak=true, max_peaks=2)
+        results_2d_parallel = fooof_fit(psd_2d, freqs, dims=2, oscillation_peak=true, max_peaks=2, parallel=true)
         @test length(results_2d) == 3
+
         for result in results_2d
+            @test isapprox(result[1], f_knee, rtol=0.2)
+            @test length(result[2]) == 2  # Should find both peaks in each trial
+            peak_freqs = sort([p[1] for p in result[2]])
+            @test isapprox(peak_freqs[1], f_peak2, rtol=0.2)
+            @test isapprox(peak_freqs[2], f_peak1, rtol=0.2)
+        end
+
+        for result in results_2d_parallel
             @test isapprox(result[1], f_knee, rtol=0.2)
             @test length(result[2]) == 2  # Should find both peaks in each trial
             peak_freqs = sort([p[1] for p in result[2]])
@@ -278,8 +302,17 @@ end
         # 3D case - multiple experiments
         psd_3d = repeat(perfect_psd, 1, 3, 2)
         results_3d = fooof_fit(psd_3d, freqs, dims=1, oscillation_peak=true, max_peaks=2)
+        results_3d_parallel = fooof_fit(psd_3d, freqs, dims=1, oscillation_peak=true, max_peaks=2, parallel=true)
         @test size(results_3d) == (3, 2)
         for result in results_3d
+            @test isapprox(result[1], f_knee, rtol=0.2)
+            @test length(result[2]) == 2  # Should find both peaks in each experiment
+            peak_freqs = sort([p[1] for p in result[2]])
+            @test isapprox(peak_freqs[1], f_peak2, rtol=0.2)
+            @test isapprox(peak_freqs[2], f_peak1, rtol=0.2)
+        end
+
+        for result in results_3d_parallel
             @test isapprox(result[1], f_knee, rtol=0.2)
             @test length(result[2]) == 2  # Should find both peaks in each experiment
             peak_freqs = sort([p[1] for p in result[2]])
@@ -312,14 +345,18 @@ end
         # 2D case - multiple trials
         acf_2d = ones(length(lags), 3)  # 3 identical trials
         auc_2d = acw_romberg(dt, acf_2d, dims=1)
+        auc_2d_parallel = acw_romberg(dt, acf_2d, dims=1, parallel=true)
         @test length(auc_2d) == 3
         @test all(x -> isapprox(x, 2.0, rtol=0.01), auc_2d)
+        @test all(x -> isapprox(x, 2.0, rtol=0.01), auc_2d_parallel)
         
         # 3D case - multiple experiments
         acf_3d = ones(length(lags), 3, 2)  # 3×2 identical experiments
         auc_3d = acw_romberg(dt, acf_3d, dims=1)
+        auc_3d_parallel = acw_romberg(dt, acf_3d, dims=1, parallel=true)
         @test size(auc_3d) == (3, 2)
         @test all(x -> isapprox(x, 2.0, rtol=0.01), auc_3d)
+        @test all(x -> isapprox(x, 2.0, rtol=0.01), auc_3d_parallel)
     end
 end
 

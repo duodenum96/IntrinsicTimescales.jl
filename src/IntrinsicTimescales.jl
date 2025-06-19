@@ -39,14 +39,14 @@ include("core/model.jl")
 include("core/abc.jl")
 @reexport using .ABC
 
+include("utils/utils.jl")
+@reexport using .Utils
+
 include("stats/summary.jl")
 @reexport using .SummaryStats
 
 include("stats/distances.jl")
 @reexport using .Distances
-
-include("utils/utils.jl")
-@reexport using .Utils
 
 include("utils/ou_process.jl")
 @reexport using .OrnsteinUhlenbeck
