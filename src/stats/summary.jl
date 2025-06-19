@@ -9,7 +9,8 @@ Includes functions for:
 - Special handling for missing data (NaN values)
 """
 module SummaryStats
-# using FFTW, Statistics
+
+using Revise
 using FFTW
 using Statistics
 using FastTransformsForwardDiff
@@ -18,6 +19,8 @@ import StatsBase as sb
 using Missings
 using LinearAlgebra
 import LombScargle as ls
+using OhMyThreads
+using IntrinsicTimescales.Utils: get_slices, stack_and_reshape
 include("bat_autocor.jl")
 
 export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing,
@@ -61,7 +64,7 @@ function comp_ac_fft(data::Vector{T}; n_lags::Real=length(data)) where {T <: Rea
 end
 
 """
-    comp_ac_fft(data::AbstractArray{T}; dims::Int=ndims(data), n_lags::Integer=size(data, dims)) where {T <: Real}
+    comp_ac_fft(data::AbstractArray{T}; dims::Int=ndims(data), n_lags::Integer=size(data, dims), parallel::Bool=false) where {T <: Real}
 
 Compute autocorrelation using FFT along specified dimension.
 
@@ -69,14 +72,21 @@ Compute autocorrelation using FFT along specified dimension.
 - `data`: Array of time series data
 - `dims`: Dimension along which to compute autocorrelation (defaults to last dimension)
 - `n_lags`: Number of lags to compute (defaults to size of data along specified dimension)
+- `parallel`: Whether to use parallel computation
 
 # Returns
 Array with autocorrelation values, the specified dimension becomes the dimension of lags while the other dimensions denote ACF values
 """
 function comp_ac_fft(data::AbstractArray{T}; dims::Real=ndims(data),
-                     n_lags::Real=size(data, dims)) where {T <: Real}
+                     n_lags::Real=size(data, dims), parallel::Bool=false) where {T <: Real}
+    
+    slices = collect.(get_slices(data, dims=dims))
     f = x -> comp_ac_fft(vec(x), n_lags=n_lags)
-    return mapslices(f, data, dims=dims)
+    if parallel
+        return stack_and_reshape(tmap(f, slices), dims=dims)
+    else
+        return stack_and_reshape(map(f, slices), dims=dims)
+    end
 end
 
 """
@@ -92,6 +102,7 @@ Compute power spectral density using periodogram or welch method.
 - `window=dsp.hamming`: Window function
 - `n=div(size(x,dims),8)`: Window size for Welch method
 - `noverlap=div(n,2)`: Overlap for Welch method
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - `power`: Power spectral density values (excludes DC component)
@@ -103,7 +114,7 @@ function comp_psd(x::AbstractArray{T}, fs::Real;
                   method::String="periodogram",
                   window=dsp.hamming,
                   n=div(size(x, dims), 8),
-                  noverlap=div(n, 2)) where {T <: Real}
+                  noverlap=div(n, 2), parallel::Bool=false) where {T <: Real}
     # Create a wrapper function that only returns power
     f = x -> begin
         power, _ = comp_psd(vec(x), fs, method=method, window=window, n=n,
@@ -111,8 +122,14 @@ function comp_psd(x::AbstractArray{T}, fs::Real;
         return power
     end
 
+    slices = collect.(get_slices(x, dims=dims))
+
     # Apply the function along the specified dimension
-    power = mapslices(f, x, dims=dims)
+    if parallel
+        power = stack_and_reshape(tmap(f, slices), dims=dims)
+    else
+        power =  stack_and_reshape(map(f, slices), dims=dims)
+    end
 
     # Get a single time series for frequency calculation
     # Create indices to get first element along all dimensions except dims
@@ -150,7 +167,7 @@ function comp_psd(x::Vector{T}, fs::Real;
 end
 
 """
-    comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x))
+    comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x), parallel::Bool=false)
 
 Compute power spectral density using an automatic differentiation (AD) friendly implementation.
 
@@ -158,14 +175,22 @@ Compute power spectral density using an automatic differentiation (AD) friendly 
 - `x`: Time series data
 - `fs`: Sampling frequency
 - `dims=ndims(x)`: Dimension along which to compute PSD
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - `power`: Power spectral density values
 - `freqs`: Corresponding frequencies
 """
-function comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x))
+function comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x), parallel::Bool=false)
     f = x -> comp_psd_adfriendly(vec(x), fs)[1]
-    power = mapslices(f, x, dims=dims)
+
+    slices = collect.(get_slices(x, dims=dims))
+
+    if parallel
+        power = stack_and_reshape(tmap(f, slices), dims=dims)
+    else
+        power = stack_and_reshape(map(f, slices), dims=dims)
+    end
 
     # Get a single time series for frequency calculation
     idx = [i == dims ? (1:size(x, dims)) : 1 for i in 1:ndims(x)]
@@ -382,10 +407,31 @@ function comp_ac_time(data::Vector{T}; n_lags::Integer=length(data)) where {T <:
     sb.autocor(data, lags)
 end
 
+"""
+    comp_ac_time(data::AbstractArray{T}, max_lag::Integer; dims::Int=ndims(data), parallel::Bool=false) where {T <: Real}
+
+Compute autocorrelation in time domain along specified dimension.
+
+# Arguments
+- `data`: Array of time series data
+- `max_lag`: Maximum lag to compute
+- `dims`: Dimension along which to compute autocorrelation (defaults to last dimension)
+- `parallel=false`: Whether to use parallel computation
+
+# Returns
+Array with autocorrelation values, the specified dimension becomes the dimension of lags while the other dimensions denote ACF values
+
+"""
 function comp_ac_time(data::AbstractArray{T}; dims::Int=ndims(data),
-                      n_lags::Integer=size(data, dims)) where {T <: Real}
+                      n_lags::Integer=size(data, dims), parallel::Bool=false) where {T <: Real}
+    
+    slices = collect.(get_slices(data, dims=dims))
     f = x -> comp_ac_time(vec(x), n_lags=n_lags)
-    return mapslices(f, data, dims=dims)
+    if parallel
+        return stack_and_reshape(tmap(f, slices), dims=dims)
+    else
+        return stack_and_reshape(map(f, slices), dims=dims)
+    end
 end
 
 """
@@ -397,6 +443,7 @@ Compute autocorrelation for data with missing values.
 - `data`: Time series data (may contain NaN)
 - `dims=ndims(data)`: Dimension along which to compute
 - `n_lags=size(data,dims)`: Number of lags to compute
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - Array of autocorrelation values
@@ -438,9 +485,15 @@ function comp_ac_time_missing(data::AbstractVector{T}; n_lags::Integer=length(da
 end
 
 function comp_ac_time_missing(data::AbstractArray{T}; dims::Int=ndims(data),
-                              n_lags::Integer=size(data, dims)) where {T <: Real}
+                              n_lags::Integer=size(data, dims), parallel::Bool=false) where {T <: Real}
+    
+    slices = collect.(get_slices(data, dims=dims))
     f = x -> comp_ac_time_missing(vec(x), n_lags=n_lags)
-    return mapslices(f, data, dims=dims)
+    if parallel
+        return stack_and_reshape(tmap(f, slices), dims=dims)
+    else
+        return stack_and_reshape(map(f, slices), dims=dims)
+    end
 end
 
 # The two functions below are Julia translations of the functions from statsmodels.tsa.stattools

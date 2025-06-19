@@ -10,7 +10,8 @@ acwresults = acw(data, fs; acwtypes=[:acw0, :acw50, :acweuler, :auc, :tau, :knee
                 skip_zero_lag=false,
                 max_peaks=1, oscillation_peak::Bool=true,
                 allow_variable_exponent::Bool=false,
-                constrained::Bool=false)
+                constrained::Bool=false,
+                parallel::Bool=false)
 ```
 
 Simple usage:
@@ -95,6 +96,8 @@ result = acw(data, fs; dims=2, average_over_trials=true, trial_dims=3)
 * `allow_variable_exponent`: Whether or not to allow variable exponent (PLE) when fitting a lorentzian to the PSD for knee frequency estimation. Default is `false`. If true, the function will admit Lorentzian's of form ``\frac{A}{1 + (f/a)^b}`` where ``b`` is not confined to -2. 
 
 * `constrained`: Whether or not to use constrained optimization when fitting a lorentzian to the PSD for knee frequency estimation. Default is `false`. If true, the function will use constrained optimization via Optim.jl (using Optimization.jl as a frontend). The lower constraints for amplitude, knee frequency and exponent are 0, freqs[1], 0 respectively. The upper constraints are Inf, freqs[end], 5.0. For optimization, LBFGS method is used. 
+
+* `parallel`: Whether or not to use parallel computation. Default is `false`. If true, the function will use the `OhMyThreads` library to parallelize the computation. 
 
 ## Returns
 

@@ -222,22 +222,27 @@ end
         # Test along each dimension
         max_lags = 100
         ac_dim3 = comp_ac_fft(data_3d, dims=3, n_lags=max_lags)
+        ac_dim3_parallel = comp_ac_fft(data_3d, dims=3, n_lags=max_lags, parallel=true)
         
         # Check dimensions
         @test size(ac_dim3) == (5, 4, max_lags)
+        @test size(ac_dim3_parallel) == (5, 4, max_lags)
         
         # Check properties
         @test all(ac_dim3[:,:,1] .≈ 1.0)  # First lag should be 1
         @test all(abs.(ac_dim3) .<= 1.0)   # All values should be ≤ 1
+        @test all(isapprox.(ac_dim3, ac_dim3_parallel, atol=0.05))
     end
     
     @testset "Time domain autocorrelation" begin
         max_lags = 100
         ac_time_dim3 = comp_ac_time(data_3d; n_lags=max_lags, dims=3)
-
+        ac_time_dim3_parallel = comp_ac_time(data_3d; n_lags=max_lags, dims=3, parallel=true)
         # Compare with FFT method
         ac_fft_dim3 = comp_ac_fft(data_3d, dims=3, n_lags=max_lags)
+        ac_fft_dim3_parallel = comp_ac_fft(data_3d, dims=3, n_lags=max_lags, parallel=true)
         @test all(isapprox.(ac_time_dim3, ac_fft_dim3, atol=0.05))
+        @test all(isapprox.(ac_time_dim3_parallel, ac_fft_dim3_parallel, atol=0.05))
     end
     
 
@@ -254,9 +259,11 @@ end
         
         max_lags = 100
         ac_missing_dim3 = comp_ac_time_missing(data_3d_missing; n_lags=max_lags, dims=3)
+        ac_missing_dim3_parallel = comp_ac_time_missing(data_3d_missing; n_lags=max_lags, dims=3, parallel=true)
         
         # Test basic properties
         @test all(ac_missing_dim3[:,:,1] .≈ 1.0)
+        @test all(ac_missing_dim3[:,:,1] .≈ ac_missing_dim3_parallel[:,:,1])
         @test mean(diff(ac_missing_dim3[:,:,1:div(end,2)], dims=3) .<= 0) > 0.9 # Overall Decreasing
     end
     
@@ -264,14 +271,18 @@ end
         fs = 1/dt
 
         psd_dim3, freqs3 = comp_psd(data_3d, fs, dims=3)
-        
+        psd_dim3_parallel, freqs3_parallel = comp_psd(data_3d, fs, dims=3, parallel=true)
         # Check dimensions
-
         @test size(psd_dim3) == (5, 4, length(freqs3))
+        @test size(psd_dim3_parallel) == (5, 4, length(freqs3_parallel))
+        @test all(isapprox.(psd_dim3, psd_dim3_parallel, atol=0.05))
         
         # Test AD-friendly version
         psd_ad_dim3, freqs_ad = comp_psd_adfriendly(data_3d, fs, dims=3)
+        psd_ad_dim3_parallel, freqs_ad_parallel = comp_psd_adfriendly(data_3d, fs, dims=3, parallel=true)
         @test size(psd_ad_dim3) == (5, 4, length(freqs_ad))
+        @test size(psd_ad_dim3_parallel) == (5, 4, length(freqs_ad_parallel))
+        @test all(isapprox.(psd_ad_dim3, psd_ad_dim3_parallel, atol=0.05))
     end
     
     @testset "Lomb-Scargle with missing data" begin
