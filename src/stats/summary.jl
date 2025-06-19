@@ -20,7 +20,7 @@ using Missings
 using LinearAlgebra
 import LombScargle as ls
 using OhMyThreads
-using IntrinsicTimescales.Utils: get_slices
+using IntrinsicTimescales.Utils: get_slices, stack_and_reshape
 include("bat_autocor.jl")
 
 export comp_ac_fft, comp_psd, comp_cc, comp_ac_time, comp_ac_time_missing,
@@ -64,7 +64,7 @@ function comp_ac_fft(data::Vector{T}; n_lags::Real=length(data)) where {T <: Rea
 end
 
 """
-    comp_ac_fft(data::AbstractArray{T}; dims::Int=ndims(data), n_lags::Integer=size(data, dims)) where {T <: Real}
+    comp_ac_fft(data::AbstractArray{T}; dims::Int=ndims(data), n_lags::Integer=size(data, dims), parallel::Bool=false) where {T <: Real}
 
 Compute autocorrelation using FFT along specified dimension.
 
@@ -72,6 +72,7 @@ Compute autocorrelation using FFT along specified dimension.
 - `data`: Array of time series data
 - `dims`: Dimension along which to compute autocorrelation (defaults to last dimension)
 - `n_lags`: Number of lags to compute (defaults to size of data along specified dimension)
+- `parallel`: Whether to use parallel computation
 
 # Returns
 Array with autocorrelation values, the specified dimension becomes the dimension of lags while the other dimensions denote ACF values
@@ -101,6 +102,7 @@ Compute power spectral density using periodogram or welch method.
 - `window=dsp.hamming`: Window function
 - `n=div(size(x,dims),8)`: Window size for Welch method
 - `noverlap=div(n,2)`: Overlap for Welch method
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - `power`: Power spectral density values (excludes DC component)
@@ -165,7 +167,7 @@ function comp_psd(x::Vector{T}, fs::Real;
 end
 
 """
-    comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x))
+    comp_psd_adfriendly(x::AbstractArray{<:Real}, fs::Real; dims::Int=ndims(x), parallel::Bool=false)
 
 Compute power spectral density using an automatic differentiation (AD) friendly implementation.
 
@@ -173,6 +175,7 @@ Compute power spectral density using an automatic differentiation (AD) friendly 
 - `x`: Time series data
 - `fs`: Sampling frequency
 - `dims=ndims(x)`: Dimension along which to compute PSD
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - `power`: Power spectral density values
@@ -404,6 +407,21 @@ function comp_ac_time(data::Vector{T}; n_lags::Integer=length(data)) where {T <:
     sb.autocor(data, lags)
 end
 
+"""
+    comp_ac_time(data::AbstractArray{T}, max_lag::Integer; dims::Int=ndims(data), parallel::Bool=false) where {T <: Real}
+
+Compute autocorrelation in time domain along specified dimension.
+
+# Arguments
+- `data`: Array of time series data
+- `max_lag`: Maximum lag to compute
+- `dims`: Dimension along which to compute autocorrelation (defaults to last dimension)
+- `parallel=false`: Whether to use parallel computation
+
+# Returns
+Array with autocorrelation values, the specified dimension becomes the dimension of lags while the other dimensions denote ACF values
+
+"""
 function comp_ac_time(data::AbstractArray{T}; dims::Int=ndims(data),
                       n_lags::Integer=size(data, dims), parallel::Bool=false) where {T <: Real}
     
@@ -425,6 +443,7 @@ Compute autocorrelation for data with missing values.
 - `data`: Time series data (may contain NaN)
 - `dims=ndims(data)`: Dimension along which to compute
 - `n_lags=size(data,dims)`: Number of lags to compute
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - Array of autocorrelation values

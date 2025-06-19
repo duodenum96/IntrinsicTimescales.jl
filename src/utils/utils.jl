@@ -84,7 +84,7 @@ function residual_expdecay_3_parameters!(du, u, p)
 end
 
 """
-    fit_expdecay(lags, acf; dims=ndims(acf))
+    fit_expdecay(lags, acf; dims=ndims(acf), parallel=false)
 
 Fit exponential decay to autocorrelation function.
 
@@ -92,6 +92,7 @@ Fit exponential decay to autocorrelation function.
 - `lags::AbstractVector{T}`: Time lags
 - `acf::AbstractArray{T}`: Autocorrelation values
 - `dims::Int=ndims(acf)`: Dimension along which to fit
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - Fitted timescale parameter(s)
@@ -114,14 +115,14 @@ function fit_expdecay(lags::AbstractVector{T}, acf::AbstractArray{T};
     slices = collect.(get_slices(acf, dims=dims))
     f = x -> fit_expdecay(lags, vec(x))
     if parallel
-        return stack_and_reshape(tmap(f, slices), dims=dims)
+        return tmap(f, slices)
     else
-        return stack_and_reshape(map(f, slices), dims=dims)
+        return map(f, slices)
     end
 end
 
 """
-    fit_expdecay_3_parameters(lags, acf)
+    fit_expdecay_3_parameters(lags, acf; parallel=false)
 
 Fit a 3-parameter exponential decay function to autocorrelation data ( A*(exp(-t/tau) + B) ). 
 Excludes lag 0 from fitting. 
@@ -129,6 +130,7 @@ Excludes lag 0 from fitting.
 # Arguments
 - `lags::AbstractVector{T}`: Time lags
 - `acf::AbstractVector{T}`: Autocorrelation values
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - Fitted timescale parameter (tau)
@@ -151,9 +153,9 @@ function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractArray{T
     slices = collect.(get_slices(acf, dims=dims))
     f = x -> fit_expdecay_3_parameters(lags, vec(x))
     if parallel
-        return stack_and_reshape(tmap(f, slices), dims=dims)
+        return tmap(f, slices)
     else
-        return stack_and_reshape(map(f, slices), dims=dims)
+        return map(f, slices)
     end
 end
 
@@ -163,7 +165,7 @@ tau_from_knee(knee) = 1.0 ./ (2.0 .* pi .* knee)
 knee_from_tau(tau) = 1.0 ./ (2.0 .* pi .* tau)
 
 """
-    acw50(lags, acf; dims=ndims(acf))
+    acw50(lags, acf; dims=ndims(acf), parallel=false)
 
 Compute the ACW50 (autocorrelation width at 50%) along specified dimension.
 
@@ -171,6 +173,7 @@ Compute the ACW50 (autocorrelation width at 50%) along specified dimension.
 - `lags::AbstractVector{T}`: Vector of lag values
 - `acf::AbstractArray{T}`: Array of autocorrelation values
 - `dims::Int=ndims(acf)`: Dimension along which to compute ACW50
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - First lag where autocorrelation falls below 0.5
@@ -194,14 +197,14 @@ function acw50(lags::AbstractVector{T}, acf::AbstractArray{T};
     slices = collect.(get_slices(acf, dims=dims))
     f = x -> acw50(lags, vec(x))
     if parallel
-        return stack_and_reshape(tmap(f, slices), dims=dims)
+        return tmap(f, slices)
     else
-        return stack_and_reshape(map(f, slices), dims=dims)
+        return map(f, slices)
     end
 end
 
 """
-    acw0(lags, acf; dims=ndims(acf))
+    acw0(lags, acf; dims=ndims(acf), parallel=false)
 
 Compute the ACW0 (autocorrelation width at zero crossing) along specified dimension.
 
@@ -209,6 +212,7 @@ Compute the ACW0 (autocorrelation width at zero crossing) along specified dimens
 - `lags::AbstractVector{T}`: Vector of lag values
 - `acf::AbstractArray{T}`: Array of autocorrelation values
 - `dims::Int=ndims(acf)`: Dimension along which to compute ACW0
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - First lag where autocorrelation crosses zero
@@ -231,14 +235,14 @@ function acw0(lags::AbstractVector{T}, acf::AbstractArray{S};
     slices = collect.(get_slices(acf, dims=dims))
     f = x -> acw0(lags, vec(x))
     if parallel
-        return stack_and_reshape(tmap(f, slices), dims=dims)
+        return tmap(f, slices)
     else
-        return stack_and_reshape(map(f, slices), dims=dims)
+        return map(f, slices)
     end
 end
 
 """
-    acweuler(lags, acf; dims=ndims(acf))
+    acweuler(lags, acf; dims=ndims(acf), parallel=false)
 
 Compute the ACW at 1/e (≈ 0.368) along specified dimension.
 
@@ -246,6 +250,7 @@ Compute the ACW at 1/e (≈ 0.368) along specified dimension.
 - `lags::AbstractVector{T}`: Vector of lag values
 - `acf::AbstractVector{S}`: Array of autocorrelation values
 - `dims::Int=ndims(acf)`: Dimension along which to compute
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - First lag where autocorrelation falls below 1/e
@@ -268,20 +273,22 @@ function acweuler(lags::AbstractVector{T}, acf::AbstractArray{S};
     slices = collect.(get_slices(acf, dims=dims))
     f = x -> acweuler(lags, vec(x))
     if parallel
-        return stack_and_reshape(tmap(f, slices), dims=dims)
+        return tmap(f, slices)
     else
-        return stack_and_reshape(map(f, slices), dims=dims)
+        return map(f, slices)
     end
 end
 
 """
-    acw_romberg(dt, acf)
+    acw_romberg(dt, acf; dims=ndims(acf), parallel=false)
 
 Calculate the area under the curve of ACF using Romberg integration.
 
 # Arguments
 - `dt::Real`: Time step
 - `acf::AbstractVector`: Array of autocorrelation values
+- `dims::Int=ndims(acf)`: Dimension along which to compute
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - AUC of ACF
@@ -298,9 +305,9 @@ function acw_romberg(dt::Real, acf::AbstractArray{S};
     slices = collect.(get_slices(acf, dims=dims))
     f = x -> acw_romberg(dt, vec(x))
     if parallel
-        return stack_and_reshape(tmap(f, slices), dims=dims)
+        return tmap(f, slices)
     else
-        return stack_and_reshape(map(f, slices), dims=dims)
+        return map(f, slices)
     end
 end
 
@@ -408,7 +415,7 @@ function lorentzian_initial_guess(psd::AbstractVector{<:Real},
 end
 
 """
-    find_knee_frequency(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end], constrained=false, allow_variable_exponent=false)
+    find_knee_frequency(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end], constrained=false, allow_variable_exponent=false, parallel=false)
 
 Find knee frequency by fitting Lorentzian to power spectral density.
 
@@ -420,6 +427,7 @@ Find knee frequency by fitting Lorentzian to power spectral density.
 - `max_freq::T=freqs[end]`: Maximum frequency to consider
 - `constrained::Bool=false`: Whether to use constrained optimization
 - `allow_variable_exponent::Bool=false`: Whether to allow variable exponent (PLE)
+- `parallel=false`: Whether to use parallel computation
 
 # Returns
 - Vector of the fit  for the equation amp/(1 + (f/knee)^{exponent}). 
@@ -503,7 +511,7 @@ end
 
 """
     fooof_fit(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end], 
-              oscillation_peak=true, max_peaks=3, allow_variable_exponent=false, constrained=false)
+              oscillation_peak=true, max_peaks=3, allow_variable_exponent=false, constrained=false, parallel=false)
 
 Perform FOOOF-style fitting of power spectral density. The default behavior is to fit a Lorentzian with PLE = 2. 
 If allow_variable_exponent=true, the function will fit a Lorentzian with variable PLE. 
@@ -519,6 +527,8 @@ If allow_variable_exponent=true, the function will fit a Lorentzian with variabl
 - `return_only_knee::Bool=false`: Whether to return only knee frequency
 - `allow_variable_exponent::Bool=false`: Whether to allow variable exponent (PLE)
 - `constrained::Bool=false`: Whether to use constrained optimization
+- `parallel=false`: Whether to use parallel computation
+
 # Returns
 If return_only_knee=false:
 - Tuple of (knee_frequency, oscillation_parameters)
@@ -627,9 +637,9 @@ function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T};
                        allow_variable_exponent=allow_variable_exponent,
                        constrained=constrained)
     if parallel
-        return stack_and_reshape(tmap(f, slices), dims=dims)
+        return tmap(f, slices)
     else
-        return stack_and_reshape(map(f, slices), dims=dims)
+        return map(f, slices)
     end
 end
 
