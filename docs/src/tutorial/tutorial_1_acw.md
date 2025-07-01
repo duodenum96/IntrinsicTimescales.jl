@@ -81,7 +81,7 @@ For low sampling rates, for example, fMRI. Regarding `:tau` versus `:auc`, I pre
 
 ## Should I `average_over_trials`?
 
-In general, yes. In my experience, averaging ACFs or PSDs and then estimating the timescale (which is what `average_over_trials` does) works much better than estimating one timescale from each trial and averaging over them. If you suspect that there might be a nonstationarity in your timescales (i.e. your timescales change over time), you can investigate timescales in each trial by setting `average_over_trials` off. Needless to say, this depends on having trials, which means you should not use this if you have, say, one long fMRI recording. 
+In general, yes. The option `average_over_trials` averages PSDs and/or ACFs across trials. In my experience, averaging ACFs or PSDs and then estimating the timescale (which is what `average_over_trials` does) works much better than estimating one timescale from each trial and averaging over them. If you suspect that there might be a nonstationarity in your timescales (i.e. your timescales change over time), you can investigate timescales in each trial by setting `average_over_trials` off. Needless to say, this depends on having trials, which means you should not use this if you have, say, one long fMRI recording. 
 
 ## Should I `skip_zero_lag`?
 
