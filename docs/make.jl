@@ -18,6 +18,8 @@ makedocs(sitename="IntrinsicTimescales.jl",
          ],
          "Tutorials" => Any[
             "Navigating the Forest of INT Metrics" => "tutorial/tutorial_1_acw.md",
+            "Usage with MNE-Python" => "tutorial/tutorial_2_mne.md",
+            "Usage with FieldTrip" => "tutorial/tutorial_3_ft.md",
          ],
          "Reference" => Any[
          "Implementation" => Any[
