@@ -1,0 +1,3 @@
+# Explaining the Phenomenon
+
+While there were some earlier papers about this, to my knowledge, the landmark starting point about the modern study of intrinsic neural timescales (INTs) is Hasson et al.'s 2008 paper, published in Journal of Neuroscience, titled [A Hierarchy of Temporal Receptive Windows in Human Cortex](https://www.jneurosci.org/content/28/10/2539.full). The experimental setup is participants watching movies. The movies are scrambled with durations of 4 (±1), 12 (±3) and 36 (±6) seconds. 

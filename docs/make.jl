@@ -6,15 +6,22 @@ using Plots
 makedocs(sitename="IntrinsicTimescales.jl",
          format=Documenter.HTML(size_threshold = nothing),
          pages=["Getting Started" => "home.md",
-         "Practice" => Any["practice/practice_intro.md",
-         "practice/practice_1_acf.md",
-         "practice/practice_2_acw.md",
-         "practice/practice_3_ou.md",
-         "practice/practice_4_psd.md",
-         "practice/practice_5_bayesian.md"
+         "Explanation" => [
+            "Practice" => Any["practice/practice_intro.md",
+            "practice/practice_1_acf.md",
+            "practice/practice_2_acw.md",
+            "practice/practice_3_ou.md",
+            "practice/practice_4_psd.md",
+            "practice/practice_5_bayesian.md"
+            ],
+            "Theory" => "theory/theory.md",
          ],
-         "Theory" => "theory/theory.md",
-         "Navigating the Forest of INT Metrics" => "tutorial/tutorial_1_acw.md",
+         "Tutorials" => Any[
+            "Navigating the Forest of INT Metrics" => "tutorial/tutorial_1_acw.md",
+            "Usage with MNE-Python" => "tutorial/tutorial_2_mne.md",
+            "Usage with FieldTrip" => "tutorial/tutorial_3_ft.md",
+         ],
+         "Reference" => Any[
          "Implementation" => Any[
             "Model-Free Timescale Estimation" => "acw.md",
              "Simulation Based Timescale Estimation" => ["Overview" => "simbasedinference.md",
@@ -26,6 +33,7 @@ makedocs(sitename="IntrinsicTimescales.jl",
                  "Results" => "fit_result.md"
              ]],
              "API" => "index.md",
+         ],
              "Citations" => "citations.md",
              "Contributing" => "contributing.md",
              "Developer Documentation" => "developer.md"]
