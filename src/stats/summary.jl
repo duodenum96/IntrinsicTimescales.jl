@@ -10,7 +10,6 @@ Includes functions for:
 """
 module SummaryStats
 
-using Revise
 using FFTW
 using Statistics
 using FastTransformsForwardDiff
