@@ -204,7 +204,6 @@ plot(p1, size=(1000,1000))
 As you can see, this is a very powerful tool. But (obligatory reference) with great power comes great responsibility. Here, we knew the real timescale and we can compare it with our estimates. We don't have this luxury when we are analyzing data. To make sure we have a reasonable estimate, we need to do a posterior predictive check. We will sample from the posterior, calculate ACFs from that and compare it with ACF from the data. The IntrinsicTimescales.jl function [`posterior_predictive`](@ref) handles this. 
 
 ```julia
-
 p1 = posterior_predictive(results_full, model_full)
 p2 = posterior_predictive(results_missing, model_missing)
 plot(p1, p2, size=(800, 400))
