@@ -26,7 +26,7 @@ data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
 println(size(data_1)) # == 30, 1000: 30 trials and 10000 time points
 ```
 
-To streamline the ACW calculation, I will use the [`acw`](../acw.md) function from INT.jl. This function takes your time series data, sampling rate and ACW types you want to calculate and returns the ACW values in the same shape of the data. Along with ACW results it also returns additional information that will be useful later. To extract ACW values, we will extract the field `acw_results` from the output of `acw`. It is best to demonstrate with an example. 
+To streamline the ACW calculation, I will use the [`acw`](../acw.md) function from IntrinsicTimescales.jl. This function takes your time series data, sampling rate and ACW types you want to calculate and returns the ACW values in the same shape of the data. Along with ACW results it also returns additional information that will be useful later. To extract ACW values, we will extract the field `acw_results` from the output of `acw`. It is best to demonstrate with an example. 
 
 ```julia
 fs = 1 / dt # sampling rate
