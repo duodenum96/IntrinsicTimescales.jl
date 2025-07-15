@@ -119,7 +119,7 @@ There is one note I should mention before closing: it is possible to skip the ze
 \textrm{ACF}(l) = A (e^{-\frac{l}{\tau}} + B)
 ```
 
-where ``A`` is the amplitude and ``B`` is the offset. The option `skip_zero_lag` is for this purpose. An example usage is 
+where ``A`` is the amplitude and ``B`` is the offset, it is possible to get better estimates. The option `skip_zero_lag` is for this purpose. An example usage is 
 
 ```julia
 acw_results = acw(data_short_ts, fs, acwtypes=:tau, skip_zero_lag=true)
@@ -127,4 +127,4 @@ acw_results = acw(data_short_ts, fs, acwtypes=:tau, skip_zero_lag=true)
 
 Even though we introduced two more parameters to fit, this estimation tends to be more reliable in fMRI data. This method is used in [Ito et al., 2020](https://www.sciencedirect.com/science/article/pii/S1053811920306273) and [Murray et al., 2014](https://www.nature.com/articles/nn.3862). 
 
-So far, we always assumed that the ACF is a nice exponential decay. This is rarely the case for EEG/MEG data where oscillatory brain activity (alpha oscillations for example) makes a considerable impact on ACF. We will learn how to deal with it in the next section. 
+So far, we always assumed that the ACF is a nice exponential decay. This is rarely the case for EEG/MEG data where oscillatory brain activity (alpha oscillations for example) makes a considerable impact on ACF. We will learn how to deal with it in the [next section](practice_4_psd.md). 
