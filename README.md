@@ -39,9 +39,16 @@ symbols (indicated with `:`) telling which methods to use and `dims` is indicati
 For simulation based methods, pick one of the `one_timescale_model`, `one_timescale_with_missing_model`, `one_timescale_and_osc_model` and `one_timescale_and_osc_with_missing_model` functions. These models correspond to different generative models depending on whether there is an oscillation or not. For each generative model, there are with or without missing variants which use different ways to calculate ACF and PSD. Once you pick the model, the syntax is 
 
 ```julia
-data = randn(10, 5000) # Data in the form of (trials x time) 
-time = 1:5000 # Time vector
-
+# Simulate some data
+using Random
+timescale = 0.3 # true timescales
+variance = 1.0 # variance of data
+duration = 10.0 # duration of data
+n_trials = 2 # How many trials
+fs = 500.0 # Sampling rate
+rng = Xoshiro(123); deq_seed = 123 # For reproducibility
+data = generate_ou_process(timescale, variance, 1/fs, duration, n_trials, rng=rng, deq_seed=deq_seed) # Data in the form of (trials x time)
+time = (1/fs):(1/fs):duration # Vector of time points
 model = one_timescale_model(data, time, :abc)
 result = int_fit(model)
 ```
