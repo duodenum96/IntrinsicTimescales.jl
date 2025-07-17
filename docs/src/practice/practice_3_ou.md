@@ -61,8 +61,8 @@ sd = 1.0
 duration = length(lags) * dt # match the number of lags
 num_trials = 100
 n_lags = length(lags)
-data_short_ts = generate_ou_process(tau_short, sd, dt, duration, num_trials)
-data_long_ts = generate_ou_process(tau_long, sd, dt, duration, num_trials)
+data_short_ts = generate_ou_process(tau_short, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
+data_long_ts = generate_ou_process(tau_long, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
 # average over trials to get a less noisy ACF
 acf_numerical_short = mean(comp_ac_fft(data_short_ts), dims=1)[:]
 acf_numerical_long = mean(comp_ac_fft(data_long_ts), dims=1)[:]
@@ -104,11 +104,11 @@ println("Short timescale: $(tau_short)")
 println("ACW-e estimate of short timescale: $(acw_e_short)")
 # 0.0091
 println("Curve-fitting estimate of short timescale: $(acw_tau_short)")
-# 0.0088
+# 0.0087
 println("Long timescale: $(tau_long)")
 # 0.03
 println("ACW-e estimate of long timescale: $(acw_e_long)")
-# 0.0214
+# 0.0216
 println("Curve-fitting estimate of long timescale: $(acw_tau_long)")
 # 0.02
 ```
