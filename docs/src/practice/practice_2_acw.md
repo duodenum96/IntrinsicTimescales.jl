@@ -6,13 +6,13 @@ First, some nomenclature. When we make an analysis on the data, for example, cal
 
 ![](assets/practice_2_estimator.drawio.svg)
 
-Our first note about the noise of estimators was the finiteness of the data. We noted that as we go along further lags, we have less data points at our hand to calculate the correlation values, making the estimate noisier. A first response to the problem is to use a different cutoff. Instead of waiting the autocorrelation function to reach exactly to 0 thus completely losing the similarity, we can cut it off when it reaches 0.5 and say losing half of the similarity. After all, a time-series with a longer timescale should take longer to lose half of it. This method is called ACW-50. It is  older than ACW-0. To my knowledge, used first in [Honey et al., 2012](https://pubmed.ncbi.nlm.nih.gov/23083743/). This was a time when the phrase intrinsic neural timescale had not been established. The term at that time was temporal receptive windows (TRW). I will discuss the evolution of the term more in the [Theory] section. For now, we will make simulations from two processes with different timescales and see how well we can distinguish their INTs using ACW-50 versus ACW-0. To quickly get many simulations with the same timescale, I will set num_trials to 1000 in the function [`generate_ou_process`](@ref). 
+Our first note about the noise of estimators was the finiteness of the data. We noted that as we go along further lags, we have less data points at our hand to calculate the correlation values, making the estimate noisier. A first response to the problem is to use a different cutoff. Instead of waiting the autocorrelation function to reach exactly to 0 thus completely losing the similarity, we can cut it off when it reaches 0.5 and say losing half of the similarity. After all, a time-series with a longer timescale should take longer to lose half of it. This method is called ACW-50. It is  older than ACW-0. To my knowledge, used first in [Honey et al., 2012](https://pubmed.ncbi.nlm.nih.gov/23083743/). This was a time when the phrase intrinsic neural timescale had not been established. The term at that time was temporal receptive windows (TRW). I will discuss the evolution of the term more in the [Theory](../theory/theory.md) section. For now, we will make simulations from two processes with different timescales and see how well we can distinguish their INTs using ACW-50 versus ACW-0. To quickly get many simulations with the same timescale, I will set num\_trials to 1000 in the function [`generate_ou_process`](@ref). 
 
 ```julia
 using IntrinsicTimescales # import IntrinsicTimescales package
 using Random 
 using Plots # to plot the results
-Random.seed!(1) # for replicability
+Random.seed!(1)
 
 timescale_1 = 1.0
 timescale_2 = 3.0
@@ -23,10 +23,10 @@ num_trials = 1000 # Number of trials
 
 data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
 data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
-println(size(data_1)) # == 30, 1000: 30 trials and 10000 time points
+println(size(data_1)) # == 1000, 10000: 1000 trials and 10000 time points
 ```
 
-To streamline the ACW calculation, I will use the [`acw`](../acw.md) function from INT.jl. This function takes your time series data, sampling rate and ACW types you want to calculate and returns the ACW values in the same shape of the data. Along with ACW results it also returns additional information that will be useful later. To extract ACW values, we will extract the field `acw_results` from the output of `acw`. It is best to demonstrate with an example. 
+To streamline the ACW calculation, I will use the [`acw`](../acw.md) function from IntrinsicTimescales.jl. This function takes your time series data, sampling rate and ACW types you want to calculate and returns the ACW values in the same shape of the data. Along with ACW results it also returns additional information that will be useful later. To extract ACW values, we will extract the field `acw_results` from the output of `acw`. It is best to demonstrate with an example. 
 
 ```julia
 fs = 1 / dt # sampling rate
@@ -71,9 +71,10 @@ plot(p1, p2, size=(1600, 800))
 
 ![](assets/practice_2_1.svg)
 
-It seems ACW-0 gives messier results. Needless to say, these results depend on the difference between real timescales and the amount of data. Feel free to change these parameters and investigate the results under different scenarios. So ACW-50 seems to be a better estimator at least in the setting we specified above. Is our work done then? First of all, we used a weird way to define "wrong". We've reduced the correctness to a binary choice of is something greater or smaller than other. We can be more principled than this and actually quantify how much we are off. We will do this in [the next section]. For now, let's consider another scenario. In the example above, we had `dt` = 0.001 implying our sampling rate (`fs`) is 1000 Hz and we have 10 seconds of data. This sounds like an EEG/MEG scenario. Let's try an fMRI scenario where we have a sampling rate of 0.5 Hz (corresponding TR=2 seconds) and 300 seconds of data. We'll set the timescales to 1 seconds and 3 seconds for short timescale and long timescale guys. 
+It seems ACW-0 gives messier results. Needless to say, these results depend on the difference between real timescales and the amount of data. Feel free to change these parameters and investigate the results under different scenarios. So ACW-50 seems to be a better estimator at least in the setting we specified above. Is our work done then? First of all, we used a weird way to define "wrong". We've reduced the correctness to a binary choice of is something greater or smaller than other. We can be more principled than this and actually quantify how much we are off. We will do this in [the next section](practice_3_ou.md). For now, let's consider another scenario. In the example above, we had `dt` = 0.001 implying our sampling rate (`fs`) is 1000 Hz and we have 10 seconds of data. This sounds like an EEG/MEG scenario. Let's try an fMRI scenario where we have a sampling rate of 0.5 Hz (corresponding TR=2 seconds) and 300 seconds of data. We'll set the timescales to 1 seconds and 3 seconds for short timescale and long timescale guys. 
 
 ```julia
+Random.seed!(1)
 timescale_1 = 1.0
 timescale_2 = 3.0
 sd = 1.0 
@@ -100,7 +101,7 @@ p1 = histogram(acw50_1, alpha=0.5, label="timescale 1 = $(timescale_1)")
 histogram!(p1, acw50_2, alpha=0.5, label="timescale 2 = $(timescale_2)")
 vline!(p1, [median(acw50_1), median(acw50_2)], linewidth=3, color=:black, label="") 
 title!(p1, "ACW-50\n")
-annotate!(p1, 1, 100, 
+annotate!(p1, 3, 600, 
     (@sprintf("Proportion of \"wrong\" timescale \nestimates: %.2f%% \n", bad_acw50_timescale)), textfont=font(24), :left)
 # ACW-0
 p2 = histogram(acw0_1, alpha=0.5, label="timescale 1 = $(timescale_1)")
@@ -108,7 +109,7 @@ histogram!(p2, acw0_2, alpha=0.5, label="timescale 2 = $(timescale_2)")
 
 vline!(p2, [median(acw0_1), median(acw0_2)], linewidth=3, color=:black, label="")
 title!(p2, "ACW-0\n")
-annotate!(p2, 2, 175, 
+annotate!(p2, 15, 175, 
     (@sprintf("Proportion of \"wrong\" timescale \nestimates: %.2f%% \n", bad_acw0_timescale)), textfont=font(24), :left)
 plot(p1, p2, size=(1600, 800))
 ```
@@ -134,6 +135,7 @@ The autocorrelation is dropping below 0.5 before even 2 seconds pass. And becaus
 There is one more method in case ACW-50 is not working well. Let's consider the case above: we want to be able to distinguish the processes but we don't have the time resolution to use ACW-50. We can use ACW-0 but the later lags are more noisy. Wouldn't it be great if we had a method that assigns higher weights to earlier lags and lower weight to less reliable later lags? Turns out there is one such method. We can calculate the area under the curve (AUC) of the ACF. Since later lags have less correlation, their contribution to the area under the curve will be less. In IntrinsicTimescales.jl, we can use `:auc` to calculate the AUC of ACF before ACF touches 0. Under the hood, this method uses [Romberg.jl](https://github.com/fgasdia/Romberg.jl) to use Romberg's method. This method is [orders of magnitude more accurate](https://young.physics.ucsc.edu/115/romberg.pdf) than trapezoid (as in np.trapz or MATLAB trapz) and Simpson's methods (as in scipy.integrate.simpson). Let's repeat the above experiment to compare ACW-0 and AUC methods:
 
 ```julia
+Random.seed!(123)
 timescale_1 = 1.0
 timescale_2 = 3.0
 sd = 1.0 
@@ -174,13 +176,12 @@ plot(p1, p2, size=(1600, 800))
 ```
 ![](assets/practice_2_auc.svg)
 
-We've reduced the "wrong" estimates to 1.20%, quite impressive! 
+We can see that AUC seems to be a better estimator than ACW-0. The result we see here strongly favors AUC over ACW-0 but do play with the random seed and see what happens. For the most part, AUC is better and in some cases AUC and ACW-0 give similar results. 
 
-It seems different modalities and temporal resolutions call for different ways to calculate ACW. But even with the _better_ estimator, we can still be off 1/5th of the time. Can we do better? Remember the coin flipping experiment from [the previous section]. We said that if we repeat the experiment again and again and take average across experiments, our estimates get better. Let's do this in the context of ACW-50. In the code below, I will first make 1000 simulations, then from each one of them, I'll calculate one autocorrelation function. Then I'll cumulatively average those autocorrelation functions, i.e. I'll average the first two ACFs, the first three, the first four... Then I'll calculate ACW-50 and ACW-0 from each step. Let's see if they are converging. 
+It seems different modalities and temporal resolutions call for different ways to calculate ACW. But even with the _better_ estimator, we can still be off 1/5th of the time. Can we do better? Remember the coin flipping experiment from [the previous section](practice_1_acf.md). We said that if we repeat the experiment again and again and take average across experiments, our estimates get better. Let's do this in the context of ACW-50. In the code below, I will first make 1000 simulations, then from each one of them, I'll calculate one autocorrelation function. Then I'll cumulatively average those autocorrelation functions, i.e. I'll average the first two ACFs, the first three, the first four... Then I'll calculate ACW-50 and ACW-0 from each step. Let's see if they are converging. 
 
 ```julia
 using Statistics, IntrinsicTimescales, Plots, Random
-Random.seed!(123)
 timescale = 3.0
 sd = 1.0 # sd of data we'll simulate
 dt = 0.001 # Time interval between two time points
@@ -191,8 +192,8 @@ acfs = []
 acw50s = []
 acw0s = []
 n_experiments = 1000
-for _ in 1:n_experiments
-    data = generate_ou_process(timescale, sd, dt, duration, num_trials)
+for i in 1:n_experiments
+    data = generate_ou_process(timescale, sd, dt, duration, num_trials, rng=Xoshiro(i), deq_seed=i)
     acf = comp_ac_fft(data[:])
     push!(acfs, acf)
     current_mean_acf = mean(acfs)
@@ -209,11 +210,10 @@ plot(p1, p2, size=(800, 400))
 
 ![](assets/practice_2_4.svg)
 
-Note that it takes about 250 trials for the estimates to completely stabilize. This is a huge number. In the case above, we assumed that each trial is 10 seconds. 250 trials x 10 seconds is 41 minutes of data which we usually don't have. Nonetheless, even averaging across a couple trials makes the estimates much closer to the stabilized estimate. This is why the [Honey et al.](https://pubmed.ncbi.nlm.nih.gov/23083743/) paper I mentioned above calculated one ACF from 20 seconds of data and averaged over ACFs. In IntrinsicTimescales.jl, this is handled by the argument `average_over_trials` in the `acw` function. It is your responsibility to put your data in a format where one dimension is trials and one dimension is time. This is usually handled with [MNE](https://mne.tools/stable/index.html) or [FieldTrip](https://www.fieldtriptoolbox.org/) helper functions (see for example [mne.make_fixed_length_epochs](https://mne.tools/1.7/generated/mne.make_fixed_length_epochs.html), [this tutorial from MNE](https://mne.tools/stable/auto_tutorials/epochs/60_make_fixed_length_epochs.html) or [ft_redefinetrial](https://github.com/fieldtrip/fieldtrip/blob/master/ft_redefinetrial.m). If you think taking continuous data and segmenting with different overlap degrees would be useful for you in IntrinsicTimescales.jl, [open an issue on github](https://github.com/duodenum96/IntrinsicTimescales.jl/issues) and I can add this as a feature.). Before finishing this section, let's run one final experiment where we now have 20 trials for each subject and 100 subjects. Let's do a t-test between the groups and see if we can capture the difference. To run the code below, you'll need to install the Julia package [HypothesisTests](https://juliastats.org/HypothesisTests.jl/stable/). 
+Note that it takes about 250 trials for the estimates to completely stabilize. This is a huge number. In the case above, we assumed that each trial is 10 seconds. 250 trials x 10 seconds is 41 minutes of data which we usually don't have. Nonetheless, even averaging across a couple trials makes the estimates much closer to the stabilized estimate. This is why the [Honey et al.](https://pubmed.ncbi.nlm.nih.gov/23083743/) paper I mentioned above calculated one ACF from 20 seconds of data and averaged over ACFs. In IntrinsicTimescales.jl, this is handled by the argument `average_over_trials` in the `acw` function. It is your responsibility to put your data in a format where one dimension is trials and one dimension is time. This is usually handled with [MNE](https://mne.tools/stable/index.html) or [FieldTrip](https://www.fieldtriptoolbox.org/) helper functions (see for example [mne.make\_fixed\_length\_epochs](https://mne.tools/1.7/generated/mne.make_fixed_length_epochs.html), [this tutorial from MNE](https://mne.tools/stable/auto_tutorials/epochs/60_make_fixed_length_epochs.html) or [ft\_redefinetrial](https://github.com/fieldtrip/fieldtrip/blob/master/ft_redefinetrial.m). If you think taking continuous data and segmenting with different overlap degrees would be useful for you in IntrinsicTimescales.jl, [open an issue on github](https://github.com/duodenum96/IntrinsicTimescales.jl/issues) and I can add this as a feature.). Before finishing this section, let's run one final experiment where we now have 20 trials for each subject and 100 subjects. Let's do a t-test between the groups and see if we can capture the difference. To run the code below, you'll need to install the Julia package [HypothesisTests](https://juliastats.org/HypothesisTests.jl/stable/). 
 
 ```julia
 using HypothesisTests
-Random.seed!(123)
 n_subjects = 100
 n_trials = 20
 num_trials = 20
@@ -228,9 +228,9 @@ acw50_1 = Float64[] # HypothesisTests doesn't accept Vector{Any} type, requires 
 acw50_2 = Float64[]
 acw0_1 = Float64[]
 acw0_2 = Float64[]
-for _ in 1:n_subjects
-    data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
-    data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
+for i in 1:n_subjects
+    data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials, rng=Xoshiro(i), deq_seed=i)
+    data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials, rng=Xoshiro(i), deq_seed=i)
     acwresults_1 = acw(data_1, fs, acwtypes=[:acw50, :acw0], average_over_trials=true)
     acwresults_2 = acw(data_2, fs, acwtypes=[:acw50, :acw0], average_over_trials=true)
     current_acw50_1 = acwresults_1.acw_results[1]
@@ -252,7 +252,7 @@ histogram!(p1, acw50_2, alpha=0.5, label="timescale 2 = $(timescale_2)")
 # Plot the median since distributions are not normal
 vline!(p1, [median(acw50_1), median(acw50_2)], linewidth=3, color=:black, label="") 
 title!(p1, "ACW-50\n")
-annotate!(p1, 0.6, 25, 
+annotate!(p1, 0.6, 15, 
     (@sprintf("Proportion of \"wrong\" timescale \nestimates: %.2f%% \n", bad_acw50_timescale)), textfont=font(24), :left)
 # ACW-0
 p2 = histogram(acw0_1, alpha=0.5, label="timescale 1 = $(timescale_1)")
@@ -260,7 +260,7 @@ histogram!(p2, acw0_2, alpha=0.5, label="timescale 2 = $(timescale_2)")
 
 vline!(p2, [median(acw0_1), median(acw0_2)], linewidth=3, color=:black, label="")
 title!(p2, "ACW-0\n")
-annotate!(p2, 2, 30, 
+annotate!(p2, 2, 20, 
     (@sprintf("Proportion of \"wrong\" timescale \nestimates: %.2f%% \n", bad_acw0_timescale)), textfont=font(12), :left)
 plot(p1, p2, size=(1600, 800))
 
