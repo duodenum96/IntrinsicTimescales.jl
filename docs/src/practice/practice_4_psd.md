@@ -12,7 +12,7 @@ num_trials = 10
 data_mean = 0.0 # desired mean
 data_sd = 1.0 # desired sd
 
-timescale = 0.1 # 100 ms
+timescale = 0.05 # 100 ms
 oscillation_freq = 10.0 # 10 Hz alpha oscillation
 coefficient = 0.95
 theta = [timescale, oscillation_freq, coefficient] # vector of parameters
@@ -22,9 +22,9 @@ data = generate_ou_process(timescale, data_sd, dt, duration, num_trials)
 acwresults_osc = acw(data_osc, fs; acwtypes=:acweuler)
 acwresults = acw(data, fs; acwtypes=:acweuler)
 println(mean(acwresults_osc.acw_results))
-# 0.087
+# 0.022
 println(mean(acwresults.acw_results))
-# 0.3075
+# 0.049
 p1 = acwplot(acwresults_osc)
 title!(p1, "ACF with oscillatory component")
 p2 = acwplot(acwresults)
@@ -123,13 +123,12 @@ Some interesting remarks. Consider very low frequencies: ``\omega \ll k``. When 
 In IntrinsicTimescales.jl, you can use `:knee` in the acwtypes argument of [`acw`](../acw.md) to calculate the INT from the knee frequency. In the code below, I'll show this and plot the PSDs on the log scale to visually show the knee frequency. The function `knee_from_tau` converts the timescale to the knee frequency. 
 
 ```julia
-
 acwresults_osc = acw(data_osc, fs; acwtypes=:knee, average_over_trials=true)
 acwresults = acw(data, fs; acwtypes=:knee, average_over_trials=true)
 println(mean(acwresults_osc.acw_results))
-# 0.0795
+# 0.05
 println(mean(acwresults.acw_results))
-# 0.0757
+# 0.046
 p1 = acwplot(acwresults_osc)
 title!(p1, "ACF with oscillatory component")
 p2 = acwplot(acwresults)
