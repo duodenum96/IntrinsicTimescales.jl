@@ -82,8 +82,8 @@ dt = 2.0 # Time interval between two time points
 duration = 300.0 # 5 minutes of data
 num_trials = 1000 # Number of trials
 
-data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
-data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
+data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
+data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
 
 fs = 1 / dt # sampling rate
 acwresults_1 = acw(data_1, fs, acwtypes=[:acw50, :acw0]) 
@@ -143,8 +143,8 @@ dt = 2.0 # Time interval between two time points
 duration = 300.0 # 5 minutes of data
 num_trials = 1000 # Number of trials
 
-data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
-data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
+data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
+data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
 
 fs = 1 / dt # sampling rate
 acwresults_1 = acw(data_1, fs, acwtypes=[:auc, :acw0]) 
