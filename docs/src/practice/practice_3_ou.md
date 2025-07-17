@@ -57,6 +57,7 @@ Back to `generate_ou_process`. What this function does is that it solves this eq
 
 ```julia
 using IntrinsicTimescales, Statistics
+Random.seed!(123)
 sd = 1.0
 duration = length(lags) * dt # match the number of lags
 num_trials = 100
@@ -104,11 +105,11 @@ println("Short timescale: $(tau_short)")
 println("ACW-e estimate of short timescale: $(acw_e_short)")
 # 0.0091
 println("Curve-fitting estimate of short timescale: $(acw_tau_short)")
-# 0.0088
+# 0.0087
 println("Long timescale: $(tau_long)")
 # 0.03
 println("ACW-e estimate of long timescale: $(acw_e_long)")
-# 0.0214
+# 0.021
 println("Curve-fitting estimate of long timescale: $(acw_tau_long)")
 # 0.02
 ```
