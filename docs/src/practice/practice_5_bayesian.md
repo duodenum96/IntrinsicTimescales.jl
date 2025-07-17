@@ -42,13 +42,13 @@ Now let's calculate ACW-e from both the clean data and data with missing numbers
 ```julia
 acw_clean = acw(data, fs; acwtypes=:acweuler, average_over_trials=true)
 println(acw_clean.acw_results)
-# 0.238
+# 0.26
 acw_missing = acw(data_missing, fs; acwtypes=:acweuler, average_over_trials=true)
 println(acw_missing.acw_results)
-# 0.218
+# 0.248
 ```
 
-We are off by about 0.06 seconds from finite data length and another 0.02 seconds from the missing data. This is quite impressive given that we rejected about 1/3 of the data. Averaging over trials really makes the estimations stable. I leave it to you to explore the case of `average_over_trials=false`, the results can get much worse. 
+We are off by about 0.04 seconds from finite data length and another 0.052 seconds from the missing data. This is quite impressive given that we rejected about 1/3 of the data. Averaging over trials really makes the estimations stable. I leave it to you to explore the case of `average_over_trials=false`, the results can get much worse. 
 
 Can we do better than this and hit the timescale right on the head? Bayesian timescale estimation can do this. In addition to hitting the timescale right on the head, it also gives you uncertainty of the timescale estimation. Since this is technically way more complicated than what we have done so far, I won't give as much detail as the previous tutorials. I recommend you to read [Dr. Zeraati's paper](https://www.nature.com/articles/s43588-022-00214-3) for more details. The implementation details can be found in the [Simulation Based Timescale Estimation](../simbasedinference.md) section of the documentation. Nonetheless, I'll try to demistify some of the jargon. 
 
@@ -164,9 +164,7 @@ Let's check the results. The results object carries a bunch of useful informatio
 
 ```julia
 map_full = results_full.MAP[1]
-# 0.27
 map_missing = results_missing.MAP[1]
-# 0.26
 ```
 Our estimates got much better. We can change the parameters of ABC to play around with the estimation. To change default parameters, we use the function `get_param_dict_abc`. This gives a dictionary with default parameters. For full model, let's increase the `:convergence_window` to 10. The algorithm checks if the parameter estimates are converging across `:convergence_window` number of runs and if they are converging, it stops. For the data with missing values, look into your terminal's output and note that epsilon gets quite reduced but doesn't change much after many iterations. The number it gets stuck is roughly 0.0004. We can stop the algorithm early so that it does not tally around any further. This is done via `:target_epsilon` parameter. 
 
@@ -178,9 +176,7 @@ param_dict_missing[:target_epsilon] = 0.0004
 results_full = int_fit(model_full, param_dict_full)
 results_missing = int_fit(model_missing, param_dict_missing)
 map_full = results_full.MAP[1]
-# 0.27
 map_missing = results_missing.MAP[1]
-# 0.26
 ```
 
 The full model took about 4 minutes and the model with missing data took about 10 minutes to run. Unfortunately the estimates did not get any better. 
