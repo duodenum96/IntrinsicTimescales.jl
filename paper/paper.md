@@ -54,7 +54,7 @@ IntrinsicTimescales.jl provides the following features:
 
 A diagram shows the major features of the package can be seen in [Figure 1](\autoref{fig:fig1}). Additionally, in order to facilitate usage in neuroscientific community, we are working on a Python frontend which will soon be accessible in [https://github.com/duodenum96/INTpy](https://github.com/duodenum96/INTpy). 
 
-![Figure 1: A diagram showing the features of the package. \* in \*_model denotes one of the models Generative Models. .\label{fig:fig1}](diagram.svg)
+![Figure 1: A diagram showing the features of the package. \* in \*_model denotes one of the models Generative Models. .\label{fig:fig1}](diagram2.svg)
 
 # Documentation
 
