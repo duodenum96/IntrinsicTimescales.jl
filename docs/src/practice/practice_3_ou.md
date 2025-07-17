@@ -62,8 +62,8 @@ sd = 1.0
 duration = length(lags) * dt # match the number of lags
 num_trials = 100
 n_lags = length(lags)
-data_short_ts = generate_ou_process(tau_short, sd, dt, duration, num_trials)
-data_long_ts = generate_ou_process(tau_long, sd, dt, duration, num_trials)
+data_short_ts = generate_ou_process(tau_short, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
+data_long_ts = generate_ou_process(tau_long, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
 # average over trials to get a less noisy ACF
 acf_numerical_short = mean(comp_ac_fft(data_short_ts), dims=1)[:]
 acf_numerical_long = mean(comp_ac_fft(data_long_ts), dims=1)[:]

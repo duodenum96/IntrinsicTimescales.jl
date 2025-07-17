@@ -6,7 +6,7 @@ First, some nomenclature. When we make an analysis on the data, for example, cal
 
 ![](assets/practice_2_estimator.drawio.svg)
 
-Our first note about the noise of estimators was the finiteness of the data. We noted that as we go along further lags, we have less data points at our hand to calculate the correlation values, making the estimate noisier. A first response to the problem is to use a different cutoff. Instead of waiting the autocorrelation function to reach exactly to 0 thus completely losing the similarity, we can cut it off when it reaches 0.5 and say losing half of the similarity. After all, a time-series with a longer timescale should take longer to lose half of it. This method is called ACW-50. It is  older than ACW-0. To my knowledge, used first in [Honey et al., 2012](https://pubmed.ncbi.nlm.nih.gov/23083743/). This was a time when the phrase intrinsic neural timescale had not been established. The term at that time was temporal receptive windows (TRW). I will discuss the evolution of the term more in the [Theory](../theory/theory.md) section. For now, we will make simulations from two processes with different timescales and see how well we can distinguish their INTs using ACW-50 versus ACW-0. To quickly get many simulations with the same timescale, I will set num\_trials to 1000 in the function [`generate_ou_process`](@ref). Note that I am also setting `rng` and `deq_seed` arguments, these are for reproducibility. `rng` here handles the reproducibility in the initial conditions (e.g. the starting value of simulations) and `deq_seed` makes sure the rest of the simulations are reproducible. 
+Our first note about the noise of estimators was the finiteness of the data. We noted that as we go along further lags, we have less data points at our hand to calculate the correlation values, making the estimate noisier. A first response to the problem is to use a different cutoff. Instead of waiting the autocorrelation function to reach exactly to 0 thus completely losing the similarity, we can cut it off when it reaches 0.5 and say losing half of the similarity. After all, a time-series with a longer timescale should take longer to lose half of it. This method is called ACW-50. It is  older than ACW-0. To my knowledge, used first in [Honey et al., 2012](https://pubmed.ncbi.nlm.nih.gov/23083743/). This was a time when the phrase intrinsic neural timescale had not been established. The term at that time was temporal receptive windows (TRW). I will discuss the evolution of the term more in the [Theory](../theory/theory.md) section. For now, we will make simulations from two processes with different timescales and see how well we can distinguish their INTs using ACW-50 versus ACW-0. To quickly get many simulations with the same timescale, I will set num\_trials to 1000 in the function [`generate_ou_process`](@ref). 
 
 ```julia
 using IntrinsicTimescales # import IntrinsicTimescales package
@@ -82,8 +82,8 @@ dt = 2.0 # Time interval between two time points
 duration = 300.0 # 5 minutes of data
 num_trials = 1000 # Number of trials
 
-data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
-data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
+data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
+data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
 
 fs = 1 / dt # sampling rate
 acwresults_1 = acw(data_1, fs, acwtypes=[:acw50, :acw0]) 
@@ -143,8 +143,8 @@ dt = 2.0 # Time interval between two time points
 duration = 300.0 # 5 minutes of data
 num_trials = 1000 # Number of trials
 
-data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
-data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
+data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
+data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
 
 fs = 1 / dt # sampling rate
 acwresults_1 = acw(data_1, fs, acwtypes=[:auc, :acw0]) 
