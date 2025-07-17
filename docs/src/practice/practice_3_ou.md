@@ -57,12 +57,13 @@ Back to `generate_ou_process`. What this function does is that it solves this eq
 
 ```julia
 using IntrinsicTimescales, Statistics
+Random.seed!(123)
 sd = 1.0
 duration = length(lags) * dt # match the number of lags
 num_trials = 100
 n_lags = length(lags)
-data_short_ts = generate_ou_process(tau_short, sd, dt, duration, num_trials)
-data_long_ts = generate_ou_process(tau_long, sd, dt, duration, num_trials)
+data_short_ts = generate_ou_process(tau_short, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
+data_long_ts = generate_ou_process(tau_long, sd, dt, duration, num_trials, rng=Xoshiro(123), deq_seed=123)
 # average over trials to get a less noisy ACF
 acf_numerical_short = mean(comp_ac_fft(data_short_ts), dims=1)[:]
 acf_numerical_long = mean(comp_ac_fft(data_long_ts), dims=1)[:]
@@ -104,11 +105,11 @@ println("Short timescale: $(tau_short)")
 println("ACW-e estimate of short timescale: $(acw_e_short)")
 # 0.0091
 println("Curve-fitting estimate of short timescale: $(acw_tau_short)")
-# 0.0088
+# 0.0087
 println("Long timescale: $(tau_long)")
 # 0.03
 println("ACW-e estimate of long timescale: $(acw_e_long)")
-# 0.0214
+# 0.021
 println("Curve-fitting estimate of long timescale: $(acw_tau_long)")
 # 0.02
 ```
@@ -119,7 +120,7 @@ There is one note I should mention before closing: it is possible to skip the ze
 \textrm{ACF}(l) = A (e^{-\frac{l}{\tau}} + B)
 ```
 
-where ``A`` is the amplitude and ``B`` is the offset. The option `skip_zero_lag` is for this purpose. An example usage is 
+where ``A`` is the amplitude and ``B`` is the offset, it is possible to get better estimates. The option `skip_zero_lag` is for this purpose. An example usage is 
 
 ```julia
 acw_results = acw(data_short_ts, fs, acwtypes=:tau, skip_zero_lag=true)
@@ -127,4 +128,4 @@ acw_results = acw(data_short_ts, fs, acwtypes=:tau, skip_zero_lag=true)
 
 Even though we introduced two more parameters to fit, this estimation tends to be more reliable in fMRI data. This method is used in [Ito et al., 2020](https://www.sciencedirect.com/science/article/pii/S1053811920306273) and [Murray et al., 2014](https://www.nature.com/articles/nn.3862). 
 
-So far, we always assumed that the ACF is a nice exponential decay. This is rarely the case for EEG/MEG data where oscillatory brain activity (alpha oscillations for example) makes a considerable impact on ACF. We will learn how to deal with it in the next section. 
+So far, we always assumed that the ACF is a nice exponential decay. This is rarely the case for EEG/MEG data where oscillatory brain activity (alpha oscillations for example) makes a considerable impact on ACF. We will learn how to deal with it in the [next section](practice_4_psd.md). 
