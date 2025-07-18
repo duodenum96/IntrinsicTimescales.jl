@@ -190,7 +190,7 @@ function one_timescale_and_osc_model(data, time, fit_method;
         mean_psd = mean(psd, dims=1)
 
         if isnothing(freqlims)
-            freqlims = (0.5 / 1000.0, 100.0 / 1000.0) # Convert to kHz (units in ms)
+            freqlims = (0.5, 100.0) # Convert to kHz (units in ms)
         end
         freq_idx = (freqs .< freqlims[2]) .&& (freqs .> freqlims[1])
         lags_freqs = freqs[freq_idx]
