@@ -17,7 +17,7 @@ The following table summarizes the four models.
 | `one_timescale_with_missing_model` | Ornstein-Uhlenbeck process with missing data replaced by NaNs | [`comp_ac_time_missing`](@ref) or [`comp_psd_lombscargle`](@ref) | ABC (for both ACF and PSD), ADVI (only ACF) |
 | `one_timescale_and_osc_with_missing_model` | Sinusoid added on Ornstein-Uhlenbeck process with missing data replaced by NaNs | [`comp_ac_time_missing`](@ref) or [`comp_psd_lombscargle`](@ref) | ABC (for both ACF and PSD), ADVI (only ACF) |   
 
-All models are fit with `fit` function and return [`ADVIResults`](@ref) or [`ABCResults`](@ref) type. See the [Fitting and Results](fit_result.md) section for details. 
+All models are fit with `int_fit` function and return [`ADVIResults`](@ref) or [`ABCResults`](@ref) type. See the [Fitting and Results](fit_result.md) section for details. 
 
 ## Fitting Methods - ABC
 
@@ -38,13 +38,21 @@ END WHILE
 
 PMC uses ABC samples as the initial population and iteratively updates. For more details, refer to [Zeraati et al, 2021](https://www.nature.com/articles/s43588-022-00214-3). 
 
-To change the parameters of the ABC algorithm, first use the function [`get_param_dict_abc`](@ref) to get the default parameters. Then modify the parameters and pass them to the function `fit`. For example, 
+To change the parameters of the ABC algorithm, first use the function [`get_param_dict_abc`](@ref) to get the default parameters. Then modify the parameters and pass them to the function `int_fit`. For example, 
 
 ```julia
+using IntrinsicTimescales
+timescale = 0.3 # true timescales
+variance = 1.0 # variance of data
+duration = 10.0 # duration of data
+n_trials = 10 # How many trials
+fs = 500.0 # Sampling rate
+data = generate_ou_process(timescale, variance, 1/fs, duration, n_trials)
+time = (1/fs):(1/fs):duration
 model = one_timescale_model(data, time, :abc)
 param_dict = get_param_dict_abc()
-param_dict["convergence_window"] = 10
-result = fit(model, param_dict)
+param_dict[:convergence_window] = 10
+result = int_fit(model, param_dict)
 int_map = result.MAP[1] # Maximum a posteriori 
 ```
 The parameters are detailed in [Parameters for Approximate Bayesian Computation](fit_parameters.md) section.
@@ -66,8 +74,8 @@ Similar to ABC, in order to change the parameters of the ADVI algorithm, use the
 ```julia
 model = one_timescale_and_osc_model(data, time, :advi)
 param_dict = get_param_dict_advi()
-param_dict["n_iterations"] = 20
-fit(model, param_dict)
+param_dict[:n_iterations] = 20
+results = int_fit(model, param_dict)
 ```
 
 See [Parameters for Automatic Differentiation Variational Inference](fit_parameters.md) section for details on parameters.
