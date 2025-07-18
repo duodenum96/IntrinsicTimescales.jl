@@ -1,9 +1,9 @@
 # Model Fitting and Parameters
 
-All models are fit with `fit` function and return [`ADVIResults`](@ref) or [`ABCResults`](@ref) type. The `fit` function has the following signature:
+All models are fit with `int_fit` function and return [`ADVIResults`](@ref) or [`ABCResults`](@ref) type. The `int_fit` function has the following signature:
 
 ```julia
-results = fit(model, param_dict=nothing)
+results = int_fit(model, param_dict=nothing)
 ```
 
 The function determines the inference method based on model attributes which the user provides when initiating the model. When `param_dict` is not provided, the function uses the default parameters for the inference method, which can be seen with [`get_param_dict_advi`](@ref) and [`get_param_dict_abc`](@ref) functions. 
@@ -89,7 +89,7 @@ model = one_timescale_model(data, time, :abc)
 param_dict = get_param_dict_abc()
 param_dict[:convergence_window] = 10
 param_dict[:max_iter] = 20000
-results = fit(model, param_dict)
+results = int_fit(model, param_dict)
 ```
 
 ## Parameters for Automatic Differentiation Variational Inference (ADVI)
@@ -108,6 +108,6 @@ model = one_timescale_model(data, time, :advi)
 param_dict = get_param_dict_advi()
 param_dict[:n_samples] = 8000
 param_dict[:n_elbo_samples] = 60
-results = fit(model, param_dict)
+results = int_fit(model, param_dict)
 ```
 
