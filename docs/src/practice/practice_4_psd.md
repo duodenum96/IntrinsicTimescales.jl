@@ -12,7 +12,7 @@ num_trials = 10
 data_mean = 0.0 # desired mean
 data_sd = 1.0 # desired sd
 
-timescale = 0.05 # 100 ms
+timescale = 0.05 # 50 ms
 oscillation_freq = 10.0 # 10 Hz alpha oscillation
 coefficient = 0.95
 theta = [timescale, oscillation_freq, coefficient] # vector of parameters

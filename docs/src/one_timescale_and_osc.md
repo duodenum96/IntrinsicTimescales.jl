@@ -17,13 +17,29 @@ If the user wishes to set the priors, they need to specify a prior for each of t
 
 ```julia
 using Distributions, IntrinsicTimescales
+
+data_mean = 0.0 # desired mean
+data_sd = 1.0 # desired sd
+duration = 10.0 # duration of data
+n_trials = 10 # How many trials
+fs = 500.0 # Sampling rate
+timescale = 0.05 # 50 ms
+oscillation_freq = 10.0 # 10 Hz alpha oscillation
+coefficient = 0.95
+theta = [timescale, oscillation_freq, coefficient] # vector of parameters
+
+data = generate_ou_with_oscillation(theta, 1/fs, duration, n_trials, data_mean, data_sd)
+
+
 priors = [
         Normal(0.1, 0.1),    # a prior for a 0.1 second timescale with an uncertainty of 0.1
         Normal(10.0, 5.0),   # 10 Hz frequency with uncertainty of 5 Hz
         Uniform(0.0, 1.0)    # Uniform distribution for coefficient
     ]
+
+time = (1/fs):(1/fs):duration
 model = one_timescale_and_osc_model(data, time, :abc, summary_method=:acf, prior=priors)
-results = fit(model)
+results = int_fit(model)
 int = results.MAP[1]  # max a posterori for INT
 freq = results.MAP[2] # for frequency
 coef = results.MAP[3] # for coefficient

@@ -8,9 +8,12 @@ The generative model:
 
 with timescale ``\tau``. ``\xi(t)`` is white noise with unit variance. 
 
-Can be used with either ACF or PSD as the summary method. 
+Can be used with either ACF or PSD as the summary method. Below, in each section, we describe the arguments for each summary method. 
 
 ## ACF Summary
+
+The full function signature for `summary_method=:acf` is:
+
 ```julia
 function one_timescale_model(data, time, fit_method; summary_method=:acf,
                              prior=nothing, n_lags=nothing,
@@ -19,11 +22,24 @@ function one_timescale_model(data, time, fit_method; summary_method=:acf,
                              weights=[0.5, 0.5])
 ```
 
-Simple usage:
+Example usage:
 
 ```julia
+# Simulate some data:
+using IntrinsicTimescales
+timescale = 0.3 # true timescales
+variance = 1.0 # variance of data
+duration = 10.0 # duration of data
+n_trials = 10 # How many trials
+fs = 500.0 # Sampling rate
+data = generate_ou_process(timescale, variance, 1/fs, duration, n_trials) # Data in the form of (trials x time)
+
+# Prepare the vector of time points:
+time = (1/fs):(1/fs):duration
+
+# Fit the model:
 model = one_timescale_model(data, time, :abc, summary_method=:acf)
-results = fit(model)
+results = int_fit(model)
 int = results.MAP[1] # maximum a posteriori estimate
 ```
 
@@ -50,8 +66,11 @@ If the user does not specify a prior, or specifies `"informed_prior"`, Intrinsic
 An example for custom prior distribution:
 
 ```julia
-prior = Normal(100.0, 10.0)
-results = one_timescale_model(data, time, :abc, summary_method=:acf, prior=prior)
+using Distributions
+prior = Normal(0.5, 0.5)
+model = one_timescale_model(data, time, :abc, summary_method=:acf, prior=prior)
+results = int_fit(model)
+int = results.MAP[1]
 ```
 
 * `n_lags`: Number of lags to use for the ACF calculation. 
@@ -72,6 +91,8 @@ The first number is the weight for RMSE between ACFs and the second number is th
 
 ## PSD Summary
 
+The full function signature for `summary_method=:psd` is:
+
 ```julia
 function one_timescale_model(data, time, fit_method; summary_method=:psd,
                              prior=nothing, 
@@ -80,11 +101,11 @@ function one_timescale_model(data, time, fit_method; summary_method=:psd,
                              weights=[0.5, 0.5])
 ```
 
-Simple usage:
+Example usage:
 
 ```julia
 model = one_timescale_model(data, time, :abc, summary_method=:psd)
-results = fit(model)
+results = int_fit(model)
 int = results.MAP[1]
 ```
 

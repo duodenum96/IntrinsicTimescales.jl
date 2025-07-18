@@ -17,7 +17,7 @@ The ABC algorithm returns an `ABCResults` type containing the full history and f
 You can access these fields directly from the results type:
 
 ```julia
-results = fit(model, param_dict)
+results = int_fit(model, param_dict)
 
 # Maximum a posteriori estimates
 map_estimates = results.MAP
@@ -43,7 +43,7 @@ The ADVI algorithm returns an `ADVIResults` type containing the inference result
 You can access these fields directly from the results object:
 
 ```julia
-results = fit(model, param_dict)
+results = int_fit(model, param_dict)
 posterior_samples = results.samples # Access posterior samples
 map_estimates = results.MAP # Get MAP estimates
 posterior = results.variational_posterior # Full variational posterior
