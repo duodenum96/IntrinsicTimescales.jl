@@ -17,6 +17,8 @@ acwresults = acw(data, fs; acwtypes=[:acw0, :acw50, :acweuler, :auc, :tau, :knee
 Simple usage:
 
 ```julia
+data = randn(10, 300) # 10 trials, 300 time points
+fs = 1.0 # sampling rate
 results = acw(data, fs)
 acw_results = results.acw_results
 acw_0 = acw_results[1]
@@ -110,15 +112,16 @@ Your primary interest should be the field `acwresults.acw_results`. This is a ve
 ```julia
 data = randn(2, 1000, 10) # assume 2 subjects, 1000 time points and 10 trials
 fs = 1.0
-acwresults = acw(data, fs; acwtypes=[:acw0, :tau], dims=2)
+acwresults = acw(data, fs; acwtypes=[:acw0, :tau, :knee], dims=2)
 acw_results = acwresults.acw_results 
 ```
 
-`acw_results` is a two element vector containing the results with the same order of `acwtypes` as you specify. Since we wrote `:acw0` as the first element and `:tau` as the second element, we can extract the results as 
+`acw_results` is a two element vector containing the results with the same order of `acwtypes` as you specify. Since we wrote `:acw0` as the first element and `:tau` as the second element, and `:knee` as the third element, we can extract the results as 
 
 ```julia
 acw_0 = acw_results[1]
 tau = acw_results[2]
+knee = acw_results[3]
 ```
 
 Let's check the dimensionality of these results. Remember that we specified 2 subjects, 1000 time points and 10 trials. The result collapses the dimension of time and gives the result as an 2x10 matrix. 
