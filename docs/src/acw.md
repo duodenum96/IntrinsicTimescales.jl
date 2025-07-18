@@ -17,6 +17,8 @@ acwresults = acw(data, fs; acwtypes=[:acw0, :acw50, :acweuler, :auc, :tau, :knee
 Simple usage:
 
 ```julia
+data = randn(100, 200) # 100 trials, 200 time points
+fs = 1.0
 results = acw(data, fs)
 acw_results = results.acw_results
 acw_0 = acw_results[1]
@@ -110,7 +112,7 @@ Your primary interest should be the field `acwresults.acw_results`. This is a ve
 ```julia
 data = randn(2, 1000, 10) # assume 2 subjects, 1000 time points and 10 trials
 fs = 1.0
-acwresults = acw(data, fs; acwtypes=[:acw0, :tau], dims=2)
+acwresults = acw(data, fs; acwtypes=[:acw0, :tau, :knee], dims=2)
 acw_results = acwresults.acw_results 
 ```
 
