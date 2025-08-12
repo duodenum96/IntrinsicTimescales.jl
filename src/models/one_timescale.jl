@@ -86,6 +86,7 @@ end
     one_timescale_model(data, time, fit_method; kwargs...)
 
 Construct a OneTimescaleModel for time series analysis.
+See https://duodenum96.github.io/IntrinsicTimescales.jl/stable/one_timescale/ for details and complete examples. 
 
 # Arguments
 - `data`: Input time series data
@@ -112,13 +113,24 @@ Construct a OneTimescaleModel for time series analysis.
 - `data_tau=nothing`: Pre-computed timescale
 - `u0=nothing`: Initial parameter guess
 
-# Returns
-- `OneTimescaleModel`: Model instance configured for specified analysis method
+# Usage
+- Usage 1 — ACF (`summary_method=:acf`)
+  - Uses: `n_lags`, `distance_method` (defaults to `:linear`)
+  - Ignores: `freqlims`, `freq_idx`
+  - Example:
+    ```julia
+    model = one_timescale_model(data, time, :abc; summary_method=:acf, n_lags=200)
+    ```
 
-# Notes
-Two main usage patterns:
-1. ACF-based inference: `summary_method=:acf`, `fit_method=:abc/:advi`
-2. PSD-based inference: `summary_method=:psd`, `fit_method=:abc/:advi`
+- Usage 2 — PSD (`summary_method=:psd`)
+  - Uses: `freqlims`, `freq_idx`, `distance_method` (defaults to `:logarithmic`)
+  - Ignores: `n_lags`
+  - Example:
+    ```julia
+    model = one_timescale_model(data, time, :abc; summary_method=:psd, freqlims=(1.0, 50.0))
+    ```
+
+- Note: `lags_freqs` are lags for ACF and frequencies for PSD, typically derived from the data.
 """
 function one_timescale_model(data, time, fit_method; summary_method=:acf,
                              data_sum_stats=nothing,

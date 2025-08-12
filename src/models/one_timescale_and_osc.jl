@@ -129,10 +129,24 @@ See https://duodenum96.github.io/IntrinsicTimescales.jl/stable/one_timescale_and
 # Returns
 - `OneTimescaleAndOscModel`: Model instance configured for specified analysis method
 
-# Notes
-Four main usage patterns:
-1. ACF-based ABC/ADVI: `summary_method=:acf`, `fit_method=:abc/:advi`
-2. PSD-based ABC/ADVI: `summary_method=:psd`, `fit_method=:abc/:advi`
+# Usage
+- Usage 1 — ACF (`summary_method=:acf`)
+  - Uses: `n_lags`, `distance_method` (defaults to `:linear`)
+  - Ignores: `freqlims`, `freq_idx`
+  - Example:
+    ```julia
+    model = one_timescale_and_osc_model(data, time, :abc; summary_method=:acf, n_lags=200)
+    ```
+
+- Usage 2 — PSD (`summary_method=:psd`)
+  - Uses: `freqlims`, `freq_idx`, `distance_method` (defaults to `:logarithmic`)
+  - Ignores: `n_lags`
+  - Example:
+    ```julia
+    model = one_timescale_and_osc_model(data, time, :abc; summary_method=:psd, freqlims=(1.0, 50.0))
+    ```
+
+- Note: `lags_freqs` are lags for ACF and frequencies for PSD, typically derived from the data.
 """
 function one_timescale_and_osc_model(data, time, fit_method;
                                      summary_method=:psd,

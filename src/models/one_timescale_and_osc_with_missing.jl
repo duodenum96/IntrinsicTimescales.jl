@@ -107,6 +107,7 @@ end
     one_timescale_and_osc_with_missing_model(data, time, fit_method; kwargs...)
 
 Construct a OneTimescaleAndOscWithMissingModel for inferring timescales and oscillations from data with missing values.
+See https://duodenum96.github.io/IntrinsicTimescales.jl/stable/one_timescale_and_osc_with_missing/ for details and complete examples. 
 
 # Arguments
 - `data`: Input time series data (may contain NaN values)
@@ -136,20 +137,24 @@ Construct a OneTimescaleAndOscWithMissingModel for inferring timescales and osci
 # Returns
 - `OneTimescaleAndOscWithMissingModel`: Model instance configured for specified analysis method
 
-# Notes
-Main usage patterns:
-1. ACF-based analysis: `summary_method=:acf` - Uses autocorrelation with missing data handling
-2. PSD-based analysis: `summary_method=:psd` - Uses Lomb-Scargle periodogram for irregular sampling
+# Usage
+- Usage 1 — ACF (`summary_method=:acf`)
+  - Uses: `n_lags`, `distance_method` (defaults to `:linear`)
+  - Ignores: `freqlims`, `freq_idx`
+  - Example:
+    ```julia
+    model = one_timescale_and_osc_with_missing_model(data, time, :abc; summary_method=:acf, n_lags=200)
+    ```
 
-Key differences from regular model:
-- Automatically detects and handles NaN values in input data
-- Uses nanmean/nanstd for robust statistics computation
-- Applies specialized missing-data algorithms for summary statistics
-- Preserves missing data pattern in synthetic data generation
+- Usage 2 — PSD (`summary_method=:psd`)
+  - Uses: `freqlims`, `freq_idx`, `distance_method` (defaults to `:logarithmic`)
+  - Ignores: `n_lags`
+  - Example:
+    ```julia
+    model = one_timescale_and_osc_with_missing_model(data, time, :abc; summary_method=:psd, freqlims=(1.0, 50.0))
+    ```
 
-For combined distance (`distance_combined=true`):
-- ACF method: Combines summary distance with timescale distance (2 weights)
-- PSD method: Combines summary, timescale, and oscillation distances (3 weights)
+- Note: `lags_freqs` are lags for ACF and frequencies for PSD, typically derived from the data. Missing-data variants use `comp_ac_time_missing` for ACF and Lomb–Scargle for PSD.
 """
 function one_timescale_and_osc_with_missing_model(data, time, fit_method;
                                             summary_method=:psd,
