@@ -75,7 +75,7 @@ Statistics = "1"
 StatsBase = "0.34"
 StochasticDiffEq = "6"
 Test = "1"
-Turing = "0.36"
+Turing = "0.36, 0.39"
 julia = "1.11"
 
 [extras]
