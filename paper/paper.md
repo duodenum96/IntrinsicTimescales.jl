@@ -8,8 +8,10 @@ tags:
     - bayesian estimation
 authors:
     - name: Yasir Çatal
+      orcid: 0000-0002-0942-899X
       affiliation: "1, 2"
     - name: Georg Northoff
+      orcid: 0000-0002-5236-0951
       affiliation: "1, 2"
 affiliations:
     - index: 1
