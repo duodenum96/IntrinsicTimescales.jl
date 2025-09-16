@@ -9,6 +9,7 @@ using Test
     include("test_acw.jl")
     include("test_utils.jl")
     include("test_abc.jl")
+    include("test_abcdez.jl")
     include("test_one_timescale.jl")
     include("test_one_timescale_and_osc.jl")
     include("test_one_timescale_with_missing.jl")

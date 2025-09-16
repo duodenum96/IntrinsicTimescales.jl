@@ -72,6 +72,10 @@ include("core/acw.jl")
 include("core/plotting.jl")
 @reexport using .Plotting
 
+include("core/abcdez.jl")
+@reexport using .ABCDEZ
+
+
 export AbstractTimescaleModel,
        BaseModel,
        generate_ou_process,

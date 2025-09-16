@@ -38,11 +38,14 @@ Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
 
 [weakdeps]
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+ABCdeZ = "208e7efd-7036-4c82-8b73-3e7ae71c2350"
 
 [extensions]
 IntPlottingExt = "Plots"
+ABCdeZExt = "ABCdeZ"
 
 [compat]
+ABCdeZ = "0.4.1"
 AbstractFFTs = "1"
 ComponentArrays = "0.15"
 DSP = "0.8"
@@ -80,6 +83,7 @@ julia = "1.11"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+ABCdeZ = "208e7efd-7036-4c82-8b73-3e7ae71c2350"
 
 [targets]
-test = ["Test"]
+test = ["Test", "ABCdeZ"]
