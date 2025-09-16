@@ -31,6 +31,7 @@ A Julia package for estimation of timescales from time series data.
 """
 module IntrinsicTimescales
 
+using Revise
 using Reexport
 
 include("core/model.jl")
@@ -75,6 +76,7 @@ include("core/plotting.jl")
 include("core/abcdez.jl")
 @reexport using .ABCDEZ
 
+include("../ext/ABCdeZ/abcdezExt.jl")
 
 export AbstractTimescaleModel,
        BaseModel,

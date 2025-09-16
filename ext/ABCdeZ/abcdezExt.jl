@@ -3,6 +3,7 @@ module ABCdeZExt
 export get_param_dict_abcdemc, get_param_dict_abcdesmc, 
     abcdez_inference
 
+using Revise
 import IntrinsicTimescales as it
 import ABCdeZ as abc
 import Distributions as dist
@@ -37,7 +38,7 @@ function it.get_param_dict_abcdemc()
 end
 
 function it.abcdez_inference(model, ϵ_target, param_dict, method)
-    distance_function!(θ, ve) = it.generate_data_and_reduce(model, θ), nothing
+    distance_function!(θ, ve) = it.Models.generate_data_and_reduce(model, θ), nothing
     prior = abc.Factored(model.prior...)
     if method == :abcdemc
         result = _abcdez_inference_mc(ϵ_target, param_dict, distance_function!, prior)
@@ -46,20 +47,29 @@ function it.abcdez_inference(model, ϵ_target, param_dict, method)
     else
         error("method should be either :abcdemc or :abcdesmc")
     end
-    return result
+    posterior = _get_posterior(result, method)
+    return result, posterior
 end
 
 """
 Perform ABCdeZ using abcdemc
 """
 function _abcdez_inference_mc(ϵ_target, param_dict_mc, distance_function!, prior)
-    results = abc.abcdemc(prior, distance_function!, ϵ_target, nothing; param_dict_mc...)
+    results = abc.abcdemc!(prior, distance_function!, ϵ_target, nothing; param_dict_mc...)
     return results
 end
 
 function _abcdez_inference_smc(ϵ_target, param_dict_mc, distance_function!, prior)
-    results = abc.abcdesmc(prior, distance_function!, ϵ_target, nothing; param_dict_mc...)
+    results = abc.abcdesmc!(prior, distance_function!, ϵ_target, nothing; param_dict_mc...)
     return results
+end
+
+function _get_posterior(results, method)
+    if method == :abcdemc
+        return [t[1] for t in results.P]
+    elseif method == :abcdesmc
+        return [t[1] for t in results.P[results.Wns .> 0.0]]
+    end
 end
 
 end

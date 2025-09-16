@@ -4,6 +4,7 @@ authors = ["duodenum96 <catalyasir@gmail.com>"]
 version = "0.6.4"
 
 [deps]
+ABCdeZ = "208e7efd-7036-4c82-8b73-3e7ae71c2350"
 AbstractFFTs = "621f4979-c628-5d54-868e-fcf4e3e8185c"
 ComponentArrays = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
@@ -26,6 +27,7 @@ Preferences = "21216c6a-2e73-6563-6e65-726566657250"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 Romberg = "ff01fdde-158c-414c-948f-c94b4a236685"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SciMLSensitivity = "1ed8b502-d754-442c-8d5d-10ac956f44a1"
@@ -38,11 +40,9 @@ Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
 
 [weakdeps]
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-ABCdeZ = "208e7efd-7036-4c82-8b73-3e7ae71c2350"
 
 [extensions]
 IntPlottingExt = "Plots"
-ABCdeZExt = "ABCdeZ"
 
 [compat]
 ABCdeZ = "0.4.1"
@@ -69,6 +69,7 @@ Preferences = "1"
 ProgressMeter = "1"
 Random = "1"
 Reexport = "1"
+Revise = "3.9.0"
 Romberg = "0.2"
 SciMLBase = "2"
 SciMLSensitivity = "7"
@@ -82,8 +83,8 @@ Turing = "0.36"
 julia = "1.11"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 ABCdeZ = "208e7efd-7036-4c82-8b73-3e7ae71c2350"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test", "ABCdeZ"]
