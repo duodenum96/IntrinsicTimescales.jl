@@ -1,7 +1,7 @@
 name = "IntrinsicTimescales"
 uuid = "10d2f5c9-08bb-4a99-a156-10b2ac3b4091"
-authors = ["duodenum96 <catalyasir@gmail.com>"]
 version = "0.6.4"
+authors = ["duodenum96 <catalyasir@gmail.com>"]
 
 [deps]
 AbstractFFTs = "621f4979-c628-5d54-868e-fcf4e3e8185c"
@@ -59,7 +59,7 @@ Missings = "1"
 NaNStatistics = "0.6"
 NonlinearSolve = "4"
 OhMyThreads = "0.8.3"
-Optimization = "4"
+Optimization = "4, 5"
 OptimizationOptimJL = "0.4"
 Plots = "1"
 Preferences = "1"
