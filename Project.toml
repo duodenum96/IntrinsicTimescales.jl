@@ -1,7 +1,7 @@
 name = "IntrinsicTimescales"
 uuid = "10d2f5c9-08bb-4a99-a156-10b2ac3b4091"
-authors = ["duodenum96 <catalyasir@gmail.com>"]
 version = "0.6.4"
+authors = ["duodenum96 <catalyasir@gmail.com>"]
 
 [deps]
 AbstractFFTs = "621f4979-c628-5d54-868e-fcf4e3e8185c"
@@ -75,7 +75,7 @@ Statistics = "1"
 StatsBase = "0.34"
 StochasticDiffEq = "6"
 Test = "1"
-Turing = "0.36"
+Turing = "0.36, 0.41"
 julia = "1.11"
 
 [extras]
