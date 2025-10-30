@@ -1,6 +1,8 @@
 # Citations
 
-The paper for IntrinsicTimescales.jl is currently in review in Journal of Open Source Software. Once it is published, I'll add the reference here for citation. 
+If you are using this package, please cite:
+
+- Çatal Y., Northoff G. (2025). IntrinsicTimescales.jl: A Julia package to estimate intrinsic (neural) timescales (INTs) from time-series data. Journal of Open Source Software, 10(114), 8261, https://doi.org/10.21105/joss.08261
 
 For specific methods, you can cite the following papers:
 
