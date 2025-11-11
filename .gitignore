@@ -9,3 +9,10 @@
 /test/coverage/Manifest.toml
 depr/*
 build/*
+*.png
+docs/scratchpad/*
+*.svg
+*.bkp
+example/*
+tutorial_mne.py
+practice_6_fmri*
