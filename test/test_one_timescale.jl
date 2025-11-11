@@ -21,7 +21,7 @@ using Random
     test_data = randn(num_trials, ntime)  # 10 trials, 10000 timepoints
     data_mean = mean(test_data)
     data_sd = std(test_data)
-    
+
     @testset "Model Construction - ACF and ABC" begin
         model = one_timescale_model(
             test_data,
@@ -58,7 +58,7 @@ using Random
         @test model.distance_method == :logarithmic
     end
 
-    
+
     @testset "Informed Prior" begin
         model = one_timescale_model(
             test_data,
@@ -68,7 +68,7 @@ using Random
             prior="informed_prior",
             n_lags=100
         )
-        
+
         @test model.prior[1] isa Normal
     end
 
@@ -80,14 +80,14 @@ using Random
             summary_method=:acf,
             n_lags=100
         )
-        
+
         theta = [1.0]  # test parameter (tau)
         simulated_data = Models.generate_data(model, theta)
-        
+
         @test size(simulated_data) == (model.numTrials, Int(model.T/model.dt))
         @test !any(isnan, simulated_data)
         @test !any(isinf, simulated_data)
-        
+
         # Test statistical properties
         @test abs(std(simulated_data) - model.data_sd) < 0.1
         @test abs(mean(simulated_data) - model.data_mean) < 0.1
@@ -102,22 +102,22 @@ using Random
             distance_method=:linear,
             n_lags=100
         )
-        
+
         theta1 = [1.0]
         theta2 = [2.0]
-        
+
         data1 = Models.generate_data(model, theta1)
         data2 = Models.generate_data(model, theta2)
-        
+
         stats1 = Models.summary_stats(model, data1)
         stats2 = Models.summary_stats(model, data2)
-        
+
         # Test summary stats properties
         @test length(stats1) == model.n_lags
         @test !any(isnan, stats1)
         @test stats1[1] ≈ 1.0 atol=0.1  # First lag should be close to 1
         @test all(abs.(stats1) .<= 1.0)  # All autocorrelations should be ≤ 1
-        
+
         # Test distance function
         distance = Models.distance_function(model, stats1, stats2)
         @test distance isa Float64
@@ -151,10 +151,10 @@ using Random
         num_trials = 500
         n_lags = 50
         time = dt:dt:T
-        
+
         # Generate synthetic data
         data = generate_ou_process(true_tau, 3.0, dt, T, num_trials)
-        
+
         @testset "ABC Inference - ACF" begin
             model = one_timescale_model(
                 data,
@@ -165,15 +165,15 @@ using Random
                 n_lags=n_lags,
                 distance_method=:linear
             )
-            
+
             # Custom parameters for faster testing
             param_dict = get_param_dict_abc()
             param_dict[:steps] = 10
             param_dict[:max_iter] = 100
             param_dict[:target_epsilon] = 10.0
-            
+
             results = int_fit(model, param_dict)
-            
+
             # Test posterior properties
             @test results.MAP[1] isa Float64
             @test size(results.final_theta, 2) == 1  # One parameter (tau)
@@ -183,7 +183,7 @@ using Random
             @test results isa ABC.ABCResults
         end
 
-        
+
         @testset "ABC Inference - PSD" begin
             model = one_timescale_model(
                 data,
@@ -194,7 +194,7 @@ using Random
                 freqlims=(0.5 / 1000.0, 100.0 / 1000.0),
                 distance_method=:logarithmic
             )
-            
+
             param_dict = get_param_dict_abc()
             param_dict[:epsilon_0] = 1.0
             param_dict[:steps] = 5
@@ -202,20 +202,20 @@ using Random
             param_dict[:target_epsilon] = 10.0
             param_dict[:N] = 10000
             param_dict[:distance_max] = 500.0
-            
+
             results = int_fit(model, param_dict)
-            
+
             # Test posterior properties
             @test results.MAP[1] ≈ true_tau atol=30.0
             @test size(results.final_theta, 2) == 1
 
             @test !isempty(results.final_theta)
             @test !any(isnan, results.final_theta)
-            
-        end
-        
 
-        # This is too slow, not recommended. Keeping here for completeness. 
+        end
+
+
+        # This is too slow, not recommended. Keeping here for completeness.
         # @testset "Combined Distance Inference" begin
         #     model = one_timescale_model(
         #         data,
@@ -228,7 +228,7 @@ using Random
         #         distance_combined=true,
         #         weights=[0.7, 0.3]
         #     )
-            
+
         #     param_dict = get_param_dict_abc()
         #     param_dict[:epsilon_0] = 1.0
         #     param_dict[:steps] = 10
@@ -236,20 +236,20 @@ using Random
         #     param_dict[:target_epsilon] = 1e-2
         #     param_dict[:N] = 10000
         #     param_dict[:distance_max] = 500.0
-            
+
         #     posterior_samples, posterior_MAP, abc_record = int_fit(model, param_dict)
-            
+
         #     # Test posterior properties
         #     @test size(posterior_samples, 2) == 1
         #     @test !isempty(posterior_samples)
         #     @test !any(isnan, posterior_samples)
-            
+
         #     # Test MAP estimate
         #     @test abs(posterior_MAP[1] - true_tau) < 5.0
         # end
     end
 
-    
+
 @testset "OneTimescaleModel ADVI Tests" begin
     # Set random seed for reproducibility
 
@@ -265,8 +265,8 @@ using Random
 
     @testset "Model Construction" begin
         model = one_timescale_model(
-            data_ts, 
-            times, 
+            data_ts,
+            times,
             :advi;
             summary_method=:acf,
             prior=[Normal(0.3, 0.2)]
@@ -280,31 +280,34 @@ using Random
 
     @testset "ADVI Fitting" begin
         model = one_timescale_model(
-            data_ts, 
-            times, 
+            data_ts,
+            times,
             :advi;
             summary_method=:acf,
             prior=[Normal(0.3, 0.2)]
         )
 
         # Test with default parameters
-        result = int_fit(model)
+        param_dict = get_param_dict_advi()
+        param_dict[:n_iterations] = 3 # For speed
+        param_dict[:n_elbo_samples] = 5 # For speed
+        result = int_fit(model, param_dict)
         samples = result.samples
         map_estimate = result.MAP
         posterior = result.variational_posterior
-        
+
 
         @test size(samples, 2) == 4000  # Default n_samples
         @test length(map_estimate) == 2  # One parameter (tau) and one uncertainty (sigma)
         @test map_estimate[1] > 0  # Tau should be positive
-        
+
         # Test with custom parameters
         param_dict = get_param_dict_advi()
         param_dict[:n_samples] = 2000
         param_dict[:n_iterations] = 5
         param_dict[:n_elbo_samples] = 10
         param_dict[:autodiff] = AutoForwardDiff()
-        
+
         result2 = int_fit(model, param_dict)
         samples2 = result2.samples
         map_estimate2 = result2.MAP
@@ -314,11 +317,11 @@ using Random
         # Truncated vs softplus (with @btime):
         # truncated: 13.895 s (1452078 allocations: 35.39 GiB)
         # softplus : 14.233 s (1658998 allocations: 35.54 GiB)
-        
+
         @test size(samples2, 2) == 2000  # Custom n_samples
         @test length(map_estimate2) == 2
         @test map_estimate2[1] > 0
     end
-    
+
 end
 end
