@@ -60,13 +60,13 @@ end
 """
     expdecay_3_parameters(p, lags)
 
-Compute exponential decay function with amplitude and offset parameters. 
-This is used in `acw` with the setting `skip_zero_lag=true`. 
+Compute exponential decay function with amplitude and offset parameters.
+This is used in `acw` with the setting `skip_zero_lag=true`.
 
 # Arguments
 - `p::AbstractVector`: Parameters [A, tau, B] where:
   * A: Amplitude parameter
-  * tau: Timescale parameter 
+  * tau: Timescale parameter
   * B: Offset parameter
 - `lags::AbstractVector`: Time lags
 
@@ -105,7 +105,7 @@ function fit_expdecay(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T 
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay!,
                                                           resid_prototype=zeros(1)), u0,
                                         p=[lags, acf])
-    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.001, verbose=false) # TODO: Find a reasonable tolerance. 
+    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.001, verbose=false) # TODO: Find a reasonable tolerance.
     return sol.u[1]
 end
 
@@ -123,8 +123,8 @@ end
 """
     fit_expdecay_3_parameters(lags, acf; parallel=false)
 
-Fit a 3-parameter exponential decay function to autocorrelation data ( A*(exp(-t/tau) + B) ). 
-Excludes lag 0 from fitting. 
+Fit a 3-parameter exponential decay function to autocorrelation data ( A*(exp(-t/tau) + B) ).
+Excludes lag 0 from fitting.
 
 # Arguments
 - `lags::AbstractVector{T}`: Time lags
@@ -143,7 +143,7 @@ function fit_expdecay_3_parameters(lags::AbstractVector{T},
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay_3_parameters!,
                                                           resid_prototype=zeros(1)), u0,
                                         p=[lags[2:end], acf[2:end]])
-    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.001, verbose=false) # TODO: Find a reasonable tolerance. 
+    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.001, verbose=false) # TODO: Find a reasonable tolerance.
     return sol.u[2]
 end
 
@@ -381,9 +381,9 @@ Estimate initial parameters for Lorentzian fitting.
 - Vector{Float64}: Initial guess for [amplitude, knee_frequency]
 
 # Notes
-- Estimates amplitude from average power of low frequencies. 
-- Estimates knee frequency from half-power point. 
-- If allow_variable_exponent=true, sets initial guess for exponent to 2.0. 
+- Estimates amplitude from average power of low frequencies.
+- Estimates knee frequency from half-power point.
+- If allow_variable_exponent=true, sets initial guess for exponent to 2.0.
 - Used as starting point for nonlinear fitting
 """
 function lorentzian_initial_guess(psd::AbstractVector{<:Real},
@@ -429,8 +429,8 @@ Find knee frequency by fitting Lorentzian to power spectral density.
 - `parallel=false`: Whether to use parallel computation
 
 # Returns
-- Vector of the fit  for the equation amp/(1 + (f/knee)^{exponent}). 
-If allow_variable_exponent=false, assumes exponent=2 and returns [amplitude, knee_frequency]. If true, 
+- Vector of the fit  for the equation amp/(1 + (f/knee)^{exponent}).
+If allow_variable_exponent=false, assumes exponent=2 and returns [amplitude, knee_frequency]. If true,
 returns [amplitude, knee_frequency, exponent].
 
 # Notes
@@ -482,7 +482,7 @@ function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
     end
 
     if constrained
-        sol = Optimization.solve(prob, Optimization.LBFGS())
+        sol = Optimization.solve(prob, OptimizationOptimJL.LBFGS())
     else
         sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.1,
                                    verbose=false)
@@ -509,11 +509,11 @@ function find_knee_frequency(psd::AbstractArray{T}, freqs::AbstractVector{T};
 end
 
 """
-    fooof_fit(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end], 
+    fooof_fit(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end],
               oscillation_peak=true, max_peaks=3, allow_variable_exponent=false, constrained=false, parallel=false)
 
-Perform FOOOF-style fitting of power spectral density. The default behavior is to fit a Lorentzian with PLE = 2. 
-If allow_variable_exponent=true, the function will fit a Lorentzian with variable PLE. 
+Perform FOOOF-style fitting of power spectral density. The default behavior is to fit a Lorentzian with PLE = 2.
+If allow_variable_exponent=true, the function will fit a Lorentzian with variable PLE.
 
 # Arguments
 - `psd::AbstractArray{T}`: Power spectral density values
@@ -715,7 +715,7 @@ end
 """
     gaussian(f, u)
 
-Gaussian function for fitting oscillations. 
+Gaussian function for fitting oscillations.
 
 # Arguments
 - `f::AbstractVector`: Frequency values
@@ -829,10 +829,10 @@ x_reconstructed = stack_and_reshape(slices; dims=2)
 ```
 """
 function stack_and_reshape(slices; dims::Int=ndims(x))
-   n_dims = ndims(slices) + 1
-   permute_dims = [2:dims..., 1, (dims+1):n_dims...]
-   x_permuted = permutedims(stack(slices), permute_dims)
-   return x_permuted
+    n_dims = ndims(slices) + 1
+    permute_dims = [2:dims..., 1, (dims+1):n_dims...]
+    x_permuted = permutedims(stack(slices), permute_dims)
+    return x_permuted
 end
 
 end # module
