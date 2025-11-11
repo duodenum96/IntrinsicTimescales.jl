@@ -47,25 +47,25 @@ function create_turing_model(model, data_sum_stats; σ_prior=Exponential(1))
         # Get priors from model object
         theta = Vector{Real}(undef, length(model.prior))
         for i in eachindex(model.prior)
-            theta[i] ~ Truncated(model.prior[i], 0.0, Inf)
+            theta[i] ~ truncated(model.prior[i], 0.0, Inf)
         end
 
         σ ~ σ_prior
         # Generate data and compute summary statistics
         sim_data = Models.generate_data(model, theta)
         predicted_stats = Models.summary_stats(model, sim_data)
-        
+
         # Likelihood
         for i in eachindex(data)
             data[i] ~ Normal(predicted_stats[i], σ^2)
         end
     end
-    
+
     return fit_summary_stats(model, data_sum_stats)
 end
 
 """
-    fit_vi(model; n_samples=4000, n_iterations=10, n_elbo_samples=20, 
+    fit_vi(model; n_samples=4000, n_iterations=10, n_elbo_samples=20,
            optimizer=AutoForwardDiff())
 
 Perform variational inference using ADVI (Automatic Differentiation Variational Inference).
@@ -87,20 +87,20 @@ Perform variational inference using ADVI (Automatic Differentiation Variational 
 Uses Turing.jl's ADVI implementation for fast approximate Bayesian inference.
 The model is automatically constructed with appropriate priors and likelihood.
 """
-function fit_vi(model; n_samples=4000, n_iterations=10, n_elbo_samples=20, 
+function fit_vi(model; n_samples=4000, n_iterations=10, n_elbo_samples=20,
                 optimizer=AutoForwardDiff())
     # Create and fit Turing model
     turing_model = create_turing_model(model, model.data_sum_stats)
     advi = ADVI(n_iterations, n_elbo_samples, optimizer)
     chain = vi(turing_model, advi)
-    
+
     # Draw samples and compute statistics
     samples = rand(chain, n_samples)
     samples_matrix = Matrix(samples)
-    
+
     # Compute MAP and variances
     MAP = find_MAP(samples_matrix')
-    
+
     return ADVIResults(samples_matrix, MAP, chain)
 end
 
@@ -114,7 +114,7 @@ Get default parameter dictionary for ADVI (Automatic Differentiation Variational
 # Returns
 Dictionary containing default values for ADVI parameters including:
 - `n_samples`: Number of posterior samples to draw (default: 4000)
-- `n_iterations`: Number of ADVI iterations (default: 50) 
+- `n_iterations`: Number of ADVI iterations (default: 50)
 - `n_elbo_samples`: Number of samples for ELBO estimation (default: 20)
 - `autodiff`: Automatic differentiation backend (default: AutoForwardDiff())
 """
