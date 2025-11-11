@@ -242,7 +242,7 @@ using Random
             # Generate OU process with known properties
             fs = 1000.0
             dt = 1 / fs
-            duration = 10.0
+            duration = 100.0
             tau = 0.3
             true_D = 1.0
 
