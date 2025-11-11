@@ -19,6 +19,7 @@ using Romberg
 using Optimization
 using OptimizationOptimJL
 using OhMyThreads
+using LineSearches
 
 export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
@@ -53,7 +54,7 @@ u: parameters
 p: data
 """
 function residual_expdecay!(du, u, p)
-    du .= mean(abs2.(expdecay(u[1], p[1]) .- p[2]))
+    du .= Statistics.mean(abs2.(expdecay(u[1], p[1]) .- p[2]))
     return nothing
 end
 
@@ -78,7 +79,7 @@ function expdecay_3_parameters(p, lags)
 end
 
 function residual_expdecay_3_parameters!(du, u, p)
-    du .= mean(abs2.(expdecay_3_parameters(u, p[1]) .- p[2]))
+    du .= Statistics.mean(abs2.(expdecay_3_parameters(u, p[1]) .- p[2]))
     return nothing
 end
 
@@ -348,22 +349,22 @@ end
 
 # Define the residual function for NonlinearLeastSquares
 function residual_lorentzian!(du, u, p)
-    du .= mean(sqrt.(abs2.(lorentzian(p[1], u) .- p[2])))
+    du .= Statistics.mean(sqrt.(abs2.(lorentzian(p[1], u) .- p[2])))
     return nothing
 end
 
 # Optimization.jl doesn't like in-place functions
 function residual_lorentzian_constrained!(u, p)
-    return mean(sqrt.(abs2.(lorentzian(p[1], u) .- p[2])))
+    return Statistics.mean(sqrt.(abs2.(lorentzian(p[1], u) .- p[2])))
 end
 
 function residual_lorentzian_with_exponent!(du, u, p)
-    du .= mean(sqrt.(abs2.(lorentzian_with_exponent(p[1], u) .- p[2])))
+    du .= Statistics.mean(sqrt.(abs2.(lorentzian_with_exponent(p[1], u) .- p[2])))
     return nothing
 end
 
 function residual_lorentzian_with_exponent_constrained!(u, p)
-    return mean(sqrt.(abs2.(lorentzian_with_exponent(p[1], u) .- p[2])))
+    return Statistics.mean(sqrt.(abs2.(lorentzian_with_exponent(p[1], u) .- p[2])))
 end
 
 """
@@ -393,7 +394,7 @@ function lorentzian_initial_guess(psd::AbstractVector{<:Real},
     # Initial parameter guess
     # u[1]: estimate amplitude from low frequency power
     # u[2]: rough estimate of knee frequency from power spectrum
-    initial_amp = mean(psd[freqs.<=min_freq*2])
+    initial_amp = Statistics.mean(psd[freqs.<=min_freq*2])
     half_power = initial_amp / 2
     knee_guess_idx = findlast(psd .>= half_power)
 
@@ -482,7 +483,17 @@ function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
     end
 
     if constrained
-        sol = Optimization.solve(prob, OptimizationOptimJL.LBFGS())
+        try
+            sol = Optimization.solve(prob, OptimizationOptimJL.LBFGS())
+        catch e
+            if isa(e, AssertionError)
+                println("Default method failed, trying `LineSearches.BackTracking()`")
+                sol = Optimization.solve(prob,
+                                         OptimizationOptimJL.LBFGS(linesearch=LineSearches.BackTracking()))
+            else
+                throw(e)
+            end
+        end
     else
         sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.1,
                                    verbose=false)
@@ -730,7 +741,7 @@ end
 
 # Define the residual function for NonlinearSolve
 function residual_gaussian!(du, u, p)
-    du .= mean(sqrt.(abs2.(gaussian(p[1], u) .- p[2])))
+    du .= Statistics.mean(sqrt.(abs2.(gaussian(p[1], u) .- p[2])))
     return nothing
 end
 
