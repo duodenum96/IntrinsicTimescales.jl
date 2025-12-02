@@ -1,6 +1,6 @@
 name = "IntrinsicTimescales"
 uuid = "10d2f5c9-08bb-4a99-a156-10b2ac3b4091"
-version = "0.6.5"
+version = "0.7.0"
 authors = ["duodenum96 <catalyasir@gmail.com>"]
 
 [deps]
