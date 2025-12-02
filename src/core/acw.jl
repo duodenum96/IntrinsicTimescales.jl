@@ -14,6 +14,11 @@ using IntrinsicTimescales
 using NaNStatistics, Statistics
 export acw, ACWResults
 
+default_solver = IntrinsicTimescales.Utils.default_solver
+solver_kwargs = IntrinsicTimescales.Utils.solver_kwargs
+solver_docstring = IntrinsicTimescales.Utils.solver_docstring
+solver_kwargs_docstring = IntrinsicTimescales.Utils.solver_kwargs_docstring
+
 """
     ACWResults
 
@@ -38,7 +43,7 @@ Structure holding ACW analysis inputs and results.
 """
 struct ACWResults
     fs::Real
-    acw_results
+    acw_results::Any
     acwtypes::Union{Vector{<:Symbol}, Symbol} # Types of ACW: ACW-50, ACW-0, ACW-euler, tau, knee frequency
     n_lags::Union{Int, Nothing}
     freqlims::Union{Tuple{Real, Real}, Nothing}
@@ -55,7 +60,7 @@ possible_acwtypes = [:acw0, :acw50, :acweuler, :auc, :tau, :knee]
     acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
         dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
         trial_dims::Int=setdiff([1, 2], dims)[1], skip_zero_lag::Bool=false, max_peaks::Int=1, oscillation_peak::Bool=true,
-        allow_variable_exponent::Bool=false, parallel::Bool=false)
+        allow_variable_exponent::Bool=false, parallel::Bool=false, solver=LevenbergMarquardt, solver_kwargs)
 
 Compute various timescale measures for time series data. For detailed documentaion, see https://duodenum96.github.io/IntrinsicTimescales.jl/stable/acw/. 
 
@@ -83,6 +88,8 @@ Supported ACW types:
 - `oscillation_peak::Bool=true`: Whether to fit an oscillation peak in the spectral analysis
 - `allow_variable_exponent::Bool=false`: Whether to allow variable exponent in spectral fitting
 - `parallel::Bool=false`: Whether to use parallel computation
+- `solver`: $(solver_docstring). Only used for `:tau` and `:knee`
+- `solver_kwargs`: $(solver_kwargs_docstring). Only used for `:tau` and `:knee`
 
 # Returns
 - `ACWResults`: Structure containing computed ACW measures and intermediate results
@@ -99,11 +106,14 @@ Fields of the ACWResults structure:
 - `lags::Union{AbstractVector{<:Real}, AbstractArray{<:Real}, Nothing}`: Lag vector for ACF
 - `x_dim::Union{Int, Nothing}`: Dimension index corresponding to x-axis (lags/freqs)
 """
-function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing, time=nothing, 
+function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=nothing,
+             time=nothing,
              dims=ndims(data), return_acf=true, return_psd=true, average_over_trials=false,
-             trial_dims::Int=setdiff([1, 2], dims)[1], skip_zero_lag::Bool=false, max_peaks::Int=1, oscillation_peak::Bool=true,
-             allow_variable_exponent::Bool=false, constrained::Bool=false, parallel::Bool=false)
-
+             trial_dims::Int=setdiff([1, 2], dims)[1], skip_zero_lag::Bool=false,
+             max_peaks::Int=1, oscillation_peak::Bool=true,
+             allow_variable_exponent::Bool=false, constrained::Bool=false,
+             parallel::Bool=false,
+             solver=default_solver, solver_kwargs=solver_kwargs)
     missingmask = ismissing.(data)
     if any(missingmask)
         data[missingmask] .= NaN
@@ -138,7 +148,8 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
             if isnothing(n_lags)
                 acf = comp_ac_time_missing(data; dims=dims, parallel=parallel)
             else
-                acf = comp_ac_time_missing(data; dims=dims, n_lags=n_lags, parallel=parallel)
+                acf = comp_ac_time_missing(data; dims=dims, n_lags=n_lags,
+                                           parallel=parallel)
             end
         end
 
@@ -180,7 +191,8 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         end
         if any(in.(:auc, [acwtypes]))
             auc_idx = findfirst(acwtypes .== :auc)
-            auc_result = acw_romberg(dt, selectdim(acf, dims, 1:floor(Int, acw0_sample[1])); dims=dims, parallel=parallel)
+            auc_result = acw_romberg(dt, selectdim(acf, dims, 1:floor(Int, acw0_sample[1]));
+                                     dims=dims, parallel=parallel)
             if (auc_result isa Vector) && (length(auc_result) == 1)
                 result[auc_idx] = auc_result[1]
             else
@@ -203,9 +215,13 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         if any(in.(:tau, [acwtypes]))
             tau_idx = findfirst(acwtypes .== :tau)
             if !skip_zero_lag
-                tau_result = fit_expdecay(collect(lags), acf; dims=dims, parallel=parallel)
+                tau_result = fit_expdecay(collect(lags), acf; dims=dims, parallel=parallel,
+                                          solver=solver, solver_kwargs=solver_kwargs)
             else
-                tau_result = fit_expdecay_3_parameters(collect(lags), acf; dims=dims, parallel=parallel)
+                tau_result = fit_expdecay_3_parameters(collect(lags), acf; dims=dims,
+                                                       parallel=parallel,
+                                                       solver=solver,
+                                                       solver_kwargs=solver_kwargs)
             end
             if (tau_result isa Vector) && (length(tau_result) == 1)
                 result[tau_idx] = tau_result[1]
@@ -239,10 +255,14 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         if isnothing(freqlims)
             freqlims = (freqs[1], freqs[end])
         end
-        knee_result = tau_from_knee(fooof_fit(psd, freqs; dims=dims, min_freq=freqlims[1], 
-                                             max_freq=freqlims[2], oscillation_peak=oscillation_peak, 
-                                             max_peaks=max_peaks, return_only_knee=true,
-                                             allow_variable_exponent=allow_variable_exponent, constrained=constrained, parallel=parallel))
+        knee_result = tau_from_knee(fooof_fit(psd, freqs; dims=dims, min_freq=freqlims[1],
+                                              max_freq=freqlims[2],
+                                              oscillation_peak=oscillation_peak,
+                                              max_peaks=max_peaks, return_only_knee=true,
+                                              allow_variable_exponent=allow_variable_exponent,
+                                              constrained=constrained, parallel=parallel,
+                                              solver=solver,
+                                              solver_kwargs=solver_kwargs))
         if (knee_result isa Vector) && (length(knee_result) == 1)
             result[knee_idx] = knee_result[1]
         else
@@ -278,11 +298,12 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
     end
 
     if n_acw == 1
-        return ACWResults(fs, result[1], acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
+        return ACWResults(fs, result[1], acwtypes, n_lags, freqlims, acf, psd, freqs, lags,
+                          x_dim)
     else
-        return ACWResults(fs, map(identity, result), acwtypes, n_lags, freqlims, acf, psd, freqs, lags, x_dim)
+        return ACWResults(fs, map(identity, result), acwtypes, n_lags, freqlims, acf, psd,
+                          freqs, lags, x_dim)
     end
 end
-
 
 end
