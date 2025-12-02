@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Autocorrelation Windows · IntrinsicTimescales.jl</title><meta name="title" content="Autocorrelation Windows · IntrinsicTimescales.jl"/><meta property="og:title" content="Autocorrelation Windows · IntrinsicTimescales.jl"/><meta property="twitter:title" content="Autocorrelation Windows · IntrinsicTimescales.jl"/><meta name="description" content="Documentation for IntrinsicTimescales.jl."/><meta property="og:description" content="Documentation for IntrinsicTimescales.jl."/><meta property="twitter:description" content="Documentation for IntrinsicTimescales.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../home/">IntrinsicTimescales.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../home/">Getting Started</a></li><li><span class="tocitem">Explanation</span><ul><li><input class="collapse-toggle" id="menuitem-2-1" type="checkbox" checked/><label class="tocitem" for="menuitem-2-1"><span class="docs-label">Practice</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../practice_intro/">Practice</a></li><li><a class="tocitem" href="../practice_1_acf/">Building the Autocorrelation Function</a></li><li class="is-active"><a class="tocitem" href>Autocorrelation Windows</a></li><li><a class="tocitem" href="../practice_3_ou/">Ornstein-Uhlenbeck Process as a Generative Model for ACF</a></li><li><a class="tocitem" href="../practice_4_psd/">Dealing with Oscillatory Artifacts using Fourier Transformation</a></li><li><a class="tocitem" href="../practice_5_bayesian/">Bayesian Estimation of Intrinsic Timescales</a></li></ul></li><li><a class="tocitem" href="../../theory/theory/">Theory</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../../tutorial/tutorial_1_acw/">Navigating the Forest of INT Metrics</a></li><li><a class="tocitem" href="../../tutorial/tutorial_2_mne/">Usage with MNE-Python</a></li><li><a class="tocitem" href="../../tutorial/tutorial_3_ft/">Usage with FieldTrip</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Implementation</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../acw/">Model-Free Timescale Estimation</a></li><li><input class="collapse-toggle" id="menuitem-4-1-2" type="checkbox"/><label class="tocitem" for="menuitem-4-1-2"><span class="docs-label">Simulation Based Timescale Estimation</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../simbasedinference/">Overview</a></li><li><a class="tocitem" href="../../one_timescale/">One Timescale Model</a></li><li><a class="tocitem" href="../../one_timescale_with_missing/">One Timescale Model with Missing Data</a></li><li><a class="tocitem" href="../../one_timescale_and_osc/">One Timescale Model with Oscillations</a></li><li><a class="tocitem" href="../../one_timescale_and_osc_with_missing/">One Timescale Model with Oscillations and Missing Data</a></li><li><a class="tocitem" href="../../fit_parameters/">Model Fitting and Parameters</a></li><li><a class="tocitem" href="../../fit_result/">Results</a></li></ul></li></ul></li><li><a class="tocitem" href="../../">API</a></li></ul></li><li><a class="tocitem" href="../../citations/">Citations</a></li><li><a class="tocitem" href="../../contributing/">Contributing</a></li><li><a class="tocitem" href="../../developer/">Developer Documentation</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Explanation</a></li><li><a class="is-disabled">Practice</a></li><li class="is-active"><a href>Autocorrelation Windows</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Autocorrelation Windows</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/duodenum96/IntrinsicTimescales.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/duodenum96/IntrinsicTimescales.jl/blob/master/docs/src/practice/practice_2_acw.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Autocorrelation-Windows"><a class="docs-heading-anchor" href="#Autocorrelation-Windows">Autocorrelation Windows</a><a id="Autocorrelation-Windows-1"></a><a class="docs-heading-anchor-permalink" href="#Autocorrelation-Windows" title="Permalink"></a></h1><p>We finished the <a href="../practice_1_acf/">previous section</a> with a discussion about how a determinstic statistic can be influenced by the limitations of our data. In this section, we will generalize the problem and discuss various autocorrelation window (ACW) types. </p><p>First, some nomenclature. When we make an analysis on the data, for example, calculate event-related potentials, ACWs and so on, we are aiming for an <em>estimand</em>. In event-related potentials, our estimand is the stereotypical response of the brain to some cognitive task. In ACWs, our estimand is intrinsic neural timescales (INTs). The ACW we get is not INT per se, it is the <em>estimate</em> of INT. To obtain the estimate, we use an <em>estimator</em>. The schema below shows the relationship. </p><p><img src="../assets/practice_2_estimator.drawio.svg" alt/></p><p>Our first note about the noise of estimators was the finiteness of the data. We noted that as we go along further lags, we have less data points at our hand to calculate the correlation values, making the estimate noisier. A first response to the problem is to use a different cutoff. Instead of waiting the autocorrelation function to reach exactly to 0 thus completely losing the similarity, we can cut it off when it reaches 0.5 and say losing half of the similarity. After all, a time-series with a longer timescale should take longer to lose half of it. This method is called ACW-50. It is  older than ACW-0. To my knowledge, used first in <a href="https://pubmed.ncbi.nlm.nih.gov/23083743/">Honey et al., 2012</a>. This was a time when the phrase intrinsic neural timescale had not been established. The term at that time was temporal receptive windows (TRW). I will discuss the evolution of the term more in the <a href="../../theory/theory/">Theory</a> section. For now, we will make simulations from two processes with different timescales and see how well we can distinguish their INTs using ACW-50 versus ACW-0. To quickly get many simulations with the same timescale, I will set num_trials to 1000 in the function <a href="../../#IntrinsicTimescales.OrnsteinUhlenbeck.generate_ou_process-Tuple{Union{Real, Vector{&lt;:Real}}, Vararg{Real, 4}}"><code>generate_ou_process</code></a>. </p><pre><code class="language-julia hljs">using IntrinsicTimescales # import IntrinsicTimescales package
+using Random 
+using Plots # to plot the results
+Random.seed!(1)
+
+timescale_1 = 1.0
+timescale_2 = 3.0
+sd = 1.0 # sd of data we&#39;ll simulate
+dt = 0.001 # Time interval between two time points
+duration = 10.0 # 10 seconds of data
+num_trials = 1000 # Number of trials
+
+data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
+data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
+println(size(data_1)) # == 1000, 10000: 1000 trials and 10000 time points</code></pre><p>To streamline the ACW calculation, I will use the <a href="../../acw/"><code>acw</code></a> function from IntrinsicTimescales.jl. This function takes your time series data, sampling rate and ACW types you want to calculate and returns the ACW values in the same shape of the data. Along with ACW results it also returns additional information that will be useful later. To extract ACW values, we will extract the field <code>acw_results</code> from the output of <code>acw</code>. It is best to demonstrate with an example. </p><pre><code class="language-julia hljs">fs = 1 / dt # sampling rate
+acwresults_1 = acw(data_1, fs, acwtypes=[:acw50, :acw0]) 
+acwresults_2 = acw(data_2, fs, acwtypes=[:acw50, :acw0])
+# Since we used the order [:acw50, :acw0], the first element of results is ACW-50, the second is ACW-0.
+acw50_1 = acwresults_1.acw_results[1]
+acw0_1 = acwresults_1.acw_results[2]
+acw50_2 = acwresults_2.acw_results[1]
+acw0_2 = acwresults_2.acw_results[2]</code></pre><p>How to quantify the sensitivity of the estimator (to changes in the timescale)? Let&#39;s assume an experimental scenario where we are comparing INTs of two conditions or two groups. We are calculating one timescale from each condition. The number of trials (<code>num_trials</code> above) can refer to either number of trials or subjects. Then we&#39;ll compare the INTs from two groups. We know for a fact that first condition has a shorter timescale than the second since we set them ourselves in the code above (<code>timescale_1</code> and <code>_2</code>). We will calculate what percentage of the time we are wrong, that we are getting a longer or equal INT for the first condition and a shorter or equal INT for the second condition. </p><p>Take a look at the code below, we will calculate what I described in the previous awful paragraph. Hopefully the code is cleaner than my English. Additionally, we will plot histograms to visualize the overlap between estimates. </p><pre><code class="language-julia hljs">using Printf
+
+bad_acw50_timescale = mean(acw50_2 .&lt;= acw50_1) * 100
+bad_acw0_timescale = mean(acw0_2 .&lt;= acw0_1) * 100
+
+# Plot histograms
+p1 = histogram(acw50_1, alpha=0.5, label=&quot;timescale 1 = $(timescale_1)&quot;)
+histogram!(p1, acw50_2, alpha=0.5, label=&quot;timescale 2 = $(timescale_2)&quot;)
+# Plot the median since distributions are not normal
+vline!(p1, [median(acw50_1), median(acw50_2)], linewidth=3, color=:black, label=&quot;&quot;) 
+title!(p1, &quot;ACW-50\n&quot;)
+# Mad string manipulation
+annotate!(p1, 1, 100, 
+    (@sprintf(&quot;Proportion of \&quot;wrong\&quot; timescale \nestimates: %.2f%% \n&quot;, bad_acw50_timescale)), textfont=font(24), :left)
+# ACW-0
+p2 = histogram(acw0_1, alpha=0.5, label=&quot;timescale 1 = $(timescale_1)&quot;)
+histogram!(p2, acw0_2, alpha=0.5, label=&quot;timescale 2 = $(timescale_2)&quot;)
+
+vline!(p2, [median(acw0_1), median(acw0_2)], linewidth=3, color=:black, label=&quot;&quot;)
+title!(p2, &quot;ACW-0\n&quot;)
+annotate!(p2, 2, 175, 
+    (@sprintf(&quot;Proportion of \&quot;wrong\&quot; timescale \nestimates: %.2f%% \n&quot;, bad_acw0_timescale)), textfont=font(24), :left)
+plot(p1, p2, size=(1600, 800))</code></pre><p><img src="../assets/practice_2_1.svg" alt/></p><p>It seems ACW-0 gives messier results. Needless to say, these results depend on the difference between real timescales and the amount of data. Feel free to change these parameters and investigate the results under different scenarios. So ACW-50 seems to be a better estimator at least in the setting we specified above. Is our work done then? First of all, we used a weird way to define &quot;wrong&quot;. We&#39;ve reduced the correctness to a binary choice of is something greater or smaller than other. We can be more principled than this and actually quantify how much we are off. We will do this in <a href="../practice_3_ou/">the next section</a>. For now, let&#39;s consider another scenario. In the example above, we had <code>dt</code> = 0.001 implying our sampling rate (<code>fs</code>) is 1000 Hz and we have 10 seconds of data. This sounds like an EEG/MEG scenario. Let&#39;s try an fMRI scenario where we have a sampling rate of 0.5 Hz (corresponding TR=2 seconds) and 300 seconds of data. We&#39;ll set the timescales to 1 seconds and 3 seconds for short timescale and long timescale guys. </p><pre><code class="language-julia hljs">Random.seed!(1)
+timescale_1 = 1.0
+timescale_2 = 3.0
+sd = 1.0 
+dt = 2.0 # Time interval between two time points
+duration = 300.0 # 5 minutes of data
+num_trials = 1000 # Number of trials
+
+data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
+data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
+
+fs = 1 / dt # sampling rate
+acwresults_1 = acw(data_1, fs, acwtypes=[:acw50, :acw0]) 
+acwresults_2 = acw(data_2, fs, acwtypes=[:acw50, :acw0])
+acw50_1 = acwresults_1.acw_results[1]
+acw0_1 = acwresults_1.acw_results[2]
+acw50_2 = acwresults_2.acw_results[1]
+acw0_2 = acwresults_2.acw_results[2]
+
+bad_acw50_timescale = mean(acw50_2 .&lt;= acw50_1) * 100
+bad_acw0_timescale = mean(acw0_2 .&lt;= acw0_1) * 100
+
+# Plot histograms
+p1 = histogram(acw50_1, alpha=0.5, label=&quot;timescale 1 = $(timescale_1)&quot;)
+histogram!(p1, acw50_2, alpha=0.5, label=&quot;timescale 2 = $(timescale_2)&quot;)
+vline!(p1, [median(acw50_1), median(acw50_2)], linewidth=3, color=:black, label=&quot;&quot;) 
+title!(p1, &quot;ACW-50\n&quot;)
+annotate!(p1, 3, 600, 
+    (@sprintf(&quot;Proportion of \&quot;wrong\&quot; timescale \nestimates: %.2f%% \n&quot;, bad_acw50_timescale)), textfont=font(24), :left)
+# ACW-0
+p2 = histogram(acw0_1, alpha=0.5, label=&quot;timescale 1 = $(timescale_1)&quot;)
+histogram!(p2, acw0_2, alpha=0.5, label=&quot;timescale 2 = $(timescale_2)&quot;)
+
+vline!(p2, [median(acw0_1), median(acw0_2)], linewidth=3, color=:black, label=&quot;&quot;)
+title!(p2, &quot;ACW-0\n&quot;)
+annotate!(p2, 15, 175, 
+    (@sprintf(&quot;Proportion of \&quot;wrong\&quot; timescale \nestimates: %.2f%% \n&quot;, bad_acw0_timescale)), textfont=font(24), :left)
+plot(p1, p2, size=(1600, 800))</code></pre><p><img src="../assets/practice_2_2.svg" alt/></p><p>Half the time, we got the wrong result with ACW-50! To diagnose the problem, let&#39;s plot the autocorrelation functions. This is where the other information stored in the output of <a href="../../acw/"><code>acw</code></a> comes useful. We&#39;ll use the function <code>acwplot</code> to plot the ACFs. This function plots the ACFs and returns a plot object which we can modify later. Note that to reduce compilation time, this function is implemented in an extension in IntrinsicTimescales.jl package. What this means is that to use it, you need to make sure you ran <code>using Plots</code> somewhere in your code (and of course, installed the <code>Plots.jl</code> library by <code>Pkg.add(&quot;Plots&quot;)</code>). We&#39;ll put vertical lines at the lags where we compute autocorrelation. Note that the lags are also stored in the output of <code>acw</code>. To not plot 1000 ACFs for each trial, let&#39;s resimulate data with a reasonable number of trials. </p><pre><code class="language-julia hljs">using Plots
+num_trials = 20 # Number of trials
+data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
+data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
+acwresults_1 = acw(data_1, fs, acwtypes=[:acw50, :acw0]) 
+acwresults_2 = acw(data_2, fs, acwtypes=[:acw50, :acw0])
+p = acwplot(acwresults_1)
+vline!(p, [acwresults_1.lags], linewidth=3, color=:black, label=&quot;&quot;)</code></pre><p><img src="../assets/practice_2_3.svg" alt/></p><p>The autocorrelation is dropping below 0.5 before even 2 seconds pass. And because our time resolution was two seconds, most of the autocorrelation functions drop below 0.5 even before we can calculate ACW-50. </p><p>There is one more method in case ACW-50 is not working well. Let&#39;s consider the case above: we want to be able to distinguish the processes but we don&#39;t have the time resolution to use ACW-50. We can use ACW-0 but the later lags are more noisy. Wouldn&#39;t it be great if we had a method that assigns higher weights to earlier lags and lower weight to less reliable later lags? Turns out there is one such method. We can calculate the area under the curve (AUC) of the ACF. Since later lags have less correlation, their contribution to the area under the curve will be less. In IntrinsicTimescales.jl, we can use <code>:auc</code> to calculate the AUC of ACF before ACF touches 0. Under the hood, this method uses <a href="https://github.com/fgasdia/Romberg.jl">Romberg.jl</a> to use Romberg&#39;s method. This method is <a href="https://young.physics.ucsc.edu/115/romberg.pdf">orders of magnitude more accurate</a> than trapezoid (as in np.trapz or MATLAB trapz) and Simpson&#39;s methods (as in scipy.integrate.simpson). Let&#39;s repeat the above experiment to compare ACW-0 and AUC methods:</p><pre><code class="language-julia hljs">Random.seed!(123)
+timescale_1 = 1.0
+timescale_2 = 3.0
+sd = 1.0 
+dt = 2.0 # Time interval between two time points
+duration = 300.0 # 5 minutes of data
+num_trials = 1000 # Number of trials
+
+data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials)
+data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials)
+
+fs = 1 / dt # sampling rate
+acwresults_1 = acw(data_1, fs, acwtypes=[:auc, :acw0]) 
+acwresults_2 = acw(data_2, fs, acwtypes=[:auc, :acw0])
+auc_1 = acwresults_1.acw_results[1]
+acw0_1 = acwresults_1.acw_results[2]
+auc_2 = acwresults_2.acw_results[1]
+acw0_2 = acwresults_2.acw_results[2]
+
+bad_auc_timescale = mean(auc_2 .&lt;= auc_1) * 100
+bad_acw0_timescale = mean(acw0_2 .&lt;= acw0_1) * 100
+
+# Plot histograms
+p1 = histogram(auc_1, alpha=0.5, label=&quot;timescale 1 = $(timescale_1)&quot;)
+histogram!(p1, auc_2, alpha=0.5, label=&quot;timescale 2 = $(timescale_2)&quot;)
+vline!(p1, [median(auc_1), median(auc_2)], linewidth=3, color=:black, label=&quot;&quot;) 
+title!(p1, &quot;AUC\n&quot;)
+annotate!(p1, 3, 100, 
+    (@sprintf(&quot;Proportion of \&quot;wrong\&quot; timescale \nestimates: %.2f%% \n&quot;, bad_auc_timescale)), textfont=font(24), :left)
+# ACW-0
+p2 = histogram(acw0_1, alpha=0.5, label=&quot;timescale 1 = $(timescale_1)&quot;)
+histogram!(p2, acw0_2, alpha=0.5, label=&quot;timescale 2 = $(timescale_2)&quot;)
+
+vline!(p2, [median(acw0_1), median(acw0_2)], linewidth=3, color=:black, label=&quot;&quot;)
+title!(p2, &quot;ACW-0\n&quot;)
+annotate!(p2, 20, 300, 
+    (@sprintf(&quot;Proportion of \&quot;wrong\&quot; timescale \nestimates: %.2f%% \n&quot;, bad_acw0_timescale)), textfont=font(24), :left)
+plot(p1, p2, size=(1600, 800))</code></pre><p><img src="../assets/practice_2_auc.svg" alt/></p><p>We can see that AUC seems to be a better estimator than ACW-0. The result we see here strongly favors AUC over ACW-0 but do play with the random seed and see what happens. For the most part, AUC is better and in some cases AUC and ACW-0 give similar results. </p><p>It seems different modalities and temporal resolutions call for different ways to calculate ACW. But even with the <em>better</em> estimator, we can still be off 1/5th of the time. Can we do better? Remember the coin flipping experiment from <a href="../practice_1_acf/">the previous section</a>. We said that if we repeat the experiment again and again and take average across experiments, our estimates get better. Let&#39;s do this in the context of ACW-50. In the code below, I will first make 1000 simulations, then from each one of them, I&#39;ll calculate one autocorrelation function. Then I&#39;ll cumulatively average those autocorrelation functions, i.e. I&#39;ll average the first two ACFs, the first three, the first four... Then I&#39;ll calculate ACW-50 and ACW-0 from each step. Let&#39;s see if they are converging. </p><pre><code class="language-julia hljs">using Statistics, IntrinsicTimescales, Plots, Random
+timescale = 3.0
+sd = 1.0 # sd of data we&#39;ll simulate
+dt = 0.001 # Time interval between two time points
+fs = 1 / dt
+duration = 10.0 # 10 seconds of data
+num_trials = 1
+acfs = []
+acw50s = []
+acw0s = []
+n_experiments = 1000
+for i in 1:n_experiments
+    data = generate_ou_process(timescale, sd, dt, duration, num_trials, rng=Xoshiro(i), deq_seed=i)
+    acf = comp_ac_fft(data[:])
+    push!(acfs, acf)
+    current_mean_acf = mean(acfs)
+    lags = (0:(length(current_mean_acf)-1)) * dt
+    current_acw50 = acw50(lags, current_mean_acf)
+    current_acw0 = acw0(lags, current_mean_acf)
+    push!(acw50s, current_acw50)
+    push!(acw0s, current_acw0)
+end
+p1 = plot(acw50s, label=&quot;ACW-50&quot;, xlabel=&quot;Iterations&quot;, ylabel=&quot;ACW&quot;)
+p2 = plot(acw0s, label=&quot;ACW-0&quot;, xlabel=&quot;Iterations&quot;, ylabel=&quot;ACW&quot;)
+plot(p1, p2, size=(800, 400))</code></pre><p><img src="../assets/practice_2_4.svg" alt/></p><p>Note that it takes about 250 trials for the estimates to completely stabilize. This is a huge number. In the case above, we assumed that each trial is 10 seconds. 250 trials x 10 seconds is 41 minutes of data which we usually don&#39;t have. Nonetheless, even averaging across a couple trials makes the estimates much closer to the stabilized estimate. This is why the <a href="https://pubmed.ncbi.nlm.nih.gov/23083743/">Honey et al.</a> paper I mentioned above calculated one ACF from 20 seconds of data and averaged over ACFs. In IntrinsicTimescales.jl, this is handled by the argument <code>average_over_trials</code> in the <code>acw</code> function. It is your responsibility to put your data in a format where one dimension is trials and one dimension is time. This is usually handled with <a href="https://mne.tools/stable/index.html">MNE</a> or <a href="https://www.fieldtriptoolbox.org/">FieldTrip</a> helper functions (see for example <a href="https://mne.tools/1.7/generated/mne.make_fixed_length_epochs.html">mne.make_fixed_length_epochs</a>, <a href="https://mne.tools/stable/auto_tutorials/epochs/60_make_fixed_length_epochs.html">this tutorial from MNE</a> or <a href="https://github.com/fieldtrip/fieldtrip/blob/master/ft_redefinetrial.m">ft_redefinetrial</a>. If you think taking continuous data and segmenting with different overlap degrees would be useful for you in IntrinsicTimescales.jl, <a href="https://github.com/duodenum96/IntrinsicTimescales.jl/issues">open an issue on github</a> and I can add this as a feature.). Before finishing this section, let&#39;s run one final experiment where we now have 20 trials for each subject and 100 subjects. Let&#39;s do a t-test between the groups and see if we can capture the difference. To run the code below, you&#39;ll need to install the Julia package <a href="https://juliastats.org/HypothesisTests.jl/stable/">HypothesisTests</a>. </p><pre><code class="language-julia hljs">using HypothesisTests
+n_subjects = 100
+n_trials = 20
+num_trials = 20
+timescale_1 = 1.0
+timescale_2 = 3.0
+sd = 1.0
+dt = 0.001
+fs = 1 / dt
+duration = 10.0
+
+acw50_1 = Float64[] # HypothesisTests doesn&#39;t accept Vector{Any} type, requires Vector{&lt;:Real} type
+acw50_2 = Float64[]
+acw0_1 = Float64[]
+acw0_2 = Float64[]
+for i in 1:n_subjects
+    data_1 = generate_ou_process(timescale_1, sd, dt, duration, num_trials, rng=Xoshiro(i), deq_seed=i)
+    data_2 = generate_ou_process(timescale_2, sd, dt, duration, num_trials, rng=Xoshiro(i), deq_seed=i)
+    acwresults_1 = acw(data_1, fs, acwtypes=[:acw50, :acw0], average_over_trials=true)
+    acwresults_2 = acw(data_2, fs, acwtypes=[:acw50, :acw0], average_over_trials=true)
+    current_acw50_1 = acwresults_1.acw_results[1]
+    current_acw50_2 = acwresults_2.acw_results[1]
+    current_acw0_1 = acwresults_1.acw_results[2]
+    current_acw0_2 = acwresults_2.acw_results[2]
+    push!(acw50_1, current_acw50_1)
+    push!(acw50_2, current_acw50_2)
+    push!(acw0_1, current_acw0_1)
+    push!(acw0_2, current_acw0_2)
+end
+
+bad_acw50_timescale = mean(acw50_2 .&lt;= acw50_1) * 100
+bad_acw0_timescale = mean(acw0_2 .&lt;= acw0_1) * 100
+
+# Plot histograms
+p1 = histogram(acw50_1, alpha=0.5, label=&quot;timescale 1 = $(timescale_1)&quot;)
+histogram!(p1, acw50_2, alpha=0.5, label=&quot;timescale 2 = $(timescale_2)&quot;)
+# Plot the median since distributions are not normal
+vline!(p1, [median(acw50_1), median(acw50_2)], linewidth=3, color=:black, label=&quot;&quot;) 
+title!(p1, &quot;ACW-50\n&quot;)
+annotate!(p1, 0.6, 15, 
+    (@sprintf(&quot;Proportion of \&quot;wrong\&quot; timescale \nestimates: %.2f%% \n&quot;, bad_acw50_timescale)), textfont=font(24), :left)
+# ACW-0
+p2 = histogram(acw0_1, alpha=0.5, label=&quot;timescale 1 = $(timescale_1)&quot;)
+histogram!(p2, acw0_2, alpha=0.5, label=&quot;timescale 2 = $(timescale_2)&quot;)
+
+vline!(p2, [median(acw0_1), median(acw0_2)], linewidth=3, color=:black, label=&quot;&quot;)
+title!(p2, &quot;ACW-0\n&quot;)
+annotate!(p2, 2, 20, 
+    (@sprintf(&quot;Proportion of \&quot;wrong\&quot; timescale \nestimates: %.2f%% \n&quot;, bad_acw0_timescale)), textfont=font(12), :left)
+plot(p1, p2, size=(1600, 800))
+
+println(UnequalVarianceTTest(acw50_1, acw50_2))
+println(UnequalVarianceTTest(acw0_1, acw0_2))</code></pre><p><img src="../assets/practice_2_5.svg" alt/></p><p>Note that our wrong estimates for ACW-50 reduced to 0! ACW-0 is still slightly noisy but much better now. You can also check out the t-test results, both ACWs returned a significant difference. This approach offers a way to see how many subjects you need to get a significant difference if your hypothesis is right. You can copy-paste the script above to play around with it when designing experiments and figuring out the number of subjects you need for different effect sizes. </p><p>This was a long tutorial. Take a deep breath, make a coffee for yourself, go for a walk and come back for the next one. There is still work to do: we need to figure out how to calculate exactly how wrong are we. Under certain assumptions, we can actually do this. But we need some theoretical tools. In the <a href="../practice_3_ou/">next section</a>, We&#39;ll develop those theoretical tools and they will motivate us to calculate ACW in different ways.  </p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../practice_1_acf/">« Building the Autocorrelation Function</a><a class="docs-footer-nextpage" href="../practice_3_ou/">Ornstein-Uhlenbeck Process as a Generative Model for ACF »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Tuesday 2 December 2025 09:04">Tuesday 2 December 2025</span>. Using Julia version 1.11.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
