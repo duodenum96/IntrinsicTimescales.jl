@@ -12,7 +12,6 @@ Module providing utility functions for time series analysis, including:
 """
 module Utils
 
-using Revise
 using Statistics
 using NonlinearSolve
 using Logging
