@@ -12,6 +12,7 @@ Module providing utility functions for time series analysis, including:
 """
 module Utils
 
+using Revise
 using Statistics
 using NonlinearSolve
 using Logging
@@ -21,10 +22,18 @@ using OptimizationOptimJL
 using OhMyThreads
 using LineSearches
 
-export expdecayfit, find_oscillation_peak, find_knee_frequency, fooof_fit,
+export find_oscillation_peak, find_knee_frequency, fooof_fit,
        lorentzian_initial_guess, lorentzian, expdecay, residual_expdecay!, fit_expdecay,
        acw50, acw50_analytical, acw0, acweuler, tau_from_acw50, tau_from_knee,
        knee_from_tau, acw_romberg, expdecay_3_parameters, fit_expdecay_3_parameters
+
+default_solver = LevenbergMarquardt
+solver_kwargs = Dict(:verbose => false)
+
+solver_docstring = ("Solver for NonlinearSolve.jl. See https://docs.sciml.ai/NonlinearSolve/stable/solvers/nonlinear_system_solvers/. Defaults to " * 
+    "`LevenbergMarquardt`")
+solver_kwargs_docstring = ("Keyword arguments for NonlinearSolve.solve(). See https://docs.sciml.ai/NonlinearSolve/stable/basics/solve/#solver_options. Defaults to " * 
+    "`Dict(:verbose => false)`")
 
 """
     expdecay(tau, lags)
@@ -84,7 +93,7 @@ function residual_expdecay_3_parameters!(du, u, p)
 end
 
 """
-    fit_expdecay(lags, acf; dims=ndims(acf), parallel=false)
+    fit_expdecay(lags, acf; dims=ndims(acf), parallel=false, solver=LevenbergMarquardt, solver_kwargs)
 
 Fit exponential decay to autocorrelation function.
 
@@ -93,27 +102,35 @@ Fit exponential decay to autocorrelation function.
 - `acf::AbstractArray{T}`: Autocorrelation values
 - `dims::Int=ndims(acf)`: Dimension along which to fit
 - `parallel=false`: Whether to use parallel computation
+- `solver`: $(solver_docstring)
+- `solver_kwargs`: $(solver_kwargs_docstring)
 
 # Returns
 - Fitted timescale parameter(s)
 
 # Notes
-- Uses NonlinearSolve.jl with FastShortcutNLLSPolyalg
 - Initial guess based on ACW50
 """
-function fit_expdecay(lags::AbstractVector{T}, acf::AbstractVector{T}) where {T <: Real}
-    u0 = [tau_from_acw50(acw50(lags, acf))]
+function fit_expdecay(lags::AbstractVector{T}, acf::AbstractVector{T};
+                      solver=default_solver, solver_kwargs=solver_kwargs) where {T <: Real}
+    initial_tau = tau_from_acw50(acw50(lags, acf))
+    if isnan(initial_tau) # handle the case where ACW-50 is not found
+        u0 = [1.0]
+    else
+        u0 = [initial_tau]
+    end
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay!,
                                                           resid_prototype=zeros(1)), u0,
                                         p=[lags, acf])
-    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.001, verbose=false) # TODO: Find a reasonable tolerance.
+    sol = NonlinearSolve.solve(prob, solver(); solver_kwargs...) # TODO: Find a reasonable tolerance.
     return sol.u[1]
 end
 
 function fit_expdecay(lags::AbstractVector{T}, acf::AbstractArray{T};
-                      dims::Int=ndims(acf), parallel::Bool=false) where {T <: Real}
+                      dims::Int=ndims(acf), parallel::Bool=false, solver=default_solver,
+                      solver_kwargs=solver_kwargs) where {T <: Real}
     slices = collect.(get_slices(acf, dims=dims))
-    f = x -> fit_expdecay(lags, vec(x))
+    f = x -> fit_expdecay(lags, vec(x), solver=solver, solver_kwargs=solver_kwargs)
     if parallel
         return tmap(f, slices)
     else
@@ -122,7 +139,7 @@ function fit_expdecay(lags::AbstractVector{T}, acf::AbstractArray{T};
 end
 
 """
-    fit_expdecay_3_parameters(lags, acf; parallel=false)
+    fit_expdecay_3_parameters(lags, acf; parallel=false, solver=LevenbergMarquardt, solver_kwargs)
 
 Fit a 3-parameter exponential decay function to autocorrelation data ( A*(exp(-t/tau) + B) ).
 Excludes lag 0 from fitting.
@@ -131,6 +148,8 @@ Excludes lag 0 from fitting.
 - `lags::AbstractVector{T}`: Time lags
 - `acf::AbstractVector{T}`: Autocorrelation values
 - `parallel=false`: Whether to use parallel computation
+- `solver`: $(solver_docstring)
+- `solver_kwargs`: $(solver_kwargs_docstring)
 
 # Returns
 - Fitted timescale parameter (tau)
@@ -139,19 +158,34 @@ Excludes lag 0 from fitting.
 - Initial guess: A=0.5, tau from ACW50, B=0.0
 """
 function fit_expdecay_3_parameters(lags::AbstractVector{T},
-                                   acf::AbstractVector{T}) where {T <: Real}
-    u0 = [0.5, tau_from_acw50(acw50(lags, acf)), 0.0]
+                                   acf::AbstractVector{T}; solver=default_solver,
+                                   solver_kwargs=solver_kwargs) where {T <: Real}
+
+    initial_tau = tau_from_acw50(acw50(lags, acf))
+    if isnan(initial_tau) # handle the case where ACW-50 is not found
+        u0 = [0.5, 1.0, 0.0]
+    else
+        u0 = [0.5, initial_tau, 0.0]
+    end
     prob = NonlinearLeastSquaresProblem(NonlinearFunction(residual_expdecay_3_parameters!,
                                                           resid_prototype=zeros(1)), u0,
                                         p=[lags[2:end], acf[2:end]])
-    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.001, verbose=false) # TODO: Find a reasonable tolerance.
-    return sol.u[2]
+    sol = NonlinearSolve.solve(prob, solver(); solver_kwargs...) # TODO: Find a reasonable tolerance.
+    tau = sol.u[2]
+    if tau < 0
+        @warn "Estimated timescale is lower than 0. Check your autocorrelation function, it might a delta function.\nReturning NaN. "
+        tau = NaN
+    end
+    return tau
 end
 
 function fit_expdecay_3_parameters(lags::AbstractVector{T}, acf::AbstractArray{T};
-                                   dims::Int=ndims(acf), parallel=false) where {T <: Real}
+                                   dims::Int=ndims(acf), parallel=false,
+                                   solver=default_solver,
+                                   solver_kwargs=solver_kwargs) where {T <: Real}
     slices = collect.(get_slices(acf, dims=dims))
-    f = x -> fit_expdecay_3_parameters(lags, vec(x))
+    f = x -> fit_expdecay_3_parameters(lags, vec(x); solver=solver,
+                                       solver_kwargs=solver_kwargs)
     if parallel
         return tmap(f, slices)
     else
@@ -428,6 +462,9 @@ Find knee frequency by fitting Lorentzian to power spectral density.
 - `constrained::Bool=false`: Whether to use constrained optimization
 - `allow_variable_exponent::Bool=false`: Whether to allow variable exponent (PLE)
 - `parallel=false`: Whether to use parallel computation
+- `solver`: $(solver_docstring)
+- `solver_kwargs`: $(solver_kwargs_docstring)
+
 
 # Returns
 - Vector of the fit  for the equation amp/(1 + (f/knee)^{exponent}).
@@ -444,7 +481,8 @@ function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
                              min_freq::T=freqs[1],
                              max_freq::T=freqs[end],
                              allow_variable_exponent::Bool=false,
-                             constrained::Bool=false) where {T <: Real}
+                             constrained::Bool=false, solver=default_solver,
+                             solver_kwargs=solver_kwargs) where {T <: Real}
     # Initial parameter guess
     u0 = lorentzian_initial_guess(psd, freqs; min_freq=min_freq, max_freq=max_freq,
                                   allow_variable_exponent=allow_variable_exponent)
@@ -495,8 +533,7 @@ function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
             end
         end
     else
-        sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), reltol=0.1,
-                                   verbose=false)
+        sol = NonlinearSolve.solve(prob, solver(); solver_kwargs...)
     end
     return sol.u
 end
@@ -506,11 +543,13 @@ function find_knee_frequency(psd::AbstractArray{T}, freqs::AbstractVector{T};
                              min_freq::T=freqs[1],
                              max_freq::T=freqs[end],
                              allow_variable_exponent::Bool=false,
-                             constrained=false, parallel::Bool=false) where {T <: Real}
+                             constrained=false, parallel::Bool=false, solver=default_solver,
+                             solver_kwargs=solver_kwargs) where {T <: Real}
     slices = collect.(get_slices(psd, dims=dims))
     f = x -> find_knee_frequency(vec(x), freqs; min_freq=min_freq, max_freq=max_freq,
                                  allow_variable_exponent=allow_variable_exponent,
-                                 constrained=constrained)
+                                 constrained=constrained, solver=solver,
+                                 solver_kwargs=solver_kwargs)
 
     if parallel
         return stack_and_reshape(tmap(f, slices), dims=dims)
@@ -521,7 +560,7 @@ end
 
 """
     fooof_fit(psd, freqs; dims=ndims(psd), min_freq=freqs[1], max_freq=freqs[end],
-              oscillation_peak=true, max_peaks=3, allow_variable_exponent=false, constrained=false, parallel=false)
+              oscillation_peak=true, max_peaks=3, allow_variable_exponent=false, constrained=false, parallel=false, solver=LevenbergMarquardt, solver_kwargs)
 
 Perform FOOOF-style fitting of power spectral density. The default behavior is to fit a Lorentzian with PLE = 2.
 If allow_variable_exponent=true, the function will fit a Lorentzian with variable PLE.
@@ -538,6 +577,8 @@ If allow_variable_exponent=true, the function will fit a Lorentzian with variabl
 - `allow_variable_exponent::Bool=false`: Whether to allow variable exponent (PLE)
 - `constrained::Bool=false`: Whether to use constrained optimization
 - `parallel=false`: Whether to use parallel computation
+- `solver`: $(solver_docstring)
+- `solver_kwargs`: $(solver_kwargs_docstring)
 
 # Returns
 If return_only_knee=false:
@@ -562,7 +603,8 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
                    max_peaks::Int=3,
                    return_only_knee::Bool=false,
                    allow_variable_exponent::Bool=false,
-                   constrained::Bool=false) where {T <: Real}
+                   constrained::Bool=false, solver=default_solver,
+                   solver_kwargs=solver_kwargs) where {T <: Real}
     freq_mask = (freqs .>= min_freq) .& (freqs .<= max_freq)
     fit_psd = psd[freq_mask]
     fit_freqs = freqs[freq_mask]
@@ -571,7 +613,8 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
     fitted_parameters = find_knee_frequency(fit_psd, fit_freqs;
                                             min_freq=min_freq, max_freq=max_freq,
                                             allow_variable_exponent=allow_variable_exponent,
-                                            constrained=constrained)
+                                            constrained=constrained, solver=solver,
+                                            solver_kwargs=solver_kwargs)
 
     # Return early if oscillation peak not requested
     if !oscillation_peak
@@ -597,7 +640,8 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
 
         # Fit Gaussian to the peak
         gaussian_params = fit_gaussian(residual_psd, fit_freqs, peak_freq;
-                                       min_freq=min_freq, max_freq=max_freq)
+                                       min_freq=min_freq, max_freq=max_freq, solver=solver,
+                                       solver_kwargs=solver_kwargs)
 
         push!(peaks, gaussian_params)
 
@@ -619,7 +663,8 @@ function fooof_fit(psd::AbstractVector{T}, freqs::AbstractVector{T};
     final_fitted_parameters = find_knee_frequency(cleaned_psd, fit_freqs;
                                                   min_freq=min_freq, max_freq=max_freq,
                                                   allow_variable_exponent=allow_variable_exponent,
-                                                  constrained=constrained)
+                                                  constrained=constrained, solver=solver,
+                                                  solver_kwargs=solver_kwargs)
 
     # Return final knee frequency and all peak parameters
     peak_params = [(p[2], p[1], p[3]) for p in peaks]  # center_freq, amplitude, std_dev
@@ -638,14 +683,15 @@ function fooof_fit(psd::AbstractArray{T}, freqs::AbstractVector{T};
                    max_peaks::Int=3,
                    return_only_knee::Bool=false,
                    allow_variable_exponent::Bool=false,
-                   constrained::Bool=false, parallel::Bool=false) where {T <: Real}
+                   constrained::Bool=false, parallel::Bool=false, solver=default_solver,
+                   solver_kwargs=solver_kwargs) where {T <: Real}
     slices = collect.(get_slices(psd, dims=dims))
     f = x -> fooof_fit(vec(x), freqs,
                        min_freq=min_freq, max_freq=max_freq,
                        oscillation_peak=oscillation_peak,
                        max_peaks=max_peaks, return_only_knee=return_only_knee,
                        allow_variable_exponent=allow_variable_exponent,
-                       constrained=constrained)
+                       constrained=constrained, solver=solver, solver_kwargs=solver_kwargs)
     if parallel
         return tmap(f, slices)
     else
@@ -746,7 +792,7 @@ function residual_gaussian!(du, u, p)
 end
 
 """
-    fit_gaussian(psd, freqs, initial_peak; min_freq=freqs[1], max_freq=freqs[end])
+    fit_gaussian(psd, freqs, initial_peak; min_freq=freqs[1], max_freq=freqs[end], solver=LevenbergMarquardt, solver_kwargs)
 
 Fit Gaussian to power spectral density around a peak.
 
@@ -756,6 +802,8 @@ Fit Gaussian to power spectral density around a peak.
 - `initial_peak::Real`: Initial guess for center frequency
 - `min_freq::Real`: Minimum frequency to consider
 - `max_freq::Real`: Maximum frequency to consider
+- `solver`: $(solver_docstring)
+- `solver_kwargs`: $(solver_kwargs_docstring)
 
 # Returns
 - Vector{Float64}: Fitted parameters [amplitude, center_freq, std_dev]
@@ -765,7 +813,8 @@ Fit Gaussian to power spectral density around a peak.
 """
 function fit_gaussian(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real},
                       initial_peak::Real;
-                      min_freq::Real=freqs[1], max_freq::Real=freqs[end])
+                      min_freq::Real=freqs[1], max_freq::Real=freqs[end],
+                      solver=default_solver, solver_kwargs=solver_kwargs)
     # Find peak amplitude and rough width estimate
     peak_idx = argmin(abs.(freqs .- initial_peak))
     initial_amp = psd[peak_idx]
@@ -790,7 +839,7 @@ function fit_gaussian(psd::AbstractVector{<:Real}, freqs::AbstractVector{<:Real}
                                                           resid_prototype=zeros(3)), u0,
                                         p=[freqs, psd])
 
-    sol = NonlinearSolve.solve(prob, FastShortcutNLLSPolyalg(), abstol=5, verbose=false)
+    sol = NonlinearSolve.solve(prob, default_solver(); solver_kwargs...)
     return sol.u
 end
 
