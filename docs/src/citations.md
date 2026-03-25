@@ -21,9 +21,9 @@ For specific methods, you can cite the following papers:
     - Cusinato, R., Alnes, S. L., Maren, E. van, Boccalaro, I., Ledergerber, D., Adamantidis, A., Imbach, L. L., Schindler, K., Baud, M. O., & Tzovara, A. (2023). Intrinsic Neural Timescales in the Temporal Lobe Support an Auditory Processing Hierarchy. Journal of Neuroscience, 43(20), 3696–3707. https://doi.org/10.1523/JNEUROSCI.1941-22.2023
 
 * `:auc`: 
-    - Manea, A. M. G., Maisson, D. J.-N., Voloh, B., Zilverstand, A., Hayden, B., & Zimmermann, J. (2024). Neural timescales reflect behavioral demands in freely moving rhesus macaques. Nature Communications, 15(1), 2151. https://doi.org/10.1038/s41467-024-46488-1
+    - Ana MG ManeaAnna ZilverstandKamil UgurbilSarah R HeilbronnerJan Zimmermann (2022) Intrinsic timescales as an organizational principle of neural processing across the whole rhesus macaque brain eLife 11:e75540.
     - Raut, R. V., Mitra, A., Marek, S., Ortega, M., Snyder, A. Z., Tanenbaum, A., Laumann, T. O., Dosenbach, N. U. F., & Raichle, M. E. (2020). Organization of Propagated Intrinsic Brain Activity in Individual Humans. Cerebral Cortex, 30(3), 1716–1734. https://doi.org/10.1093/cercor/bhz198
-    -Watanabe, T., Rees, G., & Masuda, N. (2019). Atypical intrinsic neural timescale in autism. eLife, 8, e42256. https://doi.org/10.7554/eLife.42256
+    - Watanabe, T., Rees, G., & Masuda, N. (2019). Atypical intrinsic neural timescale in autism. eLife, 8, e42256. https://doi.org/10.7554/eLife.42256
     - Wu, K., & Gollo, L. L. (2025). Mapping and modeling age-related changes in intrinsic neural timescales. Communications Biology, 8(1), 1–16. https://doi.org/10.1038/s42003-025-07517-x
 
 * `:tau`:
