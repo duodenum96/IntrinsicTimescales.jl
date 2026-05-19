@@ -34,6 +34,19 @@ solver_docstring = ("Solver for NonlinearSolve.jl. See https://docs.sciml.ai/Non
 solver_kwargs_docstring = ("Keyword arguments for NonlinearSolve.solve(). See https://docs.sciml.ai/NonlinearSolve/stable/basics/solve/#solver_options. Defaults to " * 
     "`Dict(:verbose => false)`")
 
+function generate_retcode_docstring_when_not_success(acwtype, retcode)
+    @warn """
+Solver for `$(acwtype)` returned a `$(retcode)`. This may or may not be a problem. \
+We recommend plotting your autocorrelation function or power spectrum, along with \
+the obtained fit to visually check the result.
+Other recommendations: The default solver for `IntrinsicTimescales.jl` is `LevenbergMarquardt`. \
+You can try one of the alternative solvers in from `NonlinearSolve.jl` or change `solver_kwargs`: \
+https://docs.sciml.ai/NonlinearSolve/stable/solvers/nonlinear_least_squares_solvers/
+For details about the return code, see the documentation of NonlinearSolve.jl: https://docs.sciml.ai/NonlinearSolve/stable/basics/nonlinear_solution
+For example code to change the solver or solver_kwargs, see `IntrinsicTimescales.jl` documentation: https://duodenum96.github.io/IntrinsicTimescales.jl/stable/acw
+        """
+end
+
 """
     expdecay(tau, lags)
 
@@ -122,6 +135,7 @@ function fit_expdecay(lags::AbstractVector{T}, acf::AbstractVector{T};
                                                           resid_prototype=zeros(1)), u0,
                                         p=[lags, acf])
     sol = NonlinearSolve.solve(prob, solver(); solver_kwargs...) # TODO: Find a reasonable tolerance.
+    sol.retcode != SciMLBase.ReturnCode.Success && generate_retcode_docstring_when_not_success(:tau, sol.retcode)
     return sol.u[1]
 end
 
@@ -170,6 +184,7 @@ function fit_expdecay_3_parameters(lags::AbstractVector{T},
                                                           resid_prototype=zeros(1)), u0,
                                         p=[lags[2:end], acf[2:end]])
     sol = NonlinearSolve.solve(prob, solver(); solver_kwargs...) # TODO: Find a reasonable tolerance.
+    sol.retcode != 1 && generate_retcode_docstring_when_not_success(:tau, sol.retcode)
     tau = sol.u[2]
     if tau < 0
         @warn "Estimated timescale is lower than 0. Check your autocorrelation function, it might a delta function.\nReturning NaN. "
@@ -533,6 +548,7 @@ function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
         end
     else
         sol = NonlinearSolve.solve(prob, solver(); solver_kwargs...)
+        sol.retcode != 1 && generate_retcode_docstring_when_not_success(:knee, sol.retcode)
     end
     return sol.u
 end

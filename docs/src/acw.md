@@ -103,9 +103,16 @@ result = acw(data, fs; dims=2, average_over_trials=true, trial_dims=3)
 
 * `parallel`: Whether or not to use parallel computation. Default is `false`. If true, the function will use the `OhMyThreads` library to parallelize the computation. 
 
-* `solver`: ("Solver for NonlinearSolve.jl. See https://docs.sciml.ai/NonlinearSolve/stable/solvers/nonlinear_system_solvers/. Defaults to `LevenbergMarquardt`
+* `solver`: "Solver for NonlinearSolve.jl. See [NonlinearSolve.jl documentation](https://docs.sciml.ai/NonlinearSolve/stable/solvers/nonlinear_system_solvers/). Defaults to `LevenbergMarquardt`
 
 * `solver_kwargs`: Keyword arguments for NonlinearSolve.solve(). See https://docs.sciml.ai/NonlinearSolve/stable/basics/solve/#solver_options. Defaults to `Dict(:verbose => false)`
+
+```julia
+using NonlinearSolve, SciMLLogging
+data = randn(10, 1000, 20) # 10 subjects, 1000 time points, 20 trials
+solver_kwargs = Dict(:verbose => SciMLLogging.All(), :maxiters => 10000)
+result = acw(data, fs; acwtypes=[:tau], dims=2, average_over_trials=true, trial_dims=3, solver=TrustRegion, solver_kwargs=solver_kwargs)
+```
 
 ## Returns
 
