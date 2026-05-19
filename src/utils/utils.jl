@@ -184,7 +184,7 @@ function fit_expdecay_3_parameters(lags::AbstractVector{T},
                                                           resid_prototype=zeros(1)), u0,
                                         p=[lags[2:end], acf[2:end]])
     sol = NonlinearSolve.solve(prob, solver(); solver_kwargs...) # TODO: Find a reasonable tolerance.
-    sol.retcode != 1 && generate_retcode_docstring_when_not_success(:tau, sol.retcode)
+    sol.retcode != SciMLBase.ReturnCode.Success && generate_retcode_docstring_when_not_success(:tau, sol.retcode)
     tau = sol.u[2]
     if tau < 0
         @warn "Estimated timescale is lower than 0. Check your autocorrelation function, it might a delta function.\nReturning NaN. "
@@ -548,7 +548,7 @@ function find_knee_frequency(psd::AbstractVector{T}, freqs::AbstractVector{T};
         end
     else
         sol = NonlinearSolve.solve(prob, solver(); solver_kwargs...)
-        sol.retcode != 1 && generate_retcode_docstring_when_not_success(:knee, sol.retcode)
+        sol.retcode != SciMLBase.ReturnCode.Success && generate_retcode_docstring_when_not_success(:knee, sol.retcode)
     end
     return sol.u
 end
