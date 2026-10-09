@@ -191,8 +191,19 @@ function acw(data, fs; acwtypes=possible_acwtypes, n_lags=nothing, freqlims=noth
         end
         if any(in.(:auc, [acwtypes]))
             auc_idx = findfirst(acwtypes .== :auc)
-            auc_result = acw_romberg(dt, selectdim(acf, dims, 1:floor(Int, acw0_sample[1]));
-                                     dims=dims, parallel=parallel)
+            n_time  = size(acf, dims)
+
+            # Defines trial-wise integration window cutoffs, where cutoffs[i] is derived from trial i's zero crossing.
+            cutoffs = map(acw0_sample) do x
+                if isfinite(x) 
+                    clamp(floor(Int, x), 1, n_time) 
+                else 
+                    n_time
+                end
+            end
+
+            auc_result = acw_romberg(dt, acf, cutoffs; dims=dims, parallel=parallel)
+
             if (auc_result isa Vector) && (length(auc_result) == 1)
                 result[auc_idx] = auc_result[1]
             else

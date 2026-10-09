@@ -307,10 +307,12 @@ using Random
             result = acw(data_2d, fs, acwtypes=:auc, dims=2).acw_results
             result_parallel = acw(data_2d, fs, acwtypes=:auc, dims=2,
                                   parallel=true).acw_results
+            result_by_trial = [acw(data_2d[i, :], fs, acwtypes=:auc).acw_results for i in 1:num_trials]
             @test length(result) == num_trials
             @test length(result_parallel) == num_trials
             @test all(x -> x > 0, result)  # All AUCs should be positive
             @test all(isapprox.(result, result_parallel))
+            @test all(isapprox.(result, result_by_trial))
         end
 
         @testset "AUC with missing data" begin

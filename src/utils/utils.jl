@@ -359,6 +359,23 @@ function acw_romberg(dt::Real, acf::AbstractArray{S};
     end
 end
 
+function acw_romberg(dt::Real, acf::AbstractArray{S}, cutoffs::AbstractVector{<:Integer};
+                     dims::Int=ndims(acf), parallel::Bool=false) where {S <: Real}
+    slices = collect.(get_slices(acf, dims=dims))
+
+    length(cutoffs) == length(slices) ||
+        throw(DimensionMismatch("expected $(length(slices)) cutoffs, got $(length(cutoffs))"))
+
+    f = (s, n) -> acw_romberg(dt, vec(s)[1:n])
+
+    # uses cutoffs to implement trial-wise integration windows
+    if parallel
+        return tmap(f, slices, cutoffs) 
+    else 
+        return map(f, slices, cutoffs)
+    end
+end
+
 """
     lorentzian(f, u)
 
