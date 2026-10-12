@@ -116,7 +116,7 @@ function comp_psd(x::AbstractArray{T}, fs::Real;
                   noverlap=div(n, 2), parallel::Bool=false) where {T <: Real}
     # Create a wrapper function that only returns power
     f = x -> begin
-        power, _ = comp_psd(vec(x), fs, method=method, window=window, n=n,
+        local power, _ = comp_psd(vec(x), fs, method=method, window=window, n=n,
                             noverlap=noverlap)
         return power
     end
